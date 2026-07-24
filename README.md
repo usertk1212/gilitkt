@@ -1,29 +1,183 @@
 
-  # GILI (Yoj)
+#GILI
 
-Asset Dashboard
-• Browse assets by category: All Assets, Spot Illus, Micro Illustration, Icons, Projects
-• Search across asset name, filename, and type
-• Sort by Most Recent (default), Alphabetical, or By Type
-• Grid or list view, with adjustable card size (4–10 columns)
-• Create projects and add/remove assets to organize them into collections
-• Click any asset to open a detail panel: preview image, name, type, tags, Lightroom URL (copy button), Add to Project
-• Loading state shows a spinner while fetching from the database instead of a blank/empty screen
-• Dark mode toggle (persists across sessions, follows system preference on first load)
-• Collapsible sidebar (icon-only or full labels), with the active section highlighted
+An asset management dashboard for organizing, searching, and managing illustration assets.
 
-Admin Menu (password-protected)
-• Password gate to keep casual users out (default password set at setup, changeable — not real security, since it's a client-side app)
-• Upload Asset — bulk import via CSV (3-column format: filename, Lightroom URL, category; category auto-detected from filename prefix if omitted), with a downloadable template
-• CSV Viewer & Import — open a local CSV file, preview it in a paginated table (100 rows/page, jump to any page), then choose any row range to import without processing the whole file — useful for large exports (thousands of rows) from other tools
-• Manage Asset — edit or delete existing assets
-• Analytics — total asset count, plus a breakdown by type (Spot/Micro/Icon/Other) and distribution percentages
-• Export CSV — download every asset currently in the database as a CSV file
-• Hard Reset Database — wipes all assets permanently; requires both the admin password and typing a confirmation phrase, to prevent accidental deletion
-• Settings — change the admin password
-• Behind the scenes
+---
 
-Backend: Appwrite Cloud (Frankfurt region)
-• Client-side caching (5-minute TTL) so reopening the app doesn't re-fetch everything each time; a manual refresh bypasses the cache
-• Bulk imports are rate-limited and safe to retry — already-imported rows are automatically skipped, so a partially-failed import can just be re-run
-• Deployed via Vercel, auto-deploys from the GitHub repo on push
+# ✨ Features
+
+## 📂 Asset Dashboard
+
+- Browse assets by category:
+  - All Assets
+  - Spot Illustrations
+  - Micro Illustrations
+  - Icons
+  - Projects
+
+- Search across:
+  - Asset name
+  - Filename
+  - Asset type
+
+- Sort assets by:
+  - Most Recent (default)
+  - Alphabetical
+  - Type
+
+- Display options:
+  - Grid view
+  - List view
+  - Adjustable card size (4–10 columns)
+
+- Project management:
+  - Create projects
+  - Add assets to projects
+  - Remove assets from projects
+
+- Asset detail panel:
+  - Preview image
+  - Asset name
+  - Type
+  - Tags
+  - Lightroom URL
+  - Copy URL button
+  - Add to Project action
+
+- Loading state:
+  - Spinner displayed while fetching data
+
+- Theme:
+  - Dark mode
+  - Persists across sessions
+  - Uses system preference on first visit
+
+- Navigation:
+  - Collapsible sidebar
+  - Icon-only or expanded mode
+  - Active section highlighting
+
+---
+
+## 🔒 Admin Panel
+
+> Password protected (client-side only).
+
+### Authentication
+
+- Password gate
+- Default password configurable
+- Password can be changed from Settings
+
+---
+
+### Upload Assets
+
+- Bulk CSV import
+- Supports 3-column CSV:
+
+| Filename | Lightroom URL | Category |
+|----------|---------------|----------|
+
+- Category automatically detected from filename prefix if omitted
+- Downloadable CSV template included
+
+---
+
+### CSV Viewer & Import
+
+Designed for handling very large CSV exports.
+
+Features:
+
+- Open local CSV files
+- Preview before importing
+- Paginated table (100 rows/page)
+- Jump to any page
+- Import only selected row ranges
+- No need to process the entire CSV
+
+---
+
+### Manage Assets
+
+- Edit asset information
+- Delete assets
+
+---
+
+### Analytics
+
+Dashboard includes:
+
+- Total asset count
+- Asset breakdown by type:
+  - Spot
+  - Micro
+  - Icon
+  - Other
+- Distribution percentages
+
+---
+
+### Export
+
+- Export the entire asset database to CSV
+
+---
+
+### Hard Reset Database
+
+Permanently deletes every asset.
+
+Safety requirements:
+
+- Admin password
+- Confirmation phrase
+
+---
+
+### Settings
+
+- Change admin password
+
+---
+
+# ⚙️ Technical Details
+
+### Backend
+
+- Appwrite Cloud
+- Region: Frankfurt
+
+### Caching
+
+- Client-side cache
+- 5-minute TTL
+- Manual refresh bypasses cache
+
+### Bulk Import
+
+- Rate-limited
+- Safe to retry
+- Already-imported rows automatically skipped
+
+### Deployment
+
+- Hosted on Vercel
+- Automatic deployment from GitHub on every push
+
+---
+
+# 🛠 Tech Stack
+
+- React
+- Appwrite
+- Vercel
+
+---
+
+# 📦 Deployment
+
+The application is automatically deployed through Vercel whenever changes are pushed to the GitHub repository.
