@@ -246,14 +246,14 @@ export function AssetCard({
   if (viewMode === "list") {
     return (
       <Card 
-        className={`bg-white hover:bg-accent/50 transition-all duration-200 cursor-pointer shadow-sm border border-gray-100 hover:shadow-md ${
+        className={`bg-card hover:bg-accent/50 transition-all duration-200 cursor-pointer shadow-sm border border-border hover:shadow-md ${
           isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
         }`}
         onClick={() => onSelect?.(asset)}
       >
         <CardContent className="p-4">
           <div className="flex items-center gap-4">
-            <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-50">
+            <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
               <ImageWithFallback
                 src={asset.url_lightroom}
                 alt={asset.asset_name}
@@ -269,18 +269,18 @@ export function AssetCard({
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1">
-                  <h4 className="truncate text-lg font-medium text-[#303135]">
+                  <h4 className="truncate text-lg font-medium text-foreground">
                     {asset.asset_name}
                   </h4>
-                  <p className="text-sm mt-1 text-[#71747d] overflow-x-auto whitespace-nowrap scrollbar-thin">
+                  <p className="text-sm mt-1 text-muted-foreground overflow-x-auto whitespace-nowrap scrollbar-thin">
                     {asset.nama_file}
                   </p>
 
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg mt-3 max-w-md">
+                  <div className="bg-muted border border-border rounded-lg mt-3 max-w-md">
                     <div className="flex items-center px-3 py-2 gap-3">
                       <a
                         href={asset.url_lightroom}
-                        className="flex-1 text-sm text-gray-600 truncate hover:text-blue-600 transition-colors underline"
+                        className="flex-1 text-sm text-muted-foreground truncate hover:text-blue-600 transition-colors underline"
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
@@ -309,7 +309,7 @@ export function AssetCard({
                           <Badge
                             key={index}
                             variant="secondary"
-                            className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full cursor-pointer hover:bg-gray-200 transition-colors flex-shrink-0"
+                            className="bg-muted text-muted-foreground text-xs px-2 py-1 rounded-full cursor-pointer hover:bg-accent transition-colors flex-shrink-0"
                             onClick={(e) => {
                               e.stopPropagation();
                               onTagClick?.(tag);
@@ -370,7 +370,7 @@ export function AssetCard({
   // Grid view - responsive based on card size
   return (
     <Card
-      className={`bg-white rounded-2xl shadow-sm group cursor-pointer transition-all duration-200 hover:shadow-lg overflow-hidden border border-gray-100 ${
+      className={`bg-card rounded-2xl shadow-sm group cursor-pointer transition-all duration-200 hover:shadow-lg overflow-hidden border border-border ${
         isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
       }`}
       onMouseEnter={() => setIsHovered(true)}
@@ -379,7 +379,7 @@ export function AssetCard({
     >
       <CardContent className="p-0">
         {/* Image Container */}
-        <div className="relative overflow-hidden aspect-[4/3] bg-gray-50">
+        <div className="relative overflow-hidden aspect-[4/3] bg-muted">
           {asset.type === 'Micro' ? (
             <div className="w-full h-full flex items-center justify-center p-4">
               <div className="aspect-square w-full max-w-[75%] flex items-center justify-center">
@@ -450,21 +450,21 @@ export function AssetCard({
         {/* Content - responsive padding */}
         <div className={isSmallCard ? "p-2" : isMediumCard ? "p-3" : "p-4"}>
           {/* Title - responsive font size */}
-          <h4 className={`font-medium text-gray-900 mb-1 overflow-x-auto whitespace-nowrap scrollbar-thin ${
+          <h4 className={`font-medium text-foreground mb-1 overflow-x-auto whitespace-nowrap scrollbar-thin ${
             isSmallCard ? 'text-sm' : 'text-base'
           }`} title={asset.asset_name}>
             {asset.asset_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
           </h4>
-          
+
           {/* Filename - responsive font size with horizontal scroll */}
-          <p className={`text-gray-500 overflow-x-auto whitespace-nowrap scrollbar-thin ${
+          <p className={`text-muted-foreground overflow-x-auto whitespace-nowrap scrollbar-thin ${
             isSmallCard ? 'text-xs mb-2' : 'text-sm mb-3'
           }`} title={asset.nama_file}>
             {asset.nama_file}
           </p>
-          
+
           {/* URL with copy button - responsive sizing */}
-          <div className={`bg-gray-50 border border-gray-200 rounded-lg ${
+          <div className={`bg-muted border border-border rounded-lg ${
             isSmallCard ? 'mb-2' : 'mb-3'
           }`}>
             <div className={`flex items-center gap-2 ${
@@ -474,7 +474,7 @@ export function AssetCard({
                 type="text"
                 value={asset.url_lightroom}
                 readOnly
-                className={`flex-1 text-gray-600 bg-transparent border-none outline-none cursor-pointer ${
+                className={`flex-1 text-muted-foreground bg-transparent border-none outline-none cursor-pointer ${
                   isSmallCard ? 'text-xs' : 'text-sm'
                 }`}
                 onClick={(e) => {
@@ -515,7 +515,7 @@ export function AssetCard({
                   <Badge
                     key={index}
                     variant="secondary"
-                    className={`bg-gray-100 text-gray-700 rounded-full cursor-pointer hover:bg-gray-200 transition-colors flex-shrink-0 ${
+                    className={`bg-muted text-muted-foreground rounded-full cursor-pointer hover:bg-accent transition-colors flex-shrink-0 ${
                       isSmallCard ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-1'
                     }`}
                     onClick={(e) => {

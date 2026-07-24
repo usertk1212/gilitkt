@@ -8,9 +8,9 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from ".
 import { FileText, Upload, CheckCircle, AlertCircle, Database, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Eye } from "lucide-react";
 import { parseCSV, ParsedAsset } from "../utils/csvParser";
 import { bulkCreateAssets } from "../utils/appwriteApi";
+import { toast } from "sonner";
 
 const VIEW_PAGE_SIZE = 100;
-const MAX_IMPORT_ROWS = 200;
 
 export function CsvViewer() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -19,8 +19,11 @@ export function CsvViewer() {
   const [viewPage, setViewPage] = useState(1);
   const [jumpToPageInput, setJumpToPageInput] = useState("");
 
-  const [fromRow, setFromRow] = useState(1);
-  const [toRow, setToRow] = useState(1);
+  // Kept as raw text (not number) so the field can be cleared and retyped
+  // freely — coercing to a number on every keystroke made it snap back to 1
+  // the instant the digit was deleted.
+  const [fromRowInput, setFromRowInput] = useState("1");
+  const [toRowInput, setToRowInput] = useState("");
 
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
@@ -58,8 +61,8 @@ export function CsvViewer() {
     setParsedAssets(assets);
     setParseErrors(errors);
     setViewPage(1);
-    setFromRow(assets.length > 0 ? 1 : 0);
-    setToRow(Math.min(assets.length, VIEW_PAGE_SIZE));
+    setFromRowInput(assets.length > 0 ? "1" : "");
+    setToRowInput(assets.length > 0 ? String(Math.min(assets.length, VIEW_PAGE_SIZE)) : "");
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,14 +83,30 @@ export function CsvViewer() {
     setJumpToPageInput("");
   };
 
-  const clampedFrom = Math.max(1, Math.min(fromRow, total || 1));
-  const maxToForRange = Math.min(total || 1, clampedFrom + MAX_IMPORT_ROWS - 1);
-  const clampedTo = Math.max(clampedFrom, Math.min(toRow, maxToForRange));
-  const selectedCount = total > 0 ? clampedTo - clampedFrom + 1 : 0;
-  const rangeExceedsMax = toRow > maxToForRange;
+  // Parse the raw text inputs — no cap on range size, any size can be imported.
+  const fromRowNum = parseInt(fromRowInput, 10);
+  const toRowNum = parseInt(toRowInput, 10);
+  const hasValidFrom = !isNaN(fromRowNum) && fromRowNum > 0;
+  const hasValidTo = !isNaN(toRowNum) && toRowNum > 0;
+
+  const clampedFrom = hasValidFrom ? Math.max(1, Math.min(fromRowNum, total || 1)) : NaN;
+  const clampedTo = hasValidTo
+    ? Math.max(hasValidFrom ? clampedFrom : 1, Math.min(toRowNum, total || 1))
+    : NaN;
+  const selectedCount =
+    total > 0 && hasValidFrom && hasValidTo && clampedTo >= clampedFrom
+      ? clampedTo - clampedFrom + 1
+      : 0;
 
   const handleImportSelected = async () => {
-    if (total === 0 || selectedCount === 0) return;
+    if (total === 0) return;
+
+    if (selectedCount === 0) {
+      toast.error("Rentang baris gak valid", {
+        description: "Isi 'dari baris' dan 'sampai baris' dengan angka yang valid dulu (gak boleh 0 atau kosong)."
+      });
+      return;
+    }
 
     const slice = parsedAssets.slice(clampedFrom - 1, clampedTo);
 
@@ -276,7 +295,7 @@ export function CsvViewer() {
               </CardTitle>
               <CardDescription>
                 Masukin dari baris ke berapa sampai ke berapa (1 sampai {total}) yang mau kamu import sekarang.
-                Maksimal {MAX_IMPORT_ROWS} baris per proses import.
+                Gak ada batas jumlah baris — bisa import sebanyak apapun sekaligus.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -287,8 +306,8 @@ export function CsvViewer() {
                     type="number"
                     min={1}
                     max={total}
-                    value={fromRow}
-                    onChange={(e) => setFromRow(parseInt(e.target.value, 10) || 1)}
+                    value={fromRowInput}
+                    onChange={(e) => setFromRowInput(e.target.value)}
                   />
                 </div>
                 <div className="flex-1">
@@ -297,30 +316,26 @@ export function CsvViewer() {
                     type="number"
                     min={1}
                     max={total}
-                    value={toRow}
-                    onChange={(e) => setToRow(parseInt(e.target.value, 10) || 1)}
+                    value={toRowInput}
+                    onChange={(e) => setToRowInput(e.target.value)}
                   />
                 </div>
               </div>
 
               <p className="text-sm">
-                <strong>{selectedCount}</strong> baris dipilih (baris {clampedFrom}-{clampedTo}).
+                {selectedCount > 0 ? (
+                  <>
+                    <strong>{selectedCount}</strong> baris dipilih (baris {clampedFrom}-{clampedTo}).
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">Isi rentang baris yang valid dulu (gak boleh 0 atau kosong).</span>
+                )}
               </p>
 
-              {rangeExceedsMax && (
-                <Alert className="border-amber-500 bg-amber-50 dark:bg-amber-950">
-                  <AlertCircle className="h-4 w-4 text-amber-600" />
-                  <AlertDescription className="text-amber-700 dark:text-amber-400">
-                    Maksimal import adalah {MAX_IMPORT_ROWS} baris sekaligus. Baris "sampai" otomatis dibatasi
-                    ke {maxToForRange} (dari {toRow} yang kamu masukin).
-                  </AlertDescription>
-                </Alert>
-              )}
-
               {!isImporting && importStatus !== "success" && (
-                <Button className="w-full" size="lg" onClick={handleImportSelected} disabled={selectedCount === 0}>
+                <Button className="w-full" size="lg" onClick={handleImportSelected} disabled={total === 0}>
                   <Upload className="w-4 h-4 mr-2" />
-                  Import {selectedCount} Baris Terpilih
+                  {selectedCount > 0 ? `Import ${selectedCount} Baris Terpilih` : "Import Baris Terpilih"}
                 </Button>
               )}
 

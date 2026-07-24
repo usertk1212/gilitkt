@@ -86,9 +86,9 @@ export function SharedSidebar({
 
   const adminItems: SidebarNavItem[] = [
     { key: "upload", title: "Upload Asset", icon: Upload },
+    { key: "csv-viewer", title: "CSV Viewer", icon: Eye },
     { key: "manage", title: "Manage Asset", icon: Settings },
     { key: "analytics", title: "Analytics", icon: BarChart3 },
-    { key: "csv-viewer", title: "CSV Viewer", icon: Eye },
     { key: "export", title: "Export CSV", icon: Download },
   ];
 
