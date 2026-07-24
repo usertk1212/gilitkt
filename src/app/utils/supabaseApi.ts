@@ -175,12 +175,46 @@ export async function deleteAsset(nama_file: string): Promise<ApiResponse<Asset>
   }
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // Bulk create assets (filename-based keys)
+//
+// Rewritten to avoid hammering Appwrite Cloud's rate limit: the old version made
+// TWO API calls per row (a listDocuments duplicate-check + a createDocument), all
+// fired back-to-back with no pacing — for a few thousand rows that's thousands of
+// rapid sequential requests, which is what was causing imports to stall partway
+// and throw "Failed to fetch" elsewhere in the app.
+//
+// This version fetches existing filenames ONCE up front (so re-running an import
+// that partially succeeded skips already-created rows with zero extra API calls),
+// then creates only the missing ones directly (skipping the redundant per-row
+// duplicate check), with a small delay between requests to stay well under
+// Appwrite's rate limit.
 export async function bulkCreateAssets(assets: Omit<Asset, 'created_at' | 'updated_at'>[]): Promise<ApiResponse<Asset[]>> {
   console.log(`📦 Bulk creating ${assets.length} assets with filename keys...`);
   const created: Asset[] = [];
   const errors: string[] = [];
   const seenFilenames = new Set<string>();
+
+  // Fetch every existing nama_file once, paginating like getAllAssets() does.
+  const existingFilenames = new Set<string>();
+  try {
+    let cursor: string | undefined;
+    while (true) {
+      const queries = [Query.limit(100)];
+      if (cursor) queries.push(Query.cursorAfter(cursor));
+      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, queries);
+      res.documents.forEach((doc: any) => existingFilenames.add(doc.nama_file));
+      if (res.documents.length < 100) break;
+      cursor = res.documents[res.documents.length - 1].$id;
+      await sleep(50);
+    }
+  } catch (error) {
+    return { success: false, error: `Failed to check existing assets before import: ${errorMessage(error)}` };
+  }
+  console.log(`📋 Found ${existingFilenames.size} assets already in the database — these will be skipped.`);
+
+  const DELAY_MS = 80; // pace requests to stay under Appwrite Cloud's rate limit
 
   for (const asset of assets) {
     const filename = asset.nama_file?.trim();
@@ -194,15 +228,30 @@ export async function bulkCreateAssets(assets: Omit<Asset, 'created_at' | 'updat
     }
     seenFilenames.add(filename);
 
-    const result = await createAsset({ ...asset, nama_file: filename });
-    if (result.success && result.data) {
-      created.push(result.data);
-    } else {
-      errors.push(result.error || `Failed to create: ${filename}`);
+    if (existingFilenames.has(filename)) {
+      // Already imported in a previous run — skip, no API call needed.
+      continue;
     }
+
+    try {
+      const now = new Date().toISOString();
+      const doc = await databases.createDocument(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, ID.unique(), {
+        nama_file: filename,
+        asset_name: asset.asset_name,
+        url_lightroom: asset.url_lightroom,
+        type: asset.type,
+        created_at: now,
+        updated_at: now,
+      });
+      created.push(toAsset(doc));
+    } catch (error) {
+      errors.push(`Failed to create: ${filename} — ${errorMessage(error)}`);
+    }
+
+    await sleep(DELAY_MS);
   }
 
-  if (created.length === 0) {
+  if (created.length === 0 && existingFilenames.size === 0) {
     return { success: false, error: 'No valid assets found in the provided data', errors };
   }
 
@@ -211,7 +260,7 @@ export async function bulkCreateAssets(assets: Omit<Asset, 'created_at' | 'updat
     data: created,
     count: created.length,
     errors: errors.length > 0 ? errors : undefined,
-    message: `Successfully created ${created.length} assets`,
+    message: `Successfully created ${created.length} new assets (${existingFilenames.size} already existed and were skipped)`,
   };
 }
 
