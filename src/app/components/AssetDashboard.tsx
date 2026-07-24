@@ -50,21 +50,23 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
   const [projects, setProjects] = useState<Project[]>([]);
   const [assetToOrganize, setAssetToOrganize] = useState<Asset | null>(null);
 
-  // Load assets from the Appwrite database
-  const loadAssets = async (showLoading = true) => {
+  // Load assets from the Appwrite database. Serves from a short-lived local cache
+  // by default (see getAllAssets) so opening/reopening the app feels instant instead
+  // of re-fetching everything every time. Pass forceRefresh=true to bypass it.
+  const loadAssets = async (showLoading = true, forceRefresh = false) => {
     try {
       if (showLoading) {
         setLoading(true);
       }
       setError(null);
-      
+
       console.log('🚀 Loading assets from the Appwrite database...');
-      
+
       // Initialize system first
       await initializeAssetSystem();
-      
+
       // Get all assets
-      const response = await getAllAssets();
+      const response = await getAllAssets({ forceRefresh });
       
       if (!response.success) {
         throw new Error(response.error || 'Failed to load assets');
@@ -177,7 +179,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
   }, []);
 
   const handleRefresh = () => {
-    loadAssets();
+    loadAssets(true, true); // force-bypass the cache — user explicitly asked for fresh data
   };
 
   const handleSelectAsset = (asset: Asset) => {

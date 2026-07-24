@@ -68,9 +68,54 @@ export async function initializeAssetSystem(): Promise<ApiResponse<any>> {
   }
 }
 
-// Get all assets
-export async function getAllAssets(): Promise<ApiResponse<Asset[]>> {
-  console.log('📋 Fetching all assets...');
+// --- Local cache for the full asset list ---
+// Every load of the app used to re-fetch ALL documents from Appwrite (dozens of
+// paginated requests for a few thousand rows), even when nothing had changed —
+// slow and wasteful on bandwidth. This caches the result in localStorage for a
+// few minutes so opening/reopening the app feels instant, while still fetching
+// fresh data automatically once the cache goes stale, or immediately after any
+// write (create/update/delete/import) so you never see outdated data.
+const ASSETS_CACHE_KEY = 'gili_assets_cache_v1';
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function readAssetsCache(): { data: Asset[]; timestamp: number } | null {
+  try {
+    const raw = localStorage.getItem(ASSETS_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeAssetsCache(data: Asset[]) {
+  try {
+    localStorage.setItem(ASSETS_CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+  } catch {
+    // localStorage full/unavailable — skip caching silently, app still works, just slower.
+  }
+}
+
+// Call after any write so stale cached data never lingers.
+export function invalidateAssetsCache() {
+  try {
+    localStorage.removeItem(ASSETS_CACHE_KEY);
+  } catch {
+    // no-op
+  }
+}
+
+// Get all assets. Pass { forceRefresh: true } (e.g. from a manual "Refresh" button)
+// to skip the cache and hit Appwrite directly.
+export async function getAllAssets(options?: { forceRefresh?: boolean }): Promise<ApiResponse<Asset[]>> {
+  if (!options?.forceRefresh) {
+    const cached = readAssetsCache();
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      console.log(`📦 Using cached assets (${cached.data.length}) — no request sent to Appwrite.`);
+      return { success: true, data: cached.data, count: cached.data.length };
+    }
+  }
+
+  console.log('📋 Fetching all assets from Appwrite...');
   try {
     const assets: Asset[] = [];
     let cursor: string | undefined;
@@ -87,6 +132,7 @@ export async function getAllAssets(): Promise<ApiResponse<Asset[]>> {
       cursor = res.documents[res.documents.length - 1].$id;
     }
 
+    writeAssetsCache(assets);
     return { success: true, data: assets, count: assets.length };
   } catch (error) {
     console.error('🚨 Failed to fetch assets:', error);
@@ -126,6 +172,7 @@ export async function createAsset(asset: Omit<Asset, 'created_at' | 'updated_at'
       type: asset.type,
     });
 
+    invalidateAssetsCache();
     return { success: true, data: toAsset(doc), message: 'Asset created successfully' };
   } catch (error) {
     console.error('🚨 Failed to create asset:', error);
@@ -149,6 +196,7 @@ export async function updateAsset(nama_file: string, asset: Omit<Asset, 'nama_fi
       type: asset.type,
     });
 
+    invalidateAssetsCache();
     return { success: true, data: toAsset(doc), message: 'Asset updated successfully' };
   } catch (error) {
     console.error('🚨 Failed to update asset:', error);
@@ -166,6 +214,7 @@ export async function deleteAsset(nama_file: string): Promise<ApiResponse<Asset>
     }
 
     await databases.deleteDocument(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, existing.$id);
+    invalidateAssetsCache();
     return { success: true, data: toAsset(existing), message: 'Asset deleted successfully' };
   } catch (error) {
     console.error('🚨 Failed to delete asset:', error);
@@ -264,6 +313,10 @@ export async function bulkCreateAssets(
 
   if (created.length === 0 && existingFilenames.size === 0) {
     return { success: false, error: 'No valid assets found in the provided data', errors };
+  }
+
+  if (created.length > 0) {
+    invalidateAssetsCache();
   }
 
   return {

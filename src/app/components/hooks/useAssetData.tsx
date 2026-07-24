@@ -10,21 +10,24 @@ export function useAssetData() {
   const [dataSource, setDataSource] = useState<string>('loading');
   const [isExporting, setIsExporting] = useState(false);
 
-  // Load assets from the Appwrite database
-  const loadAssets = async (showLoading = true) => {
+  // Load assets from the Appwrite database. By default this serves from a short-lived
+  // local cache when available (see getAllAssets), so opening/reopening the app doesn't
+  // re-fetch everything every time. Pass forceRefresh=true (e.g. from a manual refresh
+  // button) to bypass the cache and hit Appwrite directly.
+  const loadAssets = async (showLoading = true, forceRefresh = false) => {
     try {
       if (showLoading) {
         setLoading(true);
       }
       setError(null);
-      
+
       console.log('🚀 Loading assets from the Appwrite database...');
-      
+
       // Initialize system first
       await initializeAssetSystem();
-      
+
       // Get all assets
-      const response = await getAllAssets();
+      const response = await getAllAssets({ forceRefresh });
       
       if (!response.success) {
         throw new Error(response.error || 'Failed to load assets');
@@ -100,7 +103,7 @@ export function useAssetData() {
   };
 
   const handleRefresh = () => {
-    loadAssets();
+    loadAssets(true, true); // force-bypass the cache — user explicitly asked for fresh data
   };
 
   // Load assets on mount
