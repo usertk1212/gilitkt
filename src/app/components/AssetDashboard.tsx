@@ -32,6 +32,11 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
   
   // UI state
   const [searchQuery, setSearchQuery] = useState("");
+  // The input itself stays bound to searchQuery for instant typing feedback;
+  // the actual filtering (over the whole, potentially thousands-strong asset
+  // list) only reacts to this debounced value, so typing doesn't re-filter
+  // and re-sort on every single keystroke.
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortBy, setSortBy] = useState<SortOption>("recent");
   const [cardSize, setCardSize] = useState<number[]>([5]); // 5 columns by default
@@ -171,6 +176,12 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
     loadAssets();
   }, []);
 
+  // Debounce the search query before it drives any filtering.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   // Show a brief "done!" checkmark the first time loading finishes, then let
   // the normal grid take over. Only fires once (not on every silent refresh).
   useEffect(() => {
@@ -207,11 +218,14 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
   };
 
   const handleTagClick = (tag: string) => {
+    // Discrete action (not typing) — apply immediately, don't wait for the debounce.
     setSearchQuery(tag);
+    setDebouncedSearchQuery(tag);
   };
 
   const handleClearSearch = () => {
     setSearchQuery("");
+    setDebouncedSearchQuery("");
   };
 
   // Navigation handlers
@@ -558,7 +572,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
                   {/* Asset Grid */}
                   <AssetGrid
                     category={currentView === "project-detail" ? "Project" : selectedCategory}
-                    searchQuery={searchQuery}
+                    searchQuery={debouncedSearchQuery}
                     viewMode={viewMode}
                     sortBy={sortBy}
                     loading={loading}

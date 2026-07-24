@@ -1,13 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { AssetCard } from "./AssetCard";
 import { filterAssetsByCategory, searchAssets, Asset } from "../utils/appwriteApi";
 import { type Project } from "./ProjectManager";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import { Separator } from "./ui/separator";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 export type SortOption = "recent" | "alphabetical" | "type";
+
+const PAGE_SIZE = 100;
 
 interface AssetGridProps {
   category: string;
@@ -49,9 +52,14 @@ export function AssetGrid({
   justFinishedLoading = false
 }: AssetGridProps) {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
+  const [jumpToPageInput, setJumpToPageInput] = useState("");
 
-  // Filter assets based on category and search query
-  const filteredAssets = (() => {
+  // Filter + sort assets based on category, search query, and sort option.
+  // Memoized so this (potentially thousands-of-rows) computation only reruns
+  // when something it actually depends on changes — not on every render
+  // (e.g. hovering a card, opening a dropdown elsewhere on the page).
+  const filteredAssets = useMemo(() => {
     let filtered = assets;
 
     // Apply search filter
@@ -83,7 +91,32 @@ export function AssetGrid({
     });
 
     return filtered;
-  })();
+  }, [assets, searchQuery, category, favorites, sortBy]);
+
+  // Reset to page 1 whenever the underlying filtered set changes basis —
+  // otherwise you could land on a page that no longer exists.
+  useEffect(() => {
+    setPage(1);
+  }, [category, searchQuery, sortBy]);
+
+  const totalAssetPages = Math.max(1, Math.ceil(filteredAssets.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalAssetPages);
+  const pagedAssets = useMemo(
+    () => filteredAssets.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filteredAssets, safePage]
+  );
+
+  const goToAssetPage = (target: number) => {
+    setPage(Math.max(1, Math.min(totalAssetPages, target)));
+  };
+
+  const handleJumpToAssetPage = () => {
+    const parsed = parseInt(jumpToPageInput, 10);
+    if (!isNaN(parsed)) {
+      goToAssetPage(parsed);
+    }
+    setJumpToPageInput("");
+  };
 
   const toggleFavorite = (nama_file: string) => {
     setFavorites(prev => {
@@ -332,32 +365,98 @@ export function AssetGrid({
     );
   }
 
-  // Regular grid view for non-project categories
+  // Regular grid view for non-project categories — paginated so a huge
+  // category (thousands of assets) doesn't mount every card at once.
   return (
-    <div className={
-      (viewMode === "grid"
-        ? getGridClasses()
-        : "space-y-2") + " animate-in fade-in duration-300"
-    }>
-      {filteredAssets.map(asset => (
-        <AssetCard
-          key={asset.id}
-          asset={asset}
-          viewMode={viewMode}
-          isFavorite={favorites.has(asset.nama_file)}
-          isSelected={selectedAsset?.nama_file === asset.nama_file}
-          onToggleFavorite={toggleFavorite}
-          onSelect={onSelectAsset}
-          onTagClick={onTagClick}
-          onAssetOrganize={onAssetOrganize}
-          projects={projects}
-          onUpdateProjects={onUpdateProjects}
-          onCreateNewProject={onCreateNewProject}
-          isInProject={false}
-          currentProject={undefined}
-          gridColumns={gridColumns}
-        />
-      ))}
+    <div className="space-y-4">
+      <div className={
+        (viewMode === "grid"
+          ? getGridClasses()
+          : "space-y-2") + " animate-in fade-in duration-300"
+      }>
+        {pagedAssets.map(asset => (
+          <AssetCard
+            key={asset.id}
+            asset={asset}
+            viewMode={viewMode}
+            isFavorite={favorites.has(asset.nama_file)}
+            isSelected={selectedAsset?.nama_file === asset.nama_file}
+            onToggleFavorite={toggleFavorite}
+            onSelect={onSelectAsset}
+            onTagClick={onTagClick}
+            onAssetOrganize={onAssetOrganize}
+            projects={projects}
+            onUpdateProjects={onUpdateProjects}
+            onCreateNewProject={onCreateNewProject}
+            isInProject={false}
+            currentProject={undefined}
+            gridColumns={gridColumns}
+          />
+        ))}
+      </div>
+
+      {totalAssetPages > 1 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToAssetPage(1)}
+              disabled={safePage <= 1}
+              title="Halaman pertama"
+            >
+              <ChevronsLeft className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToAssetPage(safePage - 1)}
+              disabled={safePage <= 1}
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Sebelumnya
+            </Button>
+          </div>
+
+          <span className="text-sm text-muted-foreground">
+            Halaman {safePage} / {totalAssetPages} ({filteredAssets.length} asset)
+          </span>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToAssetPage(safePage + 1)}
+              disabled={safePage >= totalAssetPages}
+            >
+              Berikutnya
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToAssetPage(totalAssetPages)}
+              disabled={safePage >= totalAssetPages}
+              title="Halaman terakhir"
+            >
+              <ChevronsRight className="w-4 h-4" />
+            </Button>
+            <Input
+              type="number"
+              min={1}
+              max={totalAssetPages}
+              placeholder={`1-${totalAssetPages}`}
+              value={jumpToPageInput}
+              onChange={(e) => setJumpToPageInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleJumpToAssetPage()}
+              className="w-20 h-9"
+            />
+            <Button variant="outline" size="sm" onClick={handleJumpToAssetPage}>
+              Ke Halaman
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

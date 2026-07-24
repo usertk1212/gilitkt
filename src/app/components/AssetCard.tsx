@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -48,7 +48,7 @@ interface AssetCardProps {
   gridColumns?: number; // Add gridColumns prop
 }
 
-export function AssetCard({
+function AssetCardImpl({
   asset,
   viewMode,
   isFavorite,
@@ -544,3 +544,7 @@ export function AssetCard({
     </Card>
   );
 }
+
+// Memoized — with hundreds/thousands of cards on screen at once, this avoids
+// re-rendering every single card when something unrelated elsewhere changes.
+export const AssetCard = memo(AssetCardImpl);
