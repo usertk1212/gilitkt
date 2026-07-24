@@ -6,6 +6,8 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Separator } from "./ui/separator";
 
+export type SortOption = "recent" | "alphabetical" | "type";
+
 interface AssetGridProps {
   category: string;
   searchQuery: string;
@@ -21,23 +23,25 @@ interface AssetGridProps {
   currentProject?: Project; // Add current project context
   onNavigateToAllAssets?: () => void; // Add navigation callback
   gridColumns?: number; // Add grid columns prop
+  sortBy?: SortOption;
 }
 
-export function AssetGrid({ 
-  category, 
-  searchQuery, 
-  viewMode, 
-  assets, 
-  selectedAsset, 
-  onSelectAsset, 
-  onTagClick, 
+export function AssetGrid({
+  category,
+  searchQuery,
+  viewMode,
+  assets,
+  selectedAsset,
+  onSelectAsset,
+  onTagClick,
   onAssetOrganize,
   projects = [],
   onUpdateProjects,
   onCreateNewProject,
   currentProject,
   onNavigateToAllAssets,
-  gridColumns = 5
+  gridColumns = 5,
+  sortBy = "recent"
 }: AssetGridProps) {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
@@ -57,6 +61,21 @@ export function AssetGrid({
       filtered = filterAssetsByCategory(filtered, category);
     }
     // For "Project" category, we don't filter by type as we want to show all project assets
+
+    // Apply sort (based on real data — created_at comes from Appwrite's $createdAt)
+    filtered = [...filtered].sort((a, b) => {
+      if (sortBy === "alphabetical") {
+        return (a.asset_name || a.nama_file).localeCompare(b.asset_name || b.nama_file);
+      }
+      if (sortBy === "type") {
+        const typeCompare = (a.type || "").localeCompare(b.type || "");
+        return typeCompare !== 0 ? typeCompare : (a.asset_name || a.nama_file).localeCompare(b.asset_name || b.nama_file);
+      }
+      // "recent" (default): newest first
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bTime - aTime;
+    });
 
     return filtered;
   })();

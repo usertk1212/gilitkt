@@ -5,17 +5,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Progress } from "./ui/progress";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "./ui/table";
-import { FileText, Upload, CheckCircle, AlertCircle, Database, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import { FileText, Upload, CheckCircle, AlertCircle, Database, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Eye } from "lucide-react";
 import { parseCSV, ParsedAsset } from "../utils/csvParser";
 import { bulkCreateAssets } from "../utils/appwriteApi";
 
-const VIEW_PAGE_SIZE = 50;
+const VIEW_PAGE_SIZE = 100;
+const MAX_IMPORT_ROWS = 200;
 
 export function CsvViewer() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [parsedAssets, setParsedAssets] = useState<ParsedAsset[]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [viewPage, setViewPage] = useState(1);
+  const [jumpToPageInput, setJumpToPageInput] = useState("");
 
   const [fromRow, setFromRow] = useState(1);
   const [toRow, setToRow] = useState(1);
@@ -65,9 +67,24 @@ export function CsvViewer() {
     if (file) handleFile(file);
   };
 
+  const goToPage = (page: number) => {
+    const clamped = Math.max(1, Math.min(totalViewPages, page));
+    setViewPage(clamped);
+  };
+
+  const handleJumpToPage = () => {
+    const parsed = parseInt(jumpToPageInput, 10);
+    if (!isNaN(parsed)) {
+      goToPage(parsed);
+    }
+    setJumpToPageInput("");
+  };
+
   const clampedFrom = Math.max(1, Math.min(fromRow, total || 1));
-  const clampedTo = Math.max(clampedFrom, Math.min(toRow, total || 1));
+  const maxToForRange = Math.min(total || 1, clampedFrom + MAX_IMPORT_ROWS - 1);
+  const clampedTo = Math.max(clampedFrom, Math.min(toRow, maxToForRange));
   const selectedCount = total > 0 ? clampedTo - clampedFrom + 1 : 0;
+  const rangeExceedsMax = toRow > maxToForRange;
 
   const handleImportSelected = async () => {
     if (total === 0 || selectedCount === 0) return;
@@ -184,27 +201,68 @@ export function CsvViewer() {
                 </Table>
               </div>
 
-              <div className="flex items-center justify-between">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setViewPage((p) => Math.max(1, p - 1))}
-                  disabled={viewPage <= 1}
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Sebelumnya
-                </Button>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => goToPage(1)}
+                    disabled={viewPage <= 1}
+                    title="Halaman pertama"
+                  >
+                    <ChevronsLeft className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => goToPage(viewPage - 1)}
+                    disabled={viewPage <= 1}
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Sebelumnya
+                  </Button>
+                </div>
+
                 <span className="text-sm text-muted-foreground">
                   Halaman {viewPage} / {totalViewPages}
                 </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setViewPage((p) => Math.min(totalViewPages, p + 1))}
-                  disabled={viewPage >= totalViewPages}
-                >
-                  Berikutnya
-                  <ChevronRight className="w-4 h-4 ml-1" />
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => goToPage(viewPage + 1)}
+                    disabled={viewPage >= totalViewPages}
+                  >
+                    Berikutnya
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => goToPage(totalViewPages)}
+                    disabled={viewPage >= totalViewPages}
+                    title="Halaman terakhir"
+                  >
+                    <ChevronsRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 justify-end">
+                <label className="text-sm text-muted-foreground whitespace-nowrap">Lompat ke halaman</label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={totalViewPages}
+                  placeholder={`1-${totalViewPages}`}
+                  value={jumpToPageInput}
+                  onChange={(e) => setJumpToPageInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleJumpToPage()}
+                  className="w-24 h-9"
+                />
+                <Button variant="outline" size="sm" onClick={handleJumpToPage}>
+                  Ke Halaman
                 </Button>
               </div>
             </CardContent>
@@ -218,6 +276,7 @@ export function CsvViewer() {
               </CardTitle>
               <CardDescription>
                 Masukin dari baris ke berapa sampai ke berapa (1 sampai {total}) yang mau kamu import sekarang.
+                Maksimal {MAX_IMPORT_ROWS} baris per proses import.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -247,6 +306,16 @@ export function CsvViewer() {
               <p className="text-sm">
                 <strong>{selectedCount}</strong> baris dipilih (baris {clampedFrom}-{clampedTo}).
               </p>
+
+              {rangeExceedsMax && (
+                <Alert className="border-amber-500 bg-amber-50 dark:bg-amber-950">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-700 dark:text-amber-400">
+                    Maksimal import adalah {MAX_IMPORT_ROWS} baris sekaligus. Baris "sampai" otomatis dibatasi
+                    ke {maxToForRange} (dari {toRow} yang kamu masukin).
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {!isImporting && importStatus !== "success" && (
                 <Button className="w-full" size="lg" onClick={handleImportSelected} disabled={selectedCount === 0}>

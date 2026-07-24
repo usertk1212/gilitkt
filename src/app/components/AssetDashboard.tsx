@@ -2,15 +2,15 @@ import { useState, useEffect } from "react";
 import * as React from "react";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "./ui/sidebar";
 import { Breadcrumb, BreadcrumbEllipsis, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "./ui/breadcrumb";
-import { Search, Plus, Filter, Grid, List, Image, Palette, Sparkles, Layers, Upload, Folder, RefreshCw, Database, AlertCircle, Download, X, FolderOpen, ArrowLeft, Home, ChevronRight, SlidersHorizontal, Settings } from "lucide-react";
+import { Search, Plus, Grid, List, Image, Palette, Sparkles, Layers, Upload, Folder, RefreshCw, Database, AlertCircle, Download, X, FolderOpen, ArrowLeft, Home, ChevronRight, SlidersHorizontal, Settings, CalendarDays } from "lucide-react";
 import { Slider } from "./ui/slider";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Label } from "./ui/label";
-import { AssetGrid } from "./AssetGrid";
-import { AssetFilters } from "./AssetFilters";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { AssetGrid, type SortOption } from "./AssetGrid";
 import { AssetDetailPanel } from "./AssetDetailPanel";
 import { ProjectManager, type Project } from "./ProjectManager";
 import { AssetProjectModal } from "./AssetProjectModal";
@@ -33,7 +33,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
   // UI state
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>("recent");
   const [cardSize, setCardSize] = useState<number[]>([5]); // 5 columns by default
 
   
@@ -395,21 +395,18 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
               
               {/* Controls - Now positioned at the far right */}
               <div className="flex items-center gap-2 lg:gap-3 shrink-0 ml-auto">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="h-8 lg:h-10 text-xs lg:text-sm"
-                  style={showFilters ? {
-                    background: 'linear-gradient(to right, #5BAAFF, #0062F6)',
-                    color: 'white',
-                    borderColor: 'transparent'
-                  } : {}}
-                >
-                  <Filter className="w-3 lg:w-4 h-3 lg:h-4 mr-1 lg:mr-2" />
-                  <span className="hidden sm:inline">Filters</span>
-                </Button>
-                
+                <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                  <SelectTrigger className="h-8 lg:h-10 text-xs lg:text-sm w-auto gap-1 lg:gap-2">
+                    <CalendarDays className="w-3 lg:w-4 h-3 lg:h-4 shrink-0" />
+                    <span className="hidden sm:inline"><SelectValue /></span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="recent">Most Recent</SelectItem>
+                    <SelectItem value="alphabetical">Alphabetical</SelectItem>
+                    <SelectItem value="type">By Type</SelectItem>
+                  </SelectContent>
+                </Select>
+
                 {/* Card Size Slider - Only visible in grid view */}
                 {viewMode === "grid" && (
                   <div className="hidden lg:flex items-center gap-2 px-3 py-2 border rounded-lg bg-background">
@@ -541,18 +538,12 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
                     </Alert>
                   )}
 
-                  {/* Filters */}
-                  {showFilters && (
-                    <AssetFilters 
-                      onClose={() => setShowFilters(false)}
-                    />
-                  )}
-
                   {/* Asset Grid */}
                   <AssetGrid
                     category={currentView === "project-detail" ? "Project" : selectedCategory}
                     searchQuery={searchQuery}
                     viewMode={viewMode}
+                    sortBy={sortBy}
                     assets={getFilteredAssets()}
                     selectedAsset={selectedAsset}
                     onSelectAsset={handleSelectAsset}
