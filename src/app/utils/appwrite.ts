@@ -13,6 +13,11 @@ export const APPWRITE_DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID as
 // removes one env var you'd otherwise have to set correctly in Vercel.
 // If you ever recreate the table with a different ID, update this value.
 export const APPWRITE_ASSETS_COLLECTION_ID = 'assets';
+// Small table used only to store the admin-menu password (a single document).
+// Create it once in the Appwrite console: Table ID "settings", with String
+// columns "key" and "value". No need to insert any row manually — the app
+// creates the first row itself the first time the password is changed.
+export const APPWRITE_SETTINGS_COLLECTION_ID = 'settings';
 
 const client = new Client()
   .setEndpoint(APPWRITE_ENDPOINT)

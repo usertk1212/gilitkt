@@ -4,7 +4,9 @@ export const extractTags = (asset: Asset): string[] => {
   const tags: string[] = [];
   
   // Add name-based tags (simple extraction)
-  const nameWords = asset.asset_name.toLowerCase().split(" ");
+  // Guard against rows missing asset_name (e.g. added manually in the Appwrite
+  // console without filling every field) so one incomplete row doesn't crash the app.
+  const nameWords = (asset.asset_name || "").toLowerCase().split(" ");
   nameWords.forEach(word => {
     if (word.length > 2 && !tags.includes(word)) {
       tags.push(word.charAt(0).toUpperCase() + word.slice(1));

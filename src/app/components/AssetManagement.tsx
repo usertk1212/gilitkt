@@ -62,9 +62,9 @@ export function AssetManagement({ onNavigateBack }: AssetManagementProps) {
     // Filter by search query
     if (searchQuery.trim()) {
       filtered = filtered.filter(asset =>
-        asset.asset_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        asset.nama_file.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        asset.type.toLowerCase().includes(searchQuery.toLowerCase())
+        (asset.asset_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (asset.nama_file || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (asset.type || "").toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 

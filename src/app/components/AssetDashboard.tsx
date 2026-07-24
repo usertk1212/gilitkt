@@ -348,7 +348,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="flex h-screen w-full bg-background">
-        <SharedSidebar 
+        <SharedSidebar
           onNavigateToAssetManagement={onNavigateToAssetManagement}
           onCategoryClick={handleCategoryClick}
           assetCounts={assetCounts}
@@ -356,9 +356,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
           loading={loading}
           error={error}
           dataSource={dataSource}
-          isExporting={isExporting}
           handleRefresh={handleRefresh}
-          handleExportCSV={handleExportCSV}
         />
 
         <SidebarInset>

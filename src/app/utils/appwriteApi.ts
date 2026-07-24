@@ -1,6 +1,6 @@
 /* Data access layer for the "assets" table in Appwrite.
    See ./appwrite.ts for the client/config setup. */
-import { databases, ID, Query, APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID } from './appwrite';
+import { databases, ID, Query, APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, APPWRITE_SETTINGS_COLLECTION_ID } from './appwrite';
 
 export interface Asset {
   nama_file: string; // Logical primary key - filename (stored as an attribute; Appwrite keeps its own document $id internally)
@@ -327,10 +327,12 @@ export function searchAssets(assets: Asset[], query: string): Asset[] {
   if (!query.trim()) return assets;
   
   const lowercaseQuery = query.toLowerCase();
-  return assets.filter(asset => 
-    asset.asset_name.toLowerCase().includes(lowercaseQuery) ||
-    asset.nama_file.toLowerCase().includes(lowercaseQuery) ||
-    asset.type.toLowerCase().includes(lowercaseQuery)
+  // Guard each field against undefined (e.g. rows added manually in the Appwrite
+  // console without every field filled in) so search never crashes the app.
+  return assets.filter(asset =>
+    (asset.asset_name || "").toLowerCase().includes(lowercaseQuery) ||
+    (asset.nama_file || "").toLowerCase().includes(lowercaseQuery) ||
+    (asset.type || "").toLowerCase().includes(lowercaseQuery)
   );
 }
 
@@ -433,4 +435,45 @@ export function generateAssetNameFromFilename(nama_file: string): string {
     .replace(/^(tds_si_|tds_mi_|tds_ic_)/, '') // Remove prefixes
     .replace(/_/g, ' ') // Replace underscores with spaces
     .trim();
+}
+
+// --- Admin menu password ---
+// NOTE: this is a soft gate, not real security. The app is a static client-side
+// bundle (Vite/React) with no backend of its own — anyone who opens devtools can
+// read the network response containing the password, or just view the app's
+// source. It's meant to keep casual users from wandering into the admin menu,
+// not to protect genuinely sensitive data. Don't rely on it for anything more
+// than that.
+const DEFAULT_ADMIN_PASSWORD = 'gili1212';
+const ADMIN_PASSWORD_DOC_ID = 'admin_password'; // fixed custom $id, used as a simple key-value row
+
+export async function getAdminPassword(): Promise<string> {
+  try {
+    const doc = await databases.getDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, ADMIN_PASSWORD_DOC_ID);
+    return (doc as any).value || DEFAULT_ADMIN_PASSWORD;
+  } catch {
+    // Row (or even the table) doesn't exist yet — nobody has changed the
+    // password before, so the default is still in effect.
+    return DEFAULT_ADMIN_PASSWORD;
+  }
+}
+
+export async function setAdminPassword(newPassword: string): Promise<ApiResponse<null>> {
+  try {
+    try {
+      await databases.updateDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, ADMIN_PASSWORD_DOC_ID, {
+        key: 'admin_password',
+        value: newPassword,
+      });
+    } catch {
+      // Row doesn't exist yet — create it the first time the password is changed.
+      await databases.createDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, ADMIN_PASSWORD_DOC_ID, {
+        key: 'admin_password',
+        value: newPassword,
+      });
+    }
+    return { success: true, message: 'Password updated' };
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
 }

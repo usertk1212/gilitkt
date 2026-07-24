@@ -1,18 +1,16 @@
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter, SidebarHeader, useSidebar } from './ui/sidebar';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { 
-  Plus, 
-  Folder, 
-  FolderOpen, 
-  Palette, 
-  Sparkles, 
-  Layers, 
-  RefreshCw, 
-  Database, 
-  Download, 
-  ArrowLeft, 
-  Settings 
+import {
+  Plus,
+  Folder,
+  FolderOpen,
+  Palette,
+  Sparkles,
+  Layers,
+  Database,
+  ArrowLeft,
+  Settings
 } from 'lucide-react';
 import { GiliLogo } from './GiliLogo';
 import { Asset } from '../utils/appwriteApi';
@@ -26,24 +24,20 @@ interface SharedSidebarProps {
   loading: boolean;
   error: string | null;
   dataSource: string;
-  isExporting: boolean;
   handleRefresh: () => void;
-  handleExportCSV: () => void;
   showBackButton?: boolean;
 }
 
-export function SharedSidebar({ 
+export function SharedSidebar({
   onNavigateBack,
   onNavigateToAssetManagement,
   onCategoryClick,
-  assetCounts, 
-  assets, 
-  loading, 
-  error, 
-  dataSource, 
-  isExporting, 
-  handleRefresh, 
-  handleExportCSV,
+  assetCounts,
+  assets,
+  loading,
+  error,
+  dataSource,
+  handleRefresh,
   showBackButton = false
 }: SharedSidebarProps) {
   const { open } = useSidebar();
@@ -163,7 +157,7 @@ export function SharedSidebar({
             className={open ? "w-full justify-start h-8 py-1" : "w-10 h-10 p-0 shrink-0 rounded-lg flex items-center justify-center"}
             size="icon"
             onClick={showBackButton ? onNavigateBack : onNavigateToAssetManagement}
-            title={!open ? (showBackButton ? "Back to Dashboard" : "Asset Management") : undefined}
+            title={!open ? (showBackButton ? "Back to Dashboard" : "Admin") : undefined}
             style={{
               background: 'linear-gradient(to right, #5BAAFF, #0062F6)',
               color: 'white',
@@ -180,34 +174,11 @@ export function SharedSidebar({
             )}
             {open && (
               <span className="ml-2 text-sm">
-                {showBackButton ? "Back to Dashboard" : "Asset Management"}
+                {showBackButton ? "Back to Dashboard" : "Admin"}
               </span>
             )}
           </Button>
-          
-          {/* Export CSV Button */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleExportCSV}
-            disabled={isExporting || assets.length === 0}
-            className={open ? "w-full justify-start h-8 py-1" : "w-10 h-10 p-0 shrink-0 rounded-lg flex items-center justify-center"}
-            title={!open ? "Export CSV" : (assets.length === 0 ? "No assets to export" : "Export all assets to CSV for manual editing")}
-            style={{
-              paddingTop: open ? '4px' : undefined,
-              paddingBottom: open ? '4px' : undefined,
-              paddingLeft: open ? '12px' : undefined,
-              paddingRight: open ? '12px' : undefined
-            }}
-          >
-            {isExporting ? (
-              <RefreshCw className="w-5 h-5 animate-spin shrink-0" />
-            ) : (
-              <Download className="w-5 h-5 shrink-0" />
-            )}
-            {open && <span className="ml-2 text-sm">Export CSV</span>}
-          </Button>
-          
+
           {/* Database Status Indicator */}
           <div className={open ? 'flex items-center justify-between px-2 py-1.5 rounded-md bg-muted/30' : 'flex flex-col items-center gap-1 py-1.5'}>
             {open ? (

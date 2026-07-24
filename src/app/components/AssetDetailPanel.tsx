@@ -57,7 +57,7 @@ export function AssetDetailPanel({
     timeAdded: "Jan, 1st 2025",
     contributor: "Freude",
     product: "General",
-    assetId: generateFileName(asset.asset_name, asset.type || 'Spot'),
+    assetId: generateFileName(asset.asset_name || asset.nama_file || 'untitled', asset.type || 'Spot'),
     format: "PNG",
     fileSize: "2.4 MB",
     changelog: [
