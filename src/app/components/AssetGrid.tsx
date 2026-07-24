@@ -252,7 +252,7 @@ export function AssetGrid({
               }>
                 {assetsForType.map(asset => (
                   <AssetCard
-                    key={asset.nama_file}
+                    key={asset.id}
                     asset={asset}
                     viewMode={viewMode}
                     isFavorite={favorites.has(asset.nama_file)}
@@ -291,7 +291,7 @@ export function AssetGrid({
     }>
       {filteredAssets.map(asset => (
         <AssetCard
-          key={asset.nama_file}
+          key={asset.id}
           asset={asset}
           viewMode={viewMode}
           isFavorite={favorites.has(asset.nama_file)}

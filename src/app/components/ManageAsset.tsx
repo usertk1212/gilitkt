@@ -563,7 +563,7 @@ export function ManageAsset({ onNavigateBack }: ManageAssetProps) {
               : 'space-y-4'
           }>
             {filteredAssets.map((asset) => (
-              <AssetCard key={asset.nama_file} asset={asset} />
+              <AssetCard key={asset.id} asset={asset} />
             ))}
           </div>
         )}

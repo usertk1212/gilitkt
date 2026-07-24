@@ -3,7 +3,8 @@
 import { databases, ID, Query, APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, APPWRITE_SETTINGS_COLLECTION_ID } from './appwrite';
 
 export interface Asset {
-  nama_file: string; // Logical primary key - filename (stored as an attribute; Appwrite keeps its own document $id internally)
+  id: string; // Appwrite's own document $id — always unique, use this for React keys etc.
+  nama_file: string; // Business key (filename) — NOT guaranteed unique if a file got imported more than once
   asset_name: string;
   url_lightroom: string;
   type: string;
@@ -27,6 +28,7 @@ export interface ApiResponse<T> {
 // same created_at/updated_at names components already expect.
 function toAsset(doc: any): Asset {
   return {
+    id: doc.$id,
     nama_file: doc.nama_file,
     asset_name: doc.asset_name,
     url_lightroom: doc.url_lightroom,

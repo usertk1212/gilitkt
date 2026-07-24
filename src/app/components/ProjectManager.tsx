@@ -362,7 +362,7 @@ export function ProjectManager({
                     {previewImages.length > 0 ? (
                       <div className="grid grid-cols-3 gap-1 h-full p-2">
                         {previewImages.map((asset, index) => (
-                          <div key={asset.nama_file} className="bg-white rounded overflow-hidden">
+                          <div key={asset.id} className="bg-white rounded overflow-hidden">
                             <ImageWithFallback
                               src={asset.url_lightroom || "/placeholder-image.jpg"}
                               alt={asset.nama_file}

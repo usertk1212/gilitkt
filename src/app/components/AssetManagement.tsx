@@ -170,7 +170,7 @@ export function AssetManagement({ onNavigateBack }: AssetManagementProps) {
                     </TableHeader>
                     <TableBody>
                       {filteredAssets.map((asset) => (
-                        <AssetTableRow key={asset.nama_file} asset={asset} />
+                        <AssetTableRow key={asset.id} asset={asset} />
                       ))}
                     </TableBody>
                   </Table>
