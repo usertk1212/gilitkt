@@ -53,7 +53,7 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Asset, getAllAssets, updateAsset, deleteAsset } from '../utils/supabaseApi';
 import { extractTags } from './helpers/assetHelpers';
 import { ASSET_TYPE_LABELS } from './constants/projectConstants';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 
 interface ManageAssetProps {
   onNavigateBack: () => void;

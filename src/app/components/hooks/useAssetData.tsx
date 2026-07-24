@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getAllAssets, initializeAssetSystem, getAssetCounts, exportAssetsToCSV, Asset } from '../../utils/supabaseApi';
-import { toast } from 'sonner';
+import { toast } from "sonner";
 
 export function useAssetData() {
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -10,7 +10,7 @@ export function useAssetData() {
   const [dataSource, setDataSource] = useState<string>('loading');
   const [isExporting, setIsExporting] = useState(false);
 
-  // Load assets from Supabase
+  // Load assets from the Appwrite database
   const loadAssets = async (showLoading = true) => {
     try {
       if (showLoading) {
@@ -18,7 +18,7 @@ export function useAssetData() {
       }
       setError(null);
       
-      console.log('🚀 Loading assets from Supabase...');
+      console.log('🚀 Loading assets from the Appwrite database...');
       
       // Initialize system first
       await initializeAssetSystem();
@@ -74,7 +74,7 @@ export function useAssetData() {
     
     try {
       toast.loading("Preparing CSV export...", {
-        description: `Exporting ${assets.length} assets from ${dataSource === 'database' ? 'Supabase' : 'KV Store'}`
+        description: `Exporting ${assets.length} assets from ${dataSource === 'database' ? 'Database: Appwrite' : 'KV Store'}`
       });
 
       const result = await exportAssetsToCSV();

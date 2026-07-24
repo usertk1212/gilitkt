@@ -83,5 +83,11 @@
       "optional": true
     }
   },
-  "packageManager": "pnpm@11.17.0"
+  "pnpm": {
+    "overrides": {
+      "vite": "6.3.5"
+    }
+  },
+  "readme": "ERROR: No README data found!",
+  "_id": "@figma/my-make-file@0.0.1"
 }

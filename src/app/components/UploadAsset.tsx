@@ -298,7 +298,7 @@ Please ensure your CSV has a column for the image URL (url_lightroom, lightroom,
     }
   };
 
-  // Handle storing assets to Supabase database
+  // Handle storing assets to the Appwrite database
   const handleStoreAssets = async () => {
     if (!selectedFile) return;
 
@@ -332,11 +332,16 @@ Please ensure your CSV has a column for the image URL (url_lightroom, lightroom,
 
       console.log(`✅ Successfully parsed ${assets.length} assets from CSV`);
 
-      // Step 3: Store to Supabase database
-      setStoreProgress(60);
-      console.log(`📦 Storing ${assets.length} assets to Supabase database with filename keys...`);
-      
-      const response = await bulkCreateAssets(assets);
+      // Step 3: Store to the Appwrite database
+      setStoreProgress(40);
+      console.log(`📦 Storing ${assets.length} assets to the Appwrite database with filename keys...`);
+
+      const response = await bulkCreateAssets(assets, (done, total) => {
+        // Real per-row progress: 40% (parsing done) to 100% (all rows processed),
+        // instead of freezing at a fixed number while the throttled import runs.
+        const pct = total > 0 ? 40 + Math.round((done / total) * 60) : 100;
+        setStoreProgress(pct);
+      });
       
       if (!response.success) {
         throw new Error(response.error || "Failed to store assets to database");
@@ -487,7 +492,7 @@ custom_graphic.png,https://example.com/image4.jpg,Supergraphic`;
                 size="lg"
               >
                 <Database className="w-4 h-4 mr-2" />
-                Store Assets to Supabase Database
+                Store Assets to Database: Appwrite
               </Button>
             </div>
           )}
@@ -501,14 +506,14 @@ custom_graphic.png,https://example.com/image4.jpg,Supergraphic`;
             <div className="space-y-4">
               <div className="text-center">
                 <Database className="w-8 h-8 text-primary mx-auto mb-2" />
-                <p className="font-medium">Storing assets to Supabase database...</p>
+                <p className="font-medium">Storing assets to Database: Appwrite...</p>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>
-                    {storeProgress < 40 ? "Reading CSV file..." :
-                     storeProgress < 60 ? "Parsing asset data with categories..." :
-                     storeProgress < 100 ? "Storing to Supabase database..." :
+                    {storeProgress < 20 ? "Reading CSV file..." :
+                     storeProgress < 40 ? "Parsing asset data with categories..." :
+                     storeProgress < 100 ? "Storing to Database: Appwrite..." :
                      "Complete!"}
                   </span>
                   <span>{storeProgress}%</span>
@@ -526,7 +531,7 @@ custom_graphic.png,https://example.com/image4.jpg,Supergraphic`;
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-700 dark:text-green-400">
             <div className="space-y-3">
-              <p className="font-medium">✅ Assets successfully stored to Supabase database!</p>
+              <p className="font-medium">✅ Assets successfully stored to Database: Appwrite!</p>
               <p>Successfully processed and stored {storedCount} assets with categories.</p>
               <div className="pt-2">
                 <p className="text-sm">Process completed:</p>

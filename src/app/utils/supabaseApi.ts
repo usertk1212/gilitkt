@@ -190,11 +190,15 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 // then creates only the missing ones directly (skipping the redundant per-row
 // duplicate check), with a small delay between requests to stay well under
 // Appwrite's rate limit.
-export async function bulkCreateAssets(assets: Omit<Asset, 'created_at' | 'updated_at'>[]): Promise<ApiResponse<Asset[]>> {
+export async function bulkCreateAssets(
+  assets: Omit<Asset, 'created_at' | 'updated_at'>[],
+  onProgress?: (done: number, total: number) => void
+): Promise<ApiResponse<Asset[]>> {
   console.log(`📦 Bulk creating ${assets.length} assets with filename keys...`);
   const created: Asset[] = [];
   const errors: string[] = [];
   const seenFilenames = new Set<string>();
+  const total = assets.length;
 
   // Fetch every existing nama_file once, paginating like getAllAssets() does.
   const existingFilenames = new Set<string>();
@@ -215,21 +219,29 @@ export async function bulkCreateAssets(assets: Omit<Asset, 'created_at' | 'updat
   console.log(`📋 Found ${existingFilenames.size} assets already in the database — these will be skipped.`);
 
   const DELAY_MS = 80; // pace requests to stay under Appwrite Cloud's rate limit
+  let processed = 0;
+  onProgress?.(0, total);
 
   for (const asset of assets) {
     const filename = asset.nama_file?.trim();
     if (!filename || !asset.asset_name || !asset.url_lightroom || !asset.type) {
       errors.push(`Invalid asset data: ${filename || 'unknown'}`);
+      processed++;
+      onProgress?.(processed, total);
       continue;
     }
     if (seenFilenames.has(filename)) {
       errors.push(`Duplicate filename in batch: ${filename}`);
+      processed++;
+      onProgress?.(processed, total);
       continue;
     }
     seenFilenames.add(filename);
 
     if (existingFilenames.has(filename)) {
       // Already imported in a previous run — skip, no API call needed.
+      processed++;
+      onProgress?.(processed, total);
       continue;
     }
 
@@ -247,6 +259,9 @@ export async function bulkCreateAssets(assets: Omit<Asset, 'created_at' | 'updat
     } catch (error) {
       errors.push(`Failed to create: ${filename} — ${errorMessage(error)}`);
     }
+
+    processed++;
+    onProgress?.(processed, total);
 
     await sleep(DELAY_MS);
   }

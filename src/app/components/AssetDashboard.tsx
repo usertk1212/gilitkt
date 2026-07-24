@@ -50,7 +50,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
   const [projects, setProjects] = useState<Project[]>([]);
   const [assetToOrganize, setAssetToOrganize] = useState<Asset | null>(null);
 
-  // Load assets from Supabase
+  // Load assets from the Appwrite database
   const loadAssets = async (showLoading = true) => {
     try {
       if (showLoading) {
@@ -58,7 +58,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
       }
       setError(null);
       
-      console.log('🚀 Loading assets from Supabase...');
+      console.log('🚀 Loading assets from the Appwrite database...');
       
       // Initialize system first
       await initializeAssetSystem();
@@ -114,7 +114,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
     
     try {
       toast.loading("Preparing CSV export...", {
-        description: `Exporting ${assets.length} assets from ${dataSource === 'database' ? 'Supabase' : 'KV Store'}`
+        description: `Exporting ${assets.length} assets from ${dataSource === 'database' ? 'Database: Appwrite' : 'KV Store'}`
       });
 
       const result = await exportAssetsToCSV();

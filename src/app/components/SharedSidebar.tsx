@@ -66,20 +66,20 @@ export function SharedSidebar({
     switch (dataSource) {
       case 'database':
         return {
-          text: 'Supabase',
+          text: 'Appwrite',
           color: 'bg-green-500',
           isActive: true
         };
       case 'kv_store':
         return {
-          text: 'Supabase',
+          text: 'Appwrite',
           color: 'bg-green-500',
           isActive: true
         };
       case 'empty':
         return {
-          text: 'Supabase',
-          color: 'bg-green-500', 
+          text: 'Appwrite',
+          color: 'bg-green-500',
           isActive: true
         };
       case 'loading':
