@@ -6,11 +6,12 @@ import { ManageAsset } from "./components/ManageAsset";
 import { Analytics } from "./components/Analytics";
 import { AdminGate } from "./components/AdminGate";
 import { AdminSettings } from "./components/AdminSettings";
+import { CsvViewer } from "./components/CsvViewer";
 import { SharedSidebar } from "./components/SharedSidebar";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { SidebarProvider, SidebarTrigger } from "./components/ui/sidebar";
-import { Upload, Settings, BarChart3, ArrowLeft, Menu, Download, RefreshCw, KeyRound } from "lucide-react";
+import { Upload, Settings, BarChart3, ArrowLeft, Menu, Download, RefreshCw, KeyRound, Eye } from "lucide-react";
 import { useAssetData } from "./components/hooks/useAssetData";
 
 type ViewType = "dashboard" | "asset-menu";
@@ -86,8 +87,8 @@ export default function App() {
               <div className="flex-1 flex flex-col overflow-hidden">
                 <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
                   {/* Tab Navigation */}
-                  <div className="border-b bg-card px-6 flex-shrink-0">
-                    <TabsList className="grid w-full max-w-2xl grid-cols-5 bg-muted/30">
+                  <div className="border-b bg-card px-6 flex-shrink-0 overflow-x-auto">
+                    <TabsList className="grid w-full max-w-3xl grid-cols-6 bg-muted/30">
                       <TabsTrigger
                         value="upload"
                         className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:text-foreground"
@@ -108,6 +109,13 @@ export default function App() {
                       >
                         <BarChart3 className="w-4 h-4" />
                         Analytics
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="csv-viewer"
+                        className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:text-foreground"
+                      >
+                        <Eye className="w-4 h-4" />
+                        CSV Viewer
                       </TabsTrigger>
                       <TabsTrigger
                         value="export"
@@ -138,6 +146,10 @@ export default function App() {
 
                     <TabsContent value="analytics" className="h-full m-0 overflow-hidden">
                       <Analytics onNavigateBack={() => setActiveTab("analytics")} />
+                    </TabsContent>
+
+                    <TabsContent value="csv-viewer" className="h-full m-0 overflow-y-auto">
+                      <CsvViewer />
                     </TabsContent>
 
                     <TabsContent value="export" className="h-full m-0">
