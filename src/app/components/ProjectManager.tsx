@@ -9,7 +9,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Plus, Folder, Calendar, Palette, Sparkles, Layers, MoreVertical, Edit2, Download, FileText, Trash2 } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { type Asset } from "../utils/supabaseApi";
 

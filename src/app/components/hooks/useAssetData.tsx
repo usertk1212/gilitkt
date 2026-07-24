@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getAllAssets, initializeAssetSystem, getAssetCounts, exportAssetsToCSV, Asset } from '../../utils/supabaseApi';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 export function useAssetData() {
   const [assets, setAssets] = useState<Asset[]>([]);

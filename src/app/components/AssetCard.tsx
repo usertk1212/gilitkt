@@ -24,7 +24,7 @@ import {
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { type Asset } from "../utils/supabaseApi";
 import { type Project } from "./ProjectManager";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { copyWithFeedback } from "../utils/clipboard";
 import { ProjectDropdownContent } from "./ProjectDropdownContent";
 import { ManageProjectDialog } from "./ManageProjectDialog";

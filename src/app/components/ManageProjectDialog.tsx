@@ -14,7 +14,7 @@ import { Separator } from "./ui/separator";
 import { Pin, PinOff, FolderPlus } from "lucide-react";
 import { type Asset } from "../utils/supabaseApi";
 import { type Project } from "./ProjectManager";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 interface ManageProjectDialogProps {
   isOpen: boolean;

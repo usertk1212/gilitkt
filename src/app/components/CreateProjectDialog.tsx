@@ -12,7 +12,7 @@ import { Label } from "./ui/label";
 import { X } from "lucide-react";
 import { type Asset } from "../utils/supabaseApi";
 import { type Project } from "./ProjectManager";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 interface CreateProjectDialogProps {
   isOpen: boolean;

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { type Asset } from "../utils/supabaseApi";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { copyWithFeedback } from "../utils/clipboard";
 import { extractTags } from "./helpers/assetHelpers";
 

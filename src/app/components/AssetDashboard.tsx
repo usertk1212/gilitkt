@@ -16,7 +16,7 @@ import { ProjectManager, type Project } from "./ProjectManager";
 import { AssetProjectModal } from "./AssetProjectModal";
 import { SharedSidebar } from "./SharedSidebar";
 import { getAllAssets, initializeAssetSystem, getAssetCounts, exportAssetsToCSV, Asset } from "../utils/supabaseApi";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 interface AssetDashboardProps {
   onNavigateToAssetManagement: () => void;
