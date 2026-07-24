@@ -1,8 +1,8 @@
+import type { ComponentType } from 'react';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter, SidebarHeader, useSidebar } from './ui/sidebar';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import {
-  Plus,
   Folder,
   FolderOpen,
   Palette,
@@ -10,10 +10,30 @@ import {
   Layers,
   Database,
   ArrowLeft,
-  Settings
+  Settings,
+  Upload,
+  BarChart3,
+  Eye,
+  Download,
+  KeyRound,
+  Trash2,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { GiliLogo } from './GiliLogo';
 import { Asset } from '../utils/appwriteApi';
+import { useTheme } from '../utils/useTheme';
+import { cn } from './ui/utils';
+
+export type AdminTab = "upload" | "manage" | "analytics" | "csv-viewer" | "export" | "hard-reset" | "settings";
+
+interface SidebarNavItem {
+  key: string;
+  title: string;
+  icon: ComponentType<{ className?: string }>;
+  count?: number;
+  danger?: boolean;
+}
 
 interface SharedSidebarProps {
   onNavigateBack?: () => void;
@@ -26,6 +46,13 @@ interface SharedSidebarProps {
   dataSource: string;
   handleRefresh: () => void;
   showBackButton?: boolean;
+  // Which item is currently highlighted, in either mode
+  selectedCategory?: string;
+  // Admin-mode navigation — when mode="admin", the sidebar shows Admin submenu
+  // items (Upload, Manage, Analytics, etc.) instead of the asset-type list.
+  mode?: "dashboard" | "admin";
+  activeAdminTab?: AdminTab;
+  onAdminTabChange?: (tab: AdminTab) => void;
 }
 
 export function SharedSidebar({
@@ -38,22 +65,51 @@ export function SharedSidebar({
   error,
   dataSource,
   handleRefresh,
-  showBackButton = false
+  showBackButton = false,
+  selectedCategory,
+  mode = "dashboard",
+  activeAdminTab,
+  onAdminTabChange
 }: SharedSidebarProps) {
   const { open } = useSidebar();
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
+  const isAdminMode = mode === "admin";
 
-  const sidebarItems = [
-    {
-      title: "Asset Types",
-      items: [
-        { title: "All Assets", icon: Folder, count: assetCounts["All Assets"] || 0 },
-        { title: "Spot Illus", icon: Palette, count: assetCounts["Spot Illus"] || 0 },
-        { title: "Micro Illustration", icon: Sparkles, count: assetCounts["Micro Illustration"] || 0 },
-        { title: "Icons", icon: Layers, count: assetCounts["Icons"] || 0 },
-        { title: "Projects", icon: FolderOpen, count: assetCounts["Projects"] || 0 },
-      ]
-    }
+  const dashboardItems: SidebarNavItem[] = [
+    { key: "All Assets", title: "All Assets", icon: Folder, count: assetCounts["All Assets"] || 0 },
+    { key: "Spot Illus", title: "Spot Illus", icon: Palette, count: assetCounts["Spot Illus"] || 0 },
+    { key: "Micro Illustration", title: "Micro Illustration", icon: Sparkles, count: assetCounts["Micro Illustration"] || 0 },
+    { key: "Icons", title: "Icons", icon: Layers, count: assetCounts["Icons"] || 0 },
+    { key: "Projects", title: "Projects", icon: FolderOpen, count: assetCounts["Projects"] || 0 },
   ];
+
+  const adminItems: SidebarNavItem[] = [
+    { key: "upload", title: "Upload Asset", icon: Upload },
+    { key: "manage", title: "Manage Asset", icon: Settings },
+    { key: "analytics", title: "Analytics", icon: BarChart3 },
+    { key: "csv-viewer", title: "CSV Viewer", icon: Eye },
+    { key: "export", title: "Export CSV", icon: Download },
+  ];
+
+  const adminDangerItems: SidebarNavItem[] = [
+    { key: "hard-reset", title: "Hard Reset Database", icon: Trash2, danger: true },
+  ];
+
+  const adminSettingsItems: SidebarNavItem[] = [
+    { key: "settings", title: "Settings", icon: KeyRound },
+  ];
+
+  const isItemActive = (item: SidebarNavItem) =>
+    isAdminMode ? activeAdminTab === item.key : selectedCategory === item.title;
+
+  const handleItemClick = (item: SidebarNavItem) => {
+    if (isAdminMode) {
+      onAdminTabChange?.(item.key as AdminTab);
+    } else {
+      onCategoryClick(item.title);
+    }
+  };
 
   // Database status display logic
   const getDatabaseStatus = () => {
@@ -93,78 +149,99 @@ export function SharedSidebar({
 
   const dbStatus = getDatabaseStatus();
 
+  const renderMenuGroup = (label: string | null, items: SidebarNavItem[]) => (
+    <SidebarGroup key={label ?? items[0]?.key} className={open ? "px-0" : "px-0 py-2"}>
+      {open && label && (
+        <SidebarGroupLabel className="px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium transition-opacity duration-200">
+          {label}
+        </SidebarGroupLabel>
+      )}
+      <SidebarGroupContent className="px-0">
+        <SidebarMenu
+          className={open ? "gap-0" : "gap-2 px-3 flex flex-col items-center"}
+        >
+          {items.map((item) => {
+            const active = isItemActive(item);
+            return (
+              <SidebarMenuItem key={item.key} className={open ? "" : "w-full flex justify-center"}>
+                <SidebarMenuButton
+                  onClick={() => handleItemClick(item)}
+                  className={cn(
+                    "transition-all duration-200 ease-linear text-foreground",
+                    open
+                      ? "w-full justify-between px-4 py-2.5 mx-0 rounded-none hover:bg-accent/50"
+                      : "w-12 h-12 p-0 justify-center rounded-lg hover:bg-accent/50 flex items-center",
+                    item.danger && !active && "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30",
+                    active && !item.danger && "bg-blue-50 text-[#0062F6] dark:bg-blue-500/15 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/15",
+                    active && item.danger && "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40",
+                    open && active && !item.danger && "border-l-4 border-[#0062F6] pl-3",
+                    open && active && item.danger && "border-l-4 border-red-500 pl-3"
+                  )}
+                  tooltip={!open ? item.title : undefined}
+                >
+                  {open ? (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <item.icon className="w-5 h-5 flex-shrink-0" />
+                        <span className="truncate">{item.title}</span>
+                      </div>
+                      {item.count !== undefined && (
+                        <Badge variant="secondary" className="ml-auto text-xs px-2 py-0">
+                          {item.count}
+                        </Badge>
+                      )}
+                    </>
+                  ) : (
+                    <item.icon className="w-5 h-5 flex-shrink-0" />
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+
   return (
-    <Sidebar 
-      collapsible="icon" 
+    <Sidebar
+      collapsible="icon"
       className="border-r"
     >
       {/* Sidebar Header with Gili Logo */}
       <SidebarHeader className="!flex !flex-row !items-center !justify-start !p-4 !min-h-[64px] !gap-2">
-        <div className="flex items-center h-10 flex-shrink-0 justify-start w-full">
+        <div className="flex items-center h-10 flex-shrink-0 justify-start w-full transition-all duration-200 ease-linear">
           <GiliLogo collapsed={!open} />
         </div>
       </SidebarHeader>
 
       <SidebarContent className="px-0">
-        {sidebarItems.map((group) => (
-          <SidebarGroup key={group.title} className={open ? "px-0" : "px-0 py-2"}>
-            {open && (
-              <SidebarGroupLabel className="px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                {group.title}
-              </SidebarGroupLabel>
-            )}
-            <SidebarGroupContent className="px-0">
-              <SidebarMenu 
-                className={open ? "gap-0" : "gap-2 px-3 flex flex-col items-center"}
-              >
-                {group.items.map((item) => (
-                  <SidebarMenuItem key={item.title} className={open ? "" : "w-full flex justify-center"}>
-                    <SidebarMenuButton 
-                      onClick={() => onCategoryClick(item.title)}
-                      className={open 
-                        ? "w-full justify-between px-4 py-2.5 mx-0 rounded-none hover:bg-accent/50 transition-all text-foreground"
-                        : "w-12 h-12 p-0 justify-center rounded-lg hover:bg-accent/50 transition-all text-foreground flex items-center"
-                      }
-                      tooltip={!open ? item.title : undefined}
-                    >
-                      {open ? (
-                        <>
-                          <div className="flex items-center gap-3">
-                            <item.icon className="w-5 h-5 flex-shrink-0" />
-                            <span className="truncate">{item.title}</span>
-                          </div>
-                          <Badge variant="secondary" className="ml-auto text-xs px-2 py-0">
-                            {item.count}
-                          </Badge>
-                        </>
-                      ) : (
-                        <item.icon className="w-5 h-5 flex-shrink-0" />
-                      )}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
+        {isAdminMode ? (
+          <>
+            {renderMenuGroup("Admin Menu", adminItems)}
+            {renderMenuGroup("Danger Zone", adminDangerItems)}
+            {renderMenuGroup(null, adminSettingsItems)}
+          </>
+        ) : (
+          renderMenuGroup("Asset Types", dashboardItems)
+        )}
       </SidebarContent>
-      
+
       {/* Sidebar Footer */}
       <SidebarFooter className="p-0 mt-auto">
         <div className={open ? "p-3 space-y-2" : "px-3 pb-4 space-y-3 flex flex-col items-center"}>
           {/* Primary Action Button */}
-          <Button 
-            className={open ? "w-full justify-start h-8 py-1" : "w-10 h-10 p-0 shrink-0 rounded-lg flex items-center justify-center"}
+          <Button
+            className={cn(
+              "transition-all duration-200 ease-linear",
+              open ? "w-full justify-start h-8 py-1 px-3" : "w-10 h-10 p-0 shrink-0 rounded-lg flex items-center justify-center"
+            )}
             size="icon"
             onClick={showBackButton ? onNavigateBack : onNavigateToAssetManagement}
             title={!open ? (showBackButton ? "Back to Dashboard" : "Admin") : undefined}
             style={{
               background: 'linear-gradient(to right, #5BAAFF, #0062F6)',
-              color: 'white',
-              paddingTop: open ? '4px' : undefined,
-              paddingBottom: open ? '4px' : undefined,
-              paddingLeft: open ? '12px' : undefined,
-              paddingRight: open ? '12px' : undefined
+              color: 'white'
             }}
           >
             {showBackButton ? (
@@ -179,8 +256,29 @@ export function SharedSidebar({
             )}
           </Button>
 
+          {/* Dark Mode Toggle */}
+          <Button
+            variant="outline"
+            onClick={toggleTheme}
+            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            className={cn(
+              "transition-all duration-200 ease-linear",
+              open ? "w-full justify-start h-8 py-1 px-3" : "w-10 h-10 p-0 shrink-0 rounded-lg flex items-center justify-center"
+            )}
+          >
+            {isDark ? <Sun className="w-4 h-4 shrink-0" /> : <Moon className="w-4 h-4 shrink-0" />}
+            {open && (
+              <span className="ml-2 text-sm">
+                {isDark ? "Light Mode" : "Dark Mode"}
+              </span>
+            )}
+          </Button>
+
           {/* Database Status Indicator */}
-          <div className={open ? 'flex items-center justify-between px-2 py-1.5 rounded-md bg-muted/30' : 'flex flex-col items-center gap-1 py-1.5'}>
+          <div className={cn(
+            "transition-all duration-200 ease-linear",
+            open ? 'flex items-center justify-between px-2 py-1.5 rounded-md bg-muted/30' : 'flex flex-col items-center gap-1 py-1.5'
+          )}>
             {open ? (
               <>
                 <div className="flex items-center gap-2">
@@ -190,7 +288,7 @@ export function SharedSidebar({
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className={`w-1.5 h-1.5 rounded-full ${dbStatus.color}`} />
+                  <div className={`w-1.5 h-1.5 rounded-full ${dbStatus.color} transition-colors duration-200`} />
                   <span className="text-xs text-muted-foreground">
                     {dbStatus.isActive ? 'Active' : 'Inactive'}
                   </span>
@@ -199,7 +297,7 @@ export function SharedSidebar({
             ) : (
               <>
                 <Database className="w-5 h-5 text-muted-foreground" />
-                <div className={`w-2 h-2 rounded-full ${dbStatus.color}`} />
+                <div className={`w-2 h-2 rounded-full ${dbStatus.color} transition-colors duration-200`} />
                 <span className="text-xs text-muted-foreground font-medium text-center leading-tight">
                   {dbStatus.isActive ? 'On' : 'Off'}
                 </span>

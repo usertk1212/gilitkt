@@ -53,13 +53,13 @@ export function GiliLogo({ collapsed = false }: GiliLogoProps) {
           </defs>
         </svg>
       </div>
-      <div className="h-[22.38px] relative shrink-0 w-[44.937px]" data-name="Vector">
+      <div className="h-[22.38px] relative shrink-0 w-[44.937px] text-foreground" data-name="Vector">
         <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 45 23">
           <g id="Vector">
-            <path d={svgPaths.p304c980} fill="var(--fill-0, #303135)" />
-            <path d={svgPaths.pd5f0000} fill="var(--fill-0, #303135)" />
-            <path d={svgPaths.p310a0100} fill="var(--fill-0, #303135)" />
-            <path d={svgPaths.p3d9d3280} fill="var(--fill-0, #303135)" />
+            <path d={svgPaths.p304c980} fill="currentColor" />
+            <path d={svgPaths.pd5f0000} fill="currentColor" />
+            <path d={svgPaths.p310a0100} fill="currentColor" />
+            <path d={svgPaths.p3d9d3280} fill="currentColor" />
           </g>
         </svg>
       </div>

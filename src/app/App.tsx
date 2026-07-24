@@ -7,11 +7,12 @@ import { Analytics } from "./components/Analytics";
 import { AdminGate } from "./components/AdminGate";
 import { AdminSettings } from "./components/AdminSettings";
 import { CsvViewer } from "./components/CsvViewer";
-import { SharedSidebar } from "./components/SharedSidebar";
+import { HardResetDatabase } from "./components/HardResetDatabase";
+import { SharedSidebar, type AdminTab } from "./components/SharedSidebar";
 import { Button } from "./components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
+import { Tabs, TabsContent } from "./components/ui/tabs";
 import { SidebarProvider, SidebarTrigger } from "./components/ui/sidebar";
-import { Upload, Settings, BarChart3, ArrowLeft, Menu, Download, RefreshCw, KeyRound, Eye } from "lucide-react";
+import { Menu, Download, RefreshCw } from "lucide-react";
 import { useAssetData } from "./components/hooks/useAssetData";
 
 type ViewType = "dashboard" | "asset-menu";
@@ -19,7 +20,17 @@ type ViewType = "dashboard" | "asset-menu";
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewType>("dashboard");
   const [dashboardKey, setDashboardKey] = useState(0);
-  const [activeTab, setActiveTab] = useState("upload");
+  const [activeTab, setActiveTab] = useState<AdminTab>("upload");
+
+  const adminTabTitles: Record<AdminTab, string> = {
+    upload: "Upload Asset",
+    manage: "Manage Asset",
+    analytics: "Analytics",
+    "csv-viewer": "CSV Viewer",
+    export: "Export CSV",
+    "hard-reset": "Hard Reset Database",
+    settings: "Settings",
+  };
 
   // Asset data for sidebar (only used in asset-menu view)
   const { 
@@ -43,8 +54,8 @@ export default function App() {
     setCurrentView("asset-menu");
   };
 
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
+  const handleTabChange = (tab: AdminTab) => {
+    setActiveTab(tab);
   };
 
   // Dummy function for category click (not used in asset management)
@@ -52,13 +63,15 @@ export default function App() {
     console.log(`Category clicked: ${category}`);
   };
 
-  // Admin Menu (Upload / Manage / Analytics / Export / Settings) — gated behind a password
+  // Admin Menu (Upload / Manage / Analytics / CSV Viewer / Export / Hard Reset / Settings)
+  // — gated behind a password. Navigation now lives entirely in the sidebar
+  // instead of a duplicated top tab bar.
   if (currentView === "asset-menu") {
     return (
       <AdminGate>
         <SidebarProvider>
           <div className="min-h-screen flex w-full bg-background">
-            {/* Sidebar */}
+            {/* Sidebar — shows the Admin submenu instead of the asset-type list */}
             <SharedSidebar
               onNavigateBack={handleNavigateToDashboard}
               onCategoryClick={handleCategoryClick}
@@ -69,6 +82,9 @@ export default function App() {
               dataSource={dataSource}
               handleRefresh={handleRefresh}
               showBackButton={true}
+              mode="admin"
+              activeAdminTab={activeTab}
+              onAdminTabChange={handleTabChange}
             />
 
             {/* Main Content */}
@@ -79,62 +95,13 @@ export default function App() {
                   <SidebarTrigger className="lg:hidden">
                     <Menu className="w-5 h-5" />
                   </SidebarTrigger>
-                  <h1 className="text-xl font-semibold text-foreground">Admin</h1>
+                  <h1 className="text-xl font-semibold text-foreground">{adminTabTitles[activeTab]}</h1>
                 </div>
               </div>
 
-              {/* Tab System */}
+              {/* Tab Content — switching is driven by the sidebar, not a top tab bar */}
               <div className="flex-1 flex flex-col overflow-hidden">
-                <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
-                  {/* Tab Navigation */}
-                  <div className="border-b bg-card px-6 flex-shrink-0 overflow-x-auto">
-                    <TabsList className="grid w-full max-w-3xl grid-cols-6 bg-muted/30">
-                      <TabsTrigger
-                        value="upload"
-                        className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:text-foreground"
-                      >
-                        <Upload className="w-4 h-4" />
-                        Upload Asset
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="manage"
-                        className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:text-foreground"
-                      >
-                        <Settings className="w-4 h-4" />
-                        Manage Asset
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="analytics"
-                        className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:text-foreground"
-                      >
-                        <BarChart3 className="w-4 h-4" />
-                        Analytics
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="csv-viewer"
-                        className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:text-foreground"
-                      >
-                        <Eye className="w-4 h-4" />
-                        CSV Viewer
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="export"
-                        className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:text-foreground"
-                      >
-                        <Download className="w-4 h-4" />
-                        Export CSV
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="settings"
-                        className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:text-foreground"
-                      >
-                        <KeyRound className="w-4 h-4" />
-                        Settings
-                      </TabsTrigger>
-                    </TabsList>
-                  </div>
-
-                  {/* Tab Content */}
+                <Tabs value={activeTab} className="h-full flex flex-col">
                   <div className="flex-1 overflow-hidden overflow-y-auto">
                     <TabsContent value="upload" className="h-full m-0 overflow-hidden">
                       <UploadAsset onNavigateBack={() => setActiveTab("upload")} />
@@ -178,6 +145,10 @@ export default function App() {
                           </Button>
                         </div>
                       </div>
+                    </TabsContent>
+
+                    <TabsContent value="hard-reset" className="h-full m-0 overflow-hidden">
+                      <HardResetDatabase />
                     </TabsContent>
 
                     <TabsContent value="settings" className="h-full m-0 overflow-hidden">

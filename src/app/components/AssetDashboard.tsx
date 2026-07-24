@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import * as React from "react";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "./ui/sidebar";
 import { Breadcrumb, BreadcrumbEllipsis, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "./ui/breadcrumb";
@@ -44,7 +44,12 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
   const [error, setError] = useState<string | null>(null);
   const [dataSource, setDataSource] = useState<string>('loading');
   const [isExporting, setIsExporting] = useState(false);
-  
+
+  // Brief "done!" confirmation shown right after the initial load finishes,
+  // before the asset grid appears — purely cosmetic, doesn't affect data.
+  const [justFinishedLoading, setJustFinishedLoading] = useState(false);
+  const hasLoadedOnceRef = useRef(false);
+
   // Modal state
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -165,6 +170,17 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
   useEffect(() => {
     loadAssets();
   }, []);
+
+  // Show a brief "done!" checkmark the first time loading finishes, then let
+  // the normal grid take over. Only fires once (not on every silent refresh).
+  useEffect(() => {
+    if (!loading && !hasLoadedOnceRef.current) {
+      hasLoadedOnceRef.current = true;
+      setJustFinishedLoading(true);
+      const timer = setTimeout(() => setJustFinishedLoading(false), 700);
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
 
   // Refresh data when component becomes visible
   useEffect(() => {
@@ -353,6 +369,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
         <SharedSidebar
           onNavigateToAssetManagement={onNavigateToAssetManagement}
           onCategoryClick={handleCategoryClick}
+          selectedCategory={currentView === "projects" ? "Projects" : selectedCategory}
           assetCounts={assetCounts}
           assets={assets}
           loading={loading}
@@ -544,6 +561,8 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
                     searchQuery={searchQuery}
                     viewMode={viewMode}
                     sortBy={sortBy}
+                    loading={loading}
+                    justFinishedLoading={justFinishedLoading}
                     assets={getFilteredAssets()}
                     selectedAsset={selectedAsset}
                     onSelectAsset={handleSelectAsset}

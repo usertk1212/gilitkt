@@ -5,6 +5,7 @@ import { type Project } from "./ProjectManager";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Separator } from "./ui/separator";
+import { Loader2, CheckCircle2 } from "lucide-react";
 
 export type SortOption = "recent" | "alphabetical" | "type";
 
@@ -24,6 +25,8 @@ interface AssetGridProps {
   onNavigateToAllAssets?: () => void; // Add navigation callback
   gridColumns?: number; // Add grid columns prop
   sortBy?: SortOption;
+  loading?: boolean; // Still fetching from the database — show a loading state instead of "No assets"
+  justFinishedLoading?: boolean; // Brief "done!" checkmark right after loading completes
 }
 
 export function AssetGrid({
@@ -41,7 +44,9 @@ export function AssetGrid({
   currentProject,
   onNavigateToAllAssets,
   gridColumns = 5,
-  sortBy = "recent"
+  sortBy = "recent",
+  loading = false,
+  justFinishedLoading = false
 }: AssetGridProps) {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
@@ -168,9 +173,35 @@ export function AssetGrid({
     return `${baseClasses} ${columnClasses[gridColumns as keyof typeof columnClasses] || columnClasses[6]}`;
   };
 
+  // Still fetching from the database — don't flash "No assets available" while
+  // the real data is on its way in. Show a clear loading state instead.
+  if (loading && assets.length === 0) {
+    return (
+      <div className="text-center py-20 flex flex-col items-center justify-center gap-4 animate-in fade-in duration-300">
+        <Loader2 className="w-10 h-10 animate-spin" style={{ color: '#0062F6' }} />
+        <div>
+          <h3 className="mb-1">Menyiapkan asset kamu...</h3>
+          <p className="text-muted-foreground text-sm">
+            we're still preparing the assets for you, hang tight
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Brief confirmation right after loading finishes, before the grid appears.
+  if (justFinishedLoading) {
+    return (
+      <div className="text-center py-20 flex flex-col items-center justify-center gap-3 animate-in fade-in duration-300">
+        <CheckCircle2 className="w-10 h-10 text-green-500" />
+        <p className="text-sm text-muted-foreground">Selesai! Menampilkan asset kamu...</p>
+      </div>
+    );
+  }
+
   if (assets.length === 0) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-12 animate-in fade-in duration-300">
         <div className="text-muted-foreground mb-4">
           <svg className="w-12 h-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -180,10 +211,10 @@ export function AssetGrid({
         <p className="text-muted-foreground mb-4">
           Start by uploading your first assets to the library
         </p>
-        
+
         {/* Show "Browse All Assets" button when viewing an empty project */}
         {category === "Project" && onNavigateToAllAssets && (
-          <Button 
+          <Button
             onClick={onNavigateToAllAssets}
             style={{
               background: 'linear-gradient(to right, #5BAAFF, #0062F6)',
@@ -239,7 +270,7 @@ export function AssetGrid({
     const typeOrder = ["Spot", "Micro", "Icon", "Other"];
     
     return (
-      <div className="space-y-8">
+      <div className="space-y-8 animate-in fade-in duration-300">
         {typeOrder.map(type => {
           const assetsForType = groupedAssets[type];
           if (!assetsForType || assetsForType.length === 0) return null;
@@ -304,9 +335,9 @@ export function AssetGrid({
   // Regular grid view for non-project categories
   return (
     <div className={
-      viewMode === "grid" 
+      (viewMode === "grid"
         ? getGridClasses()
-        : "space-y-2"
+        : "space-y-2") + " animate-in fade-in duration-300"
     }>
       {filteredAssets.map(asset => (
         <AssetCard

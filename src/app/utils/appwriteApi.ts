@@ -328,6 +328,61 @@ export async function bulkCreateAssets(
   };
 }
 
+// Hard reset: permanently delete every asset document in the table.
+// Used by the Admin "Hard Reset Database" screen, which itself requires the
+// admin password plus a typed confirmation phrase before calling this — this
+// function does no confirmation of its own, it just does the deletion.
+export async function deleteAllAssets(
+  onProgress?: (done: number, total: number) => void
+): Promise<ApiResponse<null>> {
+  console.log('🧨 Hard reset requested — deleting ALL assets from Appwrite...');
+  try {
+    // Collect every document id first (paginated, same pattern as getAllAssets).
+    const ids: string[] = [];
+    let cursor: string | undefined;
+    while (true) {
+      const queries = [Query.limit(100)];
+      if (cursor) queries.push(Query.cursorAfter(cursor));
+      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, queries);
+      res.documents.forEach((doc: any) => ids.push(doc.$id));
+      if (res.documents.length < 100) break;
+      cursor = res.documents[res.documents.length - 1].$id;
+      await sleep(50);
+    }
+
+    const total = ids.length;
+    let done = 0;
+    const errors: string[] = [];
+    onProgress?.(0, total);
+
+    for (const id of ids) {
+      try {
+        await databases.deleteDocument(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, id);
+      } catch (error) {
+        errors.push(`Failed to delete ${id}: ${errorMessage(error)}`);
+      }
+      done++;
+      onProgress?.(done, total);
+      await sleep(80); // pace requests to stay under Appwrite Cloud's rate limit
+    }
+
+    invalidateAssetsCache();
+
+    if (errors.length > 0 && done - errors.length === 0 && total > 0) {
+      return { success: false, error: `Failed to delete any assets. ${errors[0]}`, errors };
+    }
+
+    return {
+      success: true,
+      message: `Deleted ${done - errors.length} of ${total} assets${errors.length > 0 ? ` (${errors.length} failed)` : ''}`,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  } catch (error) {
+    console.error('🚨 Hard reset failed:', error);
+    return { success: false, error: errorMessage(error) };
+  }
+}
+
 // Export assets to CSV
 // Generated entirely client-side now, since there's no server-side function to build the file.
 export async function exportAssetsToCSV(): Promise<{ success: boolean; error?: string; filename?: string }> {
