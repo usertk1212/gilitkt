@@ -82,5 +82,6 @@
     "react-dom": {
       "optional": true
     }
-  }
+  },
+  "packageManager": "pnpm@11.17.0"
 }
