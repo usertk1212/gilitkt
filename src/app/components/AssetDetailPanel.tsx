@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Copy, Check, Plus, Edit3, Link, ZoomIn } from "./icons";
+import { X, Copy, Check, Plus, Edit3, Link, ZoomIn, ArrowRight } from "./icons";
 import { ImageZoomModal } from "./ImageZoomModal";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -141,6 +141,27 @@ export function AssetDetailPanel({
               <div className="info-value">
                 {asset.type || 'Illustration'}
               </div>
+            </div>
+
+            {/* Source — opens the asset straight in Lightroom.
+                rel="noopener noreferrer" because target="_blank" otherwise hands
+                the opened page a reference back to this window. */}
+            <div>
+              <div className="info-label mb-1">Source</div>
+              {asset.url_lightroom ? (
+                <a
+                  href={asset.url_lightroom}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[var(--pp-text-active)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  title="Open in Lightroom (new tab)"
+                >
+                  Lightroom
+                  <ArrowRight className="h-3.5 w-3.5 -rotate-45" />
+                </a>
+              ) : (
+                <div className="info-value text-muted-foreground">-</div>
+              )}
             </div>
 
             {/* Tags */}

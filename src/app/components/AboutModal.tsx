@@ -21,7 +21,7 @@ export function AboutModal({ isOpen, onClose }: AboutModalProps) {
         {/* Present for screen readers; the visible design has no header. */}
         <DialogTitle className="sr-only">About GILI</DialogTitle>
         <DialogDescription className="sr-only">
-          GILI version {APP_VERSION}, designed and developed by YOJ.
+          GILI version {APP_VERSION}, crafted and developed with JOY.
         </DialogDescription>
 
         {/* 3:2 placeholder */}
@@ -33,7 +33,7 @@ export function AboutModal({ isOpen, onClose }: AboutModalProps) {
         </div>
 
         <div className="px-6 py-5 text-center">
-          <p className="text-sm text-muted-foreground">designed &amp; developed by YOJ.</p>
+          <p className="text-sm text-muted-foreground">Crafted &amp; developed with JOY</p>
           <p className="mt-1 text-xs text-muted-foreground/70">GILI v{APP_VERSION}</p>
         </div>
       </DialogContent>
