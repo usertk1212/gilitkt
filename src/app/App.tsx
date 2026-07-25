@@ -12,7 +12,7 @@ import { SharedSidebar, type AdminTab } from "./components/SharedSidebar";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsContent } from "./components/ui/tabs";
 import { SidebarProvider, SidebarTrigger } from "./components/ui/sidebar";
-import { Menu, Download, RefreshCw } from "lucide-react";
+import { Menu, Download, RefreshCw } from "./components/icons";
 import { useAssetData } from "./components/hooks/useAssetData";
 
 type ViewType = "dashboard" | "asset-menu";
@@ -68,7 +68,7 @@ export default function App() {
   // instead of a duplicated top tab bar.
   if (currentView === "asset-menu") {
     return (
-      <AdminGate>
+      <AdminGate onCancel={handleNavigateToDashboard}>
         <SidebarProvider>
           <div className="min-h-screen flex w-full bg-background">
             {/* Sidebar — shows the Admin submenu instead of the asset-type list */}

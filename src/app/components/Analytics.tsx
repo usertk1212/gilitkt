@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { FileText, Users, Shield, Database, BarChart3, User, Palette, Sparkles, Layers } from 'lucide-react';
 import { Asset, getAllAssets } from '../utils/appwriteApi';
+import { BarChart3, Database, FileText, Layers, Palette, Shield, Sparkles, User, Users } from "./icons";
 
 interface AnalyticsProps {
   onNavigateBack: () => void;

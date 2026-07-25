@@ -1,7 +1,7 @@
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
-import { X, Palette } from "lucide-react";
+import { X, Palette } from "./icons";
 import { PROJECT_COLORS } from "./constants/projectConstants";
 
 interface ProjectCreationFormProps {

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
-import { Database, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { healthCheck } from '../utils/appwriteApi';
+import { Database, RefreshCw, Wifi, WifiOff } from "./icons";
 
 export function DatabaseStatus() {
   const [status, setStatus] = useState<'checking' | 'online' | 'offline'>('checking');

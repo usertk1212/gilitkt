@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { Separator } from "./ui/separator";
-import { Plus, FolderOpen, Search } from "lucide-react";
+import { Plus, FolderOpen, Search } from "./icons";
 import { type Asset } from "../utils/appwriteApi";
 import { type Project } from "./ProjectManager";
 import { toast } from "sonner";

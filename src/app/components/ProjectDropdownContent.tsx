@@ -1,6 +1,6 @@
 import { Input } from "./ui/input";
 import { DropdownMenuItem, DropdownMenuSeparator } from "./ui/dropdown-menu";
-import { Search, Plus, PinOff, Check } from "lucide-react";
+import { Search, Plus, PinOff, Check } from "./icons";
 import { Project } from "./ProjectManager";
 import { Asset } from "../utils/appwriteApi";
 import { highlightSearchMatch } from "./helpers/assetHelpers";

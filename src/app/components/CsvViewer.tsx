@@ -7,7 +7,7 @@ import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "./ui/table";
-import { FileText, Upload, CheckCircle, AlertCircle, Database, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Eye } from "lucide-react";
+import { FileText, Upload, CheckCircle, AlertCircle, Database, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Eye, ArrowUp, ArrowDown } from "./icons";
 import { parseCSV, ParsedAsset } from "../utils/csvParser";
 import { bulkCreateAssets } from "../utils/appwriteApi";
 import { toast } from "sonner";
@@ -20,6 +20,11 @@ export function CsvViewer() {
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [viewPage, setViewPage] = useState(1);
   const [jumpToPageInput, setJumpToPageInput] = useState("");
+
+  // Preview sort direction. "desc" puts the LAST rows of the CSV first, which is
+  // how you spot what was newly appended to the file. This only reorders the
+  // preview — the import range below still refers to true CSV row numbers.
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   // Kept as raw text (not number) so the field can be cleared and retyped
   // freely — coercing to a number on every keystroke made it snap back to 1
@@ -38,10 +43,24 @@ export function CsvViewer() {
   const total = parsedAssets.length;
   const totalViewPages = Math.max(1, Math.ceil(total / VIEW_PAGE_SIZE));
   const viewStart = (viewPage - 1) * VIEW_PAGE_SIZE;
+
+  // Tag every row with its permanent CSV row number BEFORE sorting, so the
+  // number shown in the table always matches the row range used for import —
+  // sorting the preview must never shift what "baris 1-100" means.
+  const sortedRows = useMemo(() => {
+    const numbered = parsedAssets.map((row, idx) => ({ row, rowNo: idx + 1 }));
+    return sortDir === "asc" ? numbered : numbered.reverse();
+  }, [parsedAssets, sortDir]);
+
   const viewRows = useMemo(
-    () => parsedAssets.slice(viewStart, viewStart + VIEW_PAGE_SIZE),
-    [parsedAssets, viewStart]
+    () => sortedRows.slice(viewStart, viewStart + VIEW_PAGE_SIZE),
+    [sortedRows, viewStart]
   );
+
+  const toggleSortDir = () => {
+    setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    setViewPage(1);
+  };
 
   const handleFile = async (file: File) => {
     if (!file.name.endsWith(".csv")) {
@@ -201,11 +220,45 @@ export function CsvViewer() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={toggleSortDir}>
+                  {sortDir === "asc" ? (
+                    <ArrowUp className="w-4 h-4 mr-1.5" />
+                  ) : (
+                    <ArrowDown className="w-4 h-4 mr-1.5" />
+                  )}
+                  {sortDir === "asc" ? "Baris 1 dulu" : "Baris terakhir dulu"}
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  {sortDir === "asc"
+                    ? "Urutan asli CSV."
+                    : `Baris ${total} ke bawah — asset yang paling baru kamu tambahin di CSV ada di atas.`}
+                </span>
+              </div>
+
               <div className="border rounded-lg overflow-auto max-h-[420px]">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-16">Baris</TableHead>
+                      <TableHead className="w-24">
+                        <button
+                          type="button"
+                          onClick={toggleSortDir}
+                          className="inline-flex items-center gap-1 font-medium transition-colors hover:text-foreground"
+                          title={
+                            sortDir === "asc"
+                              ? "Sekarang baris terkecil dulu — klik buat liat baris terakhir (yang baru ditambahin) dulu"
+                              : "Sekarang baris terbesar dulu — klik buat balik ke urutan asli"
+                          }
+                        >
+                          Baris
+                          {sortDir === "asc" ? (
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          ) : (
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </TableHead>
                       <TableHead>nama_file</TableHead>
                       <TableHead>asset_name</TableHead>
                       <TableHead>type</TableHead>
@@ -213,9 +266,9 @@ export function CsvViewer() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {viewRows.map((row, i) => (
-                      <TableRow key={viewStart + i}>
-                        <TableCell className="text-muted-foreground">{viewStart + i + 1}</TableCell>
+                    {viewRows.map(({ row, rowNo }) => (
+                      <TableRow key={rowNo}>
+                        <TableCell className="text-muted-foreground">{rowNo}</TableCell>
                         <TableCell className="max-w-[220px] truncate">{row.nama_file}</TableCell>
                         <TableCell className="max-w-[180px] truncate">{row.asset_name}</TableCell>
                         <TableCell>{row.type}</TableCell>

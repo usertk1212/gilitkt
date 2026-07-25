@@ -11,7 +11,7 @@ import { Textarea } from "./ui/textarea";
 import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
-import { Pin, PinOff, FolderPlus } from "lucide-react";
+import { Pin, PinOff, FolderPlus } from "./icons";
 import { type Asset } from "../utils/appwriteApi";
 import { type Project } from "./ProjectManager";
 import { toast } from "sonner";

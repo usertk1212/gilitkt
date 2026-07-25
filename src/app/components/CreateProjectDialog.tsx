@@ -9,7 +9,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Label } from "./ui/label";
-import { X } from "lucide-react";
+import { X } from "./icons";
 import { type Asset } from "../utils/appwriteApi";
 import { type Project } from "./ProjectManager";
 import { toast } from "sonner";

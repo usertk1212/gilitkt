@@ -7,11 +7,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
-import { MoreHorizontal, Eye, Copy, Edit, Trash2 } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Asset } from '../utils/appwriteApi';
 import { ASSET_TYPE_LABELS } from './constants/projectConstants';
 import { copyToClipboard } from '../utils/clipboard';
+import { Copy, Edit, Eye, MoreHorizontal, Trash2 } from "./icons";
 
 interface AssetTableRowProps {
   asset: Asset;

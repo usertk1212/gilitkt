@@ -6,5 +6,18 @@ export const PROJECT_COLORS = [
 export const ASSET_TYPE_LABELS = {
   'Micro': 'Micro Illus',
   'Icon': 'Icon',
-  'Spot': 'Spot Illus'
+  'Spot': 'Spot Illus',
+  'Supergraphic': 'Supergraphic',
+  'Other': 'Others',
+  'General': 'Others'
 } as const;
+
+/**
+ * Badge/label text for an asset type. Falls back to the raw type string rather
+ * than to a hardcoded "Spot Illus", which used to mislabel every Supergraphic
+ * and Other asset as a Spot Illustration.
+ */
+export function getAssetTypeLabel(type: string | undefined | null): string {
+  if (!type) return 'Others';
+  return ASSET_TYPE_LABELS[type as keyof typeof ASSET_TYPE_LABELS] ?? type;
+}

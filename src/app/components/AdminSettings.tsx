@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
 import { Alert, AlertDescription } from "./ui/alert";
-import { KeyRound } from "lucide-react";
+import { KeyRound } from "./icons";
 
 export function AdminSettings() {
   const [newPassword, setNewPassword] = useState("");

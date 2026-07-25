@@ -2,30 +2,11 @@ import type { ComponentType } from 'react';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter, SidebarHeader, useSidebar } from './ui/sidebar';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import {
-  Folder,
-  FolderOpen,
-  Palette,
-  Sparkles,
-  Layers,
-  Database,
-  ArrowLeft,
-  Settings,
-  Upload,
-  BarChart3,
-  Eye,
-  Download,
-  KeyRound,
-  Trash2,
-  Sun,
-  Moon,
-  Image,
-  Package
-} from 'lucide-react';
 import { GiliLogo } from './GiliLogo';
 import { Asset } from '../utils/appwriteApi';
 import { useTheme } from '../utils/useTheme';
 import { cn } from './ui/utils';
+import { ArrowLeft, BarChart3, Database, Download, Eye, Folder, FolderOpen, Image, KeyRound, Layers, Moon, Package, Palette, Settings, Sparkles, Sun, Trash2, Upload } from "./icons";
 
 export type AdminTab = "upload" | "manage" | "analytics" | "csv-viewer" | "export" | "hard-reset" | "settings";
 

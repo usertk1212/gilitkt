@@ -5,7 +5,7 @@ import { Badge } from "./ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Checkbox } from "./ui/checkbox";
 import { Slider } from "./ui/slider";
-import { X, CalendarDays, Palette, FileType, User } from "lucide-react";
+import { X, CalendarDays, Palette, FileType, User } from "./icons";
 import { loadAssets, type Asset } from "../utils/dataLoader";
 
 export function AssetFilters() {

@@ -10,11 +10,7 @@ import {
   TableHeader, 
   TableRow 
 } from './ui/table';
-import { 
-  Search, 
-  Home,
-  ChevronRight
-} from 'lucide-react';
+import { Search, Home, ChevronRight } from "./icons";
 import { SharedSidebar } from './SharedSidebar';
 import { AssetTableRow } from './AssetTableRow';
 import { useAssetData } from './hooks/useAssetData';

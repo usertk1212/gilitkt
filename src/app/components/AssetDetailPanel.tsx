@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { X, Copy, Check, Plus, Edit3, Link } from "lucide-react";
+import { X, Copy, Check, Plus, Edit3, Link, Search } from "./icons";
+import { ImageZoomModal } from "./ImageZoomModal";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
@@ -25,6 +26,7 @@ export function AssetDetailPanel({
   onAssetOrganize
 }: AssetDetailPanelProps) {
   const [isCopied, setIsCopied] = useState(false);
+  const [isZoomOpen, setIsZoomOpen] = useState(false);
 
   if (!isOpen) return null;
 
@@ -44,14 +46,16 @@ export function AssetDetailPanel({
 
   const tags = extractTags(asset);
 
-  // Generate proper filename format
-  const generateFileName = (assetName: string, type: string) => {
-    const cleanName = assetName.toLowerCase().replace(/\s+/g, '_');
-    const typePrefix = type === 'Micro' ? 'mi' : type === 'Icon' ? 'ic' : 'si';
-    return `tds_${typePrefix}_${cleanName}.png`;
-  };
-
-  const displayName = generateFileName(asset.asset_name || asset.nama_file || 'untitled', asset.type || 'Spot');
+  // Show the REAL filename from the database.
+  //
+  // This used to synthesise one by gluing a "tds_<type>_" prefix onto the asset
+  // name, which produced names that don't exist — e.g. an Other-type asset
+  // called `ot_bt_cc_zoom_travel2` was displayed as
+  // `tds_si_ot_bt_cc_zoom_travel2.png`: double-prefixed, and mislabelled as a
+  // Spot illustration because the prefix map only knew Micro/Icon/Spot and
+  // defaulted everything else to "si". Since this is the name people copy to go
+  // find the file, a fabricated one is worse than useless.
+  const displayName = asset.nama_file || asset.asset_name || 'untitled';
 
   const getTypeColors = (type: string) => {
     switch (type?.toLowerCase()) {
@@ -89,27 +93,46 @@ export function AssetDetailPanel({
             </Button>
           </div>
 
-          {/* Preview Image */}
-          <div className="aspect-[4/3] bg-muted rounded-lg overflow-hidden mb-4">
+          {/* Preview Image — click to inspect at full size.
+              object-contain across every type: object-cover was cropping
+              portrait and non-4:3 assets, which is unusable in a library whose
+              whole job is letting you check what an asset actually looks like. */}
+          <button
+            type="button"
+            onClick={() => setIsZoomOpen(true)}
+            title="Klik buat zoom"
+            className="group relative mb-4 block aspect-[4/3] w-full overflow-hidden rounded-lg bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
             <ImageWithFallback
               src={asset.url_lightroom}
               alt={asset.asset_name}
-              className={`w-full h-full ${
-                asset.type === 'Micro' ? 'object-contain p-4' :
-                asset.type === 'Icon' ? 'object-contain p-3' :
-                'object-cover object-center'
+              className={`h-full w-full object-contain ${
+                asset.type === 'Micro' ? 'p-4' : asset.type === 'Icon' ? 'p-3' : 'p-1'
               }`}
             />
-          </div>
+            <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
+              <span className="flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-medium text-neutral-900">
+                <Search className="h-3.5 w-3.5" />
+                Zoom
+              </span>
+            </span>
+          </button>
 
           {/* Asset Information */}
           <div className="space-y-3">
-            {/* Name */}
+            {/* Name — filenames have no spaces, so break-all is what actually
+                forces a wrap; line-clamp caps it at 3 lines so a very long name
+                can't push the whole panel down. Full name on hover + click to copy. */}
             <div>
               <div className="info-label mb-1">Name</div>
-              <div className="info-value text-base leading-tight">
+              <button
+                type="button"
+                onClick={() => handleCopyClick(displayName)}
+                title={`${displayName} — klik buat copy`}
+                className="info-value line-clamp-3 break-all text-left text-base leading-snug transition-opacity hover:opacity-70"
+              >
                 {displayName}
-              </div>
+              </button>
             </div>
 
             {/* Type */}
@@ -203,6 +226,14 @@ export function AssetDetailPanel({
           </div>
         </div>
       </div>
+
+      <ImageZoomModal
+        src={asset.url_lightroom}
+        alt={asset.asset_name}
+        caption={displayName}
+        isOpen={isZoomOpen}
+        onClose={() => setIsZoomOpen(false)}
+      />
     </div>
   );
 }

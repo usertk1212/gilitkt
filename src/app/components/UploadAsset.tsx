@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Progress } from "./ui/progress";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
-import { CheckCircle, AlertCircle, FileText, Database, Download, Upload } from "lucide-react";
+import { CheckCircle, AlertCircle, FileText, Database, Download, Upload } from "./icons";
 import { Alert, AlertDescription } from "./ui/alert";
 import { bulkCreateAssets, Asset } from "../utils/appwriteApi";
 import { parseCSV } from "../utils/csvParser";

@@ -1,4 +1,5 @@
 import { useState, memo } from "react";
+import { ImageZoomModal } from "./ImageZoomModal";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -9,18 +10,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import {
-  Download,
-  Share,
-  Edit,
-  Trash2,
-  MoreHorizontal,
-  Eye,
-  Copy,
-  Check,
-  FolderPlus,
-  Plus,
-} from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { type Asset } from "../utils/appwriteApi";
 import { type Project } from "./ProjectManager";
@@ -29,7 +18,8 @@ import { copyWithFeedback } from "../utils/clipboard";
 import { ProjectDropdownContent } from "./ProjectDropdownContent";
 import { ManageProjectDialog } from "./ManageProjectDialog";
 import { extractTags } from "./helpers/assetHelpers";
-import { ASSET_TYPE_LABELS } from "./constants/projectConstants";
+import { getAssetTypeLabel } from "./constants/projectConstants";
+import { Check, Copy, Download, Edit, Eye, FolderPlus, MoreHorizontal, Plus, Share, Trash2 } from "./icons";
 
 interface AssetCardProps {
   asset: Asset;
@@ -65,6 +55,7 @@ function AssetCardImpl({
   gridColumns = 4, // Default to 4 columns
 }: AssetCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isZoomOpen, setIsZoomOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -338,7 +329,12 @@ function AssetCardImpl({
                         Add to Project
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem><Eye className="w-4 h-4 mr-2" />Preview</DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsZoomOpen(true);
+                        }}
+                      ><Eye className="w-4 h-4 mr-2" />Preview</DropdownMenuItem>
                       <DropdownMenuItem onClick={handleDownload}>
                         <Download className="w-4 h-4 mr-2" />
                         Download
@@ -420,7 +416,15 @@ function AssetCardImpl({
             <div className={`absolute inset-0 bg-black/40 items-center justify-center gap-2 transition-opacity duration-200 hidden lg:flex ${
               isHovered ? "opacity-100" : "opacity-0"
             }`}>
-              <Button size="sm" className="text-xs px-3 py-1.5 bg-white/90 text-gray-900 hover:bg-white">
+              <Button
+                size="sm"
+                className="text-xs px-3 py-1.5 bg-white/90 text-gray-900 hover:bg-white"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsZoomOpen(true);
+                }}
+                title="Preview & zoom"
+              >
                 <Eye className="w-3 h-3 mr-1" />
                 {!isMediumCard && <span>Preview</span>}
               </Button>
@@ -440,7 +444,7 @@ function AssetCardImpl({
             <div className={`absolute top-2 left-2 px-2 py-1 bg-black/60 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity ${
               isSmallCard ? 'text-xs' : 'text-xs'
             }`}>
-              {ASSET_TYPE_LABELS[asset.type as keyof typeof ASSET_TYPE_LABELS] || 'Spot Illus'}
+              {getAssetTypeLabel(asset.type)}
             </div>
           )}
 
@@ -540,6 +544,14 @@ function AssetCardImpl({
         asset={asset}
         projects={projects}
         onUpdateProjects={onUpdateProjects || (() => {})}
+      />
+
+      <ImageZoomModal
+        src={asset.url_lightroom}
+        alt={asset.asset_name}
+        caption={asset.nama_file || asset.asset_name}
+        isOpen={isZoomOpen}
+        onClose={() => setIsZoomOpen(false)}
       />
     </Card>
   );

@@ -3,10 +3,12 @@ import { getAdminPassword } from "../utils/appwriteApi";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
-import { Lock } from "lucide-react";
+import { Lock, X, ArrowLeft } from "./icons";
 
 interface AdminGateProps {
   children: ReactNode;
+  /** Called when the user backs out without unlocking (X button or Esc). */
+  onCancel?: () => void;
 }
 
 // Session-only unlock: closing the tab/browser re-locks the admin menu.
@@ -14,7 +16,7 @@ interface AdminGateProps {
 // security, since the whole app is client-side JS anyone can inspect.
 const SESSION_KEY = "gili_admin_unlocked";
 
-export function AdminGate({ children }: AdminGateProps) {
+export function AdminGate({ children, onCancel }: AdminGateProps) {
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem(SESSION_KEY) === "true");
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
@@ -42,7 +44,20 @@ export function AdminGate({ children }: AdminGateProps) {
 
   return (
     <div className="flex-1 flex items-center justify-center min-h-screen bg-background p-6">
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-sm relative">
+        {/* Escape hatch for "oh, I didn't mean to click that" */}
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label="Tutup dan balik ke dashboard"
+            title="Balik ke dashboard"
+            className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+
         <CardHeader className="text-center">
           <Lock className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
           <CardTitle>Admin Only</CardTitle>
@@ -56,6 +71,7 @@ export function AdminGate({ children }: AdminGateProps) {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") handleUnlock();
+              if (e.key === "Escape" && onCancel) onCancel();
             }}
             autoFocus
           />
@@ -63,6 +79,12 @@ export function AdminGate({ children }: AdminGateProps) {
           <Button className="w-full" onClick={handleUnlock} disabled={checking || !input}>
             {checking ? "Memeriksa..." : "Masuk"}
           </Button>
+          {onCancel && (
+            <Button variant="ghost" className="w-full" onClick={onCancel}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Balik ke Dashboard
+            </Button>
+          )}
         </CardContent>
       </Card>
     </div>

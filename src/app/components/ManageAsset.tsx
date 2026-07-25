@@ -36,24 +36,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import {
-  Search,
-  MoreHorizontal,
-  Edit,
-  Trash2,
-  Download,
-  Filter,
-  Grid3X3,
-  List,
-  Loader2,
-  CheckCircle,
-  AlertCircle,
-} from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Asset, getAllAssets, updateAsset, deleteAsset } from '../utils/appwriteApi';
 import { extractTags } from './helpers/assetHelpers';
-import { ASSET_TYPE_LABELS } from './constants/projectConstants';
+import { getAssetTypeLabel } from './constants/projectConstants';
 import { toast } from "sonner";
+import { AlertCircle, CheckCircle, Download, Edit, Filter, Grid3X3, List, Loader2, MoreHorizontal, Search, Trash2 } from "./icons";
 
 interface ManageAssetProps {
   onNavigateBack: () => void;
@@ -92,6 +80,7 @@ export function ManageAsset({ onNavigateBack }: ManageAssetProps) {
     { value: 'Micro', label: 'Micro Illustration' },
     { value: 'Icon', label: 'Icons' },
     { value: 'Supergraphic', label: 'Supergraphic' },
+    { value: 'Other', label: 'Others' },
     { value: 'General', label: 'General' }
   ];
 
@@ -299,7 +288,7 @@ export function ManageAsset({ onNavigateBack }: ManageAssetProps) {
 
                     <div className="flex items-center gap-2 mt-2">
                       <Badge variant="secondary" className="text-xs">
-                        {ASSET_TYPE_LABELS[asset.type as keyof typeof ASSET_TYPE_LABELS] || 'Spot Illus'}
+                        {getAssetTypeLabel(asset.type)}
                       </Badge>
                       {tags.slice(0, 3).map((tag, index) => (
                         <Badge
@@ -390,7 +379,7 @@ export function ManageAsset({ onNavigateBack }: ManageAssetProps) {
             )}
 
             <div className="absolute top-2 left-2 px-2 py-1 bg-black/60 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs">
-              {ASSET_TYPE_LABELS[asset.type as keyof typeof ASSET_TYPE_LABELS] || 'Spot Illus'}
+              {getAssetTypeLabel(asset.type)}
             </div>
 
             <DropdownMenu>
@@ -513,6 +502,12 @@ export function ManageAsset({ onNavigateBack }: ManageAssetProps) {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setSelectedType('icon')}>
                     Icons
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedType('supergraphic')}>
+                    Supergraphic
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedType('other')}>
+                    Others
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
