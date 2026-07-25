@@ -1,4 +1,4 @@
-# GILI (Yoj)
+# GILI
 
 Asset management dashboard for organizing illustration assets.
 
