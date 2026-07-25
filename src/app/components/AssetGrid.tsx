@@ -136,6 +136,7 @@ export function AssetGrid({
       "Spot": [],
       "Micro": [],
       "Icon": [],
+      "Supergraphic": [],
       "Other": []
     };
 
@@ -146,7 +147,10 @@ export function AssetGrid({
         grouped.Micro.push(asset);
       } else if (asset.type === "Icon") {
         grouped.Icon.push(asset);
+      } else if (asset.type === "Supergraphic") {
+        grouped.Supergraphic.push(asset);
       } else {
+        // "Other" plus anything unrecognized (e.g. "General") falls in here.
         grouped.Other.push(asset);
       }
     });
@@ -169,6 +173,10 @@ export function AssetGrid({
         return "Micro Illustrations";
       case "Icon":
         return "Icons";
+      case "Supergraphic":
+        return "Supergraphic";
+      case "Other":
+        return "Other";
       default:
         return type;
     }
@@ -182,6 +190,8 @@ export function AssetGrid({
         return "Simple concepts and micro illustrations";
       case "Icon":
         return "Interface elements and icons";
+      case "Supergraphic":
+        return "Large-format banners and graphic assets";
       default:
         return "Other asset types";
     }
@@ -300,7 +310,7 @@ export function AssetGrid({
   // For project view, group assets by type
   if (category === "Project") {
     const groupedAssets = groupAssetsByType(filteredAssets);
-    const typeOrder = ["Spot", "Micro", "Icon", "Other"];
+    const typeOrder = ["Spot", "Micro", "Icon", "Supergraphic", "Other"];
     
     return (
       <div className="space-y-8 animate-in fade-in duration-300">

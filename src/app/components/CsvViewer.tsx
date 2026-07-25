@@ -3,6 +3,8 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Progress } from "./ui/progress";
+import { Checkbox } from "./ui/checkbox";
+import { Label } from "./ui/label";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "./ui/table";
 import { FileText, Upload, CheckCircle, AlertCircle, Database, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Eye } from "lucide-react";
@@ -29,6 +31,7 @@ export function CsvViewer() {
   const [importProgress, setImportProgress] = useState(0);
   const [importStatus, setImportStatus] = useState<"idle" | "success" | "error">("idle");
   const [importMessage, setImportMessage] = useState("");
+  const [updateExistingType, setUpdateExistingType] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -115,20 +118,25 @@ export function CsvViewer() {
     setImportStatus("idle");
 
     try {
-      const response = await bulkCreateAssets(slice, (done, doneTotal) => {
-        setImportProgress(doneTotal > 0 ? Math.round((done / doneTotal) * 100) : 100);
-      });
+      const response = await bulkCreateAssets(
+        slice,
+        (done, doneTotal) => {
+          setImportProgress(doneTotal > 0 ? Math.round((done / doneTotal) * 100) : 100);
+        },
+        { updateExistingType }
+      );
 
       if (!response.success) {
         throw new Error(response.error || "Failed to import selected rows");
       }
 
       const createdCount = response.data?.length || 0;
+      const updatedCount = response.updatedCount || 0;
       setImportStatus("success");
       setImportMessage(
-        `Berhasil import ${createdCount} asset baru dari baris ${clampedFrom}-${clampedTo} (${selectedCount} baris dipilih${
-          selectedCount !== createdCount ? `, sisanya sudah ada di database dan di-skip` : ""
-        }).`
+        `Baris ${clampedFrom}-${clampedTo} (${selectedCount} baris dipilih): ${createdCount} asset baru dibuat` +
+          (updateExistingType ? `, ${updatedCount} asset lama diperbarui type-nya` : `, sisanya (kalau ada) sudah ada di database dan dilewati`) +
+          `.`
       );
     } catch (error) {
       setImportStatus("error");
@@ -331,6 +339,21 @@ export function CsvViewer() {
                   <span className="text-muted-foreground">Isi rentang baris yang valid dulu (gak boleh 0 atau kosong).</span>
                 )}
               </p>
+
+              <div className="flex items-start gap-2 p-3 bg-muted rounded-lg">
+                <Checkbox
+                  id="csv-viewer-update-existing-type"
+                  checked={updateExistingType}
+                  onCheckedChange={(checked) => setUpdateExistingType(checked === true)}
+                  className="mt-0.5"
+                />
+                <Label htmlFor="csv-viewer-update-existing-type" className="text-sm font-normal leading-snug cursor-pointer">
+                  Update <strong>type</strong> untuk asset yang nama filenya sudah ada di database
+                  (asset_name & URL yang lama gak berubah, cuma type-nya aja yang di-update ke
+                  yang ada di baris terpilih ini). Kalau gak dicentang, asset yang sudah ada
+                  dibiarkan seperti semula.
+                </Label>
+              </div>
 
               {!isImporting && importStatus !== "success" && (
                 <Button className="w-full" size="lg" onClick={handleImportSelected} disabled={total === 0}>

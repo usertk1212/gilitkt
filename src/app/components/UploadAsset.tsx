@@ -2,6 +2,8 @@ import { useState, useRef } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Progress } from "./ui/progress";
+import { Checkbox } from "./ui/checkbox";
+import { Label } from "./ui/label";
 import { CheckCircle, AlertCircle, FileText, Database, Download, Upload } from "lucide-react";
 import { Alert, AlertDescription } from "./ui/alert";
 import { bulkCreateAssets, Asset } from "../utils/appwriteApi";
@@ -20,6 +22,8 @@ export function UploadAsset({ onNavigateBack }: UploadAssetProps) {
   const [storedCount, setStoredCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
+  const [updateExistingType, setUpdateExistingType] = useState(false);
+  const [updatedCount, setUpdatedCount] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle file selection
@@ -115,22 +119,27 @@ export function UploadAsset({ onNavigateBack }: UploadAssetProps) {
       setStoreProgress(40);
       console.log(`📦 Storing ${assets.length} assets to the Appwrite database with filename keys...`);
 
-      const response = await bulkCreateAssets(assets, (done, total) => {
-        // Real per-row progress: 40% (parsing done) to 100% (all rows processed),
-        // instead of freezing at a fixed number while the throttled import runs.
-        const pct = total > 0 ? 40 + Math.round((done / total) * 60) : 100;
-        setStoreProgress(pct);
-      });
-      
+      const response = await bulkCreateAssets(
+        assets,
+        (done, total) => {
+          // Real per-row progress: 40% (parsing done) to 100% (all rows processed),
+          // instead of freezing at a fixed number while the throttled import runs.
+          const pct = total > 0 ? 40 + Math.round((done / total) * 60) : 100;
+          setStoreProgress(pct);
+        },
+        { updateExistingType }
+      );
+
       if (!response.success) {
         throw new Error(response.error || "Failed to store assets to database");
       }
-      
+
       const createdAssets = response.data || [];
       console.log(`✅ Successfully stored ${createdAssets.length} assets to database`);
-      
+
       setStoreProgress(100);
       setStoredCount(createdAssets.length);
+      setUpdatedCount(response.updatedCount || 0);
       setStoreStatus("success");
 
     } catch (error) {
@@ -193,7 +202,7 @@ custom_graphic.png,https://example.com/image4.jpg,Supergraphic`;
               • <code>nama_file</code> (or filename, asset_library_name)<br/>
               • <code>url_lightroom</code> (or lightroom, url, link)<br/>
               • <code>category</code> (or type) - <em>Optional</em><br/><br/>
-              <strong>Valid Categories:</strong> Spot, Micro, Icon, Supergraphic, General<br/>
+              <strong>Valid Categories:</strong> Spot, Micro, Icon, Supergraphic, Other, General<br/>
               If category is not provided, it will be auto-detected from filename prefixes.
             </p>
           </div>
@@ -264,8 +273,22 @@ custom_graphic.png,https://example.com/image4.jpg,Supergraphic`;
 
           {/* Store to Database Button - Only show when file is selected */}
           {selectedFile && !isStoring && storeStatus !== "success" && (
-            <div className="mt-6">
-              <Button 
+            <div className="mt-6 space-y-3">
+              <div className="flex items-start gap-2 p-3 bg-muted rounded-lg">
+                <Checkbox
+                  id="update-existing-type"
+                  checked={updateExistingType}
+                  onCheckedChange={(checked) => setUpdateExistingType(checked === true)}
+                  className="mt-0.5"
+                />
+                <Label htmlFor="update-existing-type" className="text-sm font-normal leading-snug cursor-pointer">
+                  Update <strong>type</strong> untuk asset yang nama filenya sudah ada di database
+                  (asset_name & URL yang lama gak berubah, cuma type-nya aja yang di-update ke
+                  yang ada di CSV ini). Kalau gak dicentang, asset yang sudah ada dibiarkan
+                  seperti semula.
+                </Label>
+              </div>
+              <Button
                 onClick={handleStoreAssets}
                 className="w-full"
                 size="lg"
@@ -311,13 +334,17 @@ custom_graphic.png,https://example.com/image4.jpg,Supergraphic`;
           <AlertDescription className="text-green-700 dark:text-green-400">
             <div className="space-y-3">
               <p className="font-medium">✅ Assets successfully stored to Database: Appwrite!</p>
-              <p>Successfully processed and stored {storedCount} assets with categories.</p>
+              <p>
+                {storedCount} asset baru disimpan
+                {updatedCount > 0 ? `, ${updatedCount} asset lama diperbarui type-nya` : ""}.
+              </p>
               <div className="pt-2">
                 <p className="text-sm">Process completed:</p>
                 <ul className="text-sm list-disc list-inside mt-1 space-y-1">
                   <li>✅ Read CSV file: {selectedFile?.name}</li>
                   <li>✅ Parsed data with filename, URL, and category columns</li>
-                  <li>✅ Stored {storedCount} assets with custom categories</li>
+                  <li>✅ Stored {storedCount} new assets with custom categories</li>
+                  {updatedCount > 0 && <li>✅ Updated type for {updatedCount} existing assets</li>}
                   <li>✅ Assets are now available in your dashboard</li>
                 </ul>
               </div>
@@ -327,6 +354,7 @@ custom_graphic.png,https://example.com/image4.jpg,Supergraphic`;
                     setStoreStatus("idle");
                     setSelectedFile(null);
                     setStoredCount(0);
+                    setUpdatedCount(0);
                     if (fileInputRef.current) {
                       fileInputRef.current.value = '';
                     }

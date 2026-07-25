@@ -18,7 +18,9 @@ import {
   KeyRound,
   Trash2,
   Sun,
-  Moon
+  Moon,
+  Image,
+  Package
 } from 'lucide-react';
 import { GiliLogo } from './GiliLogo';
 import { Asset } from '../utils/appwriteApi';
@@ -81,6 +83,8 @@ export function SharedSidebar({
     { key: "Spot Illus", title: "Spot Illus", icon: Palette, count: assetCounts["Spot Illus"] || 0 },
     { key: "Micro Illustration", title: "Micro Illustration", icon: Sparkles, count: assetCounts["Micro Illustration"] || 0 },
     { key: "Icons", title: "Icons", icon: Layers, count: assetCounts["Icons"] || 0 },
+    { key: "Supergraphic", title: "Supergraphic", icon: Image, count: assetCounts["Supergraphic"] || 0 },
+    { key: "Other", title: "Other", icon: Package, count: assetCounts["Other"] || 0 },
     { key: "Projects", title: "Projects", icon: FolderOpen, count: assetCounts["Projects"] || 0 },
   ];
 

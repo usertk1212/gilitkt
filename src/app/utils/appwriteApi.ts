@@ -18,6 +18,7 @@ export interface ApiResponse<T> {
   error?: string;
   message?: string;
   count?: number;
+  updatedCount?: number;
   source?: string;
   errors?: string[];
 }
@@ -239,7 +240,15 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 // Appwrite's rate limit.
 export async function bulkCreateAssets(
   assets: Omit<Asset, 'created_at' | 'updated_at'>[],
-  onProgress?: (done: number, total: number) => void
+  onProgress?: (done: number, total: number) => void,
+  options?: {
+    // When true, rows whose filename already exists in the database get their
+    // `type` field updated to match the CSV instead of being skipped untouched.
+    // Only `type` is touched — asset_name/url_lightroom on existing rows are
+    // left alone. Off by default so re-running an import is always a no-op
+    // for rows that already exist, unless you explicitly opt in.
+    updateExistingType?: boolean;
+  }
 ): Promise<ApiResponse<Asset[]>> {
   console.log(`📦 Bulk creating ${assets.length} assets with filename keys...`);
   const created: Asset[] = [];
@@ -247,15 +256,17 @@ export async function bulkCreateAssets(
   const seenFilenames = new Set<string>();
   const total = assets.length;
 
-  // Fetch every existing nama_file once, paginating like getAllAssets() does.
-  const existingFilenames = new Set<string>();
+  // Fetch every existing nama_file → $id once, paginating like getAllAssets() does.
+  // Keeping the $id (not just the filename) lets us update-in-place when
+  // updateExistingType is on, without an extra lookup per row.
+  const existingByFilename = new Map<string, string>();
   try {
     let cursor: string | undefined;
     while (true) {
       const queries = [Query.limit(100)];
       if (cursor) queries.push(Query.cursorAfter(cursor));
       const res = await databases.listDocuments(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, queries);
-      res.documents.forEach((doc: any) => existingFilenames.add(doc.nama_file));
+      res.documents.forEach((doc: any) => existingByFilename.set(doc.nama_file, doc.$id));
       if (res.documents.length < 100) break;
       cursor = res.documents[res.documents.length - 1].$id;
       await sleep(50);
@@ -263,10 +274,11 @@ export async function bulkCreateAssets(
   } catch (error) {
     return { success: false, error: `Failed to check existing assets before import: ${errorMessage(error)}` };
   }
-  console.log(`📋 Found ${existingFilenames.size} assets already in the database — these will be skipped.`);
+  console.log(`📋 Found ${existingByFilename.size} assets already in the database.`);
 
   const DELAY_MS = 80; // pace requests to stay under Appwrite Cloud's rate limit
   let processed = 0;
+  let updatedCount = 0;
   onProgress?.(0, total);
 
   for (const asset of assets) {
@@ -285,8 +297,20 @@ export async function bulkCreateAssets(
     }
     seenFilenames.add(filename);
 
-    if (existingFilenames.has(filename)) {
-      // Already imported in a previous run — skip, no API call needed.
+    const existingId = existingByFilename.get(filename);
+    if (existingId) {
+      if (options?.updateExistingType) {
+        try {
+          await databases.updateDocument(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, existingId, {
+            type: asset.type,
+          });
+          updatedCount++;
+        } catch (error) {
+          errors.push(`Failed to update type for: ${filename} — ${errorMessage(error)}`);
+        }
+        await sleep(DELAY_MS);
+      }
+      // Already exists and either updated above or left untouched — no create needed.
       processed++;
       onProgress?.(processed, total);
       continue;
@@ -311,20 +335,30 @@ export async function bulkCreateAssets(
     await sleep(DELAY_MS);
   }
 
-  if (created.length === 0 && existingFilenames.size === 0) {
+  if (created.length === 0 && updatedCount === 0 && existingByFilename.size === 0) {
     return { success: false, error: 'No valid assets found in the provided data', errors };
   }
 
-  if (created.length > 0) {
+  if (created.length > 0 || updatedCount > 0) {
     invalidateAssetsCache();
+  }
+
+  const skippedUnchanged = existingByFilename.size - updatedCount;
+  const messageParts = [`${created.length} new asset${created.length === 1 ? '' : 's'} created`];
+  if (options?.updateExistingType) {
+    messageParts.push(`${updatedCount} existing asset${updatedCount === 1 ? '' : 's'} had their type updated`);
+  }
+  if (skippedUnchanged > 0) {
+    messageParts.push(`${skippedUnchanged} already existed and were left unchanged`);
   }
 
   return {
     success: true,
     data: created,
     count: created.length,
+    updatedCount,
     errors: errors.length > 0 ? errors : undefined,
-    message: `Successfully created ${created.length} new assets (${existingFilenames.size} already existed and were skipped)`,
+    message: messageParts.join(', '),
   };
 }
 
@@ -455,7 +489,9 @@ export function filterAssetsByCategory(assets: Asset[], category: string): Asset
   const categoryMap: Record<string, string[]> = {
     "Spot Illus": ["Spot"],
     "Micro Illustration": ["Micro"],
-    "Icons": ["Icon"]
+    "Icons": ["Icon"],
+    "Supergraphic": ["Supergraphic"],
+    "Other": ["Other"]
   };
   
   const allowedTypes = categoryMap[category];
@@ -473,7 +509,9 @@ export function getAssetCounts(assets: Asset[]): Record<string, number> {
     "All Assets": assets.length,
     "Spot Illus": assets.filter(a => a.type === "Spot").length,
     "Micro Illustration": assets.filter(a => a.type === "Micro").length,
-    "Icons": assets.filter(a => a.type === "Icon").length
+    "Icons": assets.filter(a => a.type === "Icon").length,
+    "Supergraphic": assets.filter(a => a.type === "Supergraphic").length,
+    "Other": assets.filter(a => a.type === "Other").length
   };
   
   return counts;
@@ -535,6 +573,10 @@ export function extractTypeFromFilename(nama_file: string): string {
   if (nama_file.startsWith("tds_si_")) return "Spot";
   if (nama_file.startsWith("tds_mi_")) return "Micro";
   if (nama_file.startsWith("tds_ic_")) return "Icon";
+  // Real exports use both bare ("sg_"/"ot_") and tds_-prefixed ("tds_sg_"/"tds_ot_")
+  // forms for these two, so match either — mirrors csvParser.ts's generateTypeFromFilename.
+  if (nama_file.startsWith("sg_") || nama_file.startsWith("tds_sg_")) return "Supergraphic";
+  if (nama_file.startsWith("ot_") || nama_file.startsWith("tds_ot_")) return "Other";
   return "General";
 }
 

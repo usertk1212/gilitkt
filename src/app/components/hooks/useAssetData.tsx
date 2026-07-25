@@ -56,6 +56,8 @@ export function useAssetData() {
         "Spot Illus": 0,
         "Micro Illustration": 0,
         "Icons": 0,
+        "Supergraphic": 0,
+        "Other": 0,
         "Projects": 0
       });
       

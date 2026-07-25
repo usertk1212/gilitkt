@@ -22,6 +22,10 @@ export const generateTypeFromFilename = (filename: string): string => {
   if (filename.startsWith("tds_si_")) return "Spot";
   if (filename.startsWith("tds_mi_")) return "Micro";
   if (filename.startsWith("tds_ic_")) return "Icon";
+  // Real exports use both bare ("sg_"/"ot_") and tds_-prefixed ("tds_sg_"/"tds_ot_")
+  // forms for these two, so match either.
+  if (filename.startsWith("sg_") || filename.startsWith("tds_sg_")) return "Supergraphic";
+  if (filename.startsWith("ot_") || filename.startsWith("tds_ot_")) return "Other";
   return "General";
 };
 
