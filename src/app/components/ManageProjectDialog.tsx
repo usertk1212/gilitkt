@@ -62,7 +62,7 @@ export function ManageProjectDialog({
         id: `project_${Date.now()}`,
         name: projectName.trim(),
         description: projectDescription.trim() || undefined,
-        color: "#3b82f6", // Default blue color
+        color: "var(--pp-brand-blue)", // Default blue color
         asset_ids: [asset.nama_file],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -126,7 +126,7 @@ export function ManageProjectDialog({
           {currentProjects.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <Pin className="h-4 w-4 text-blue-500" />
+                <Pin className="h-4 w-4 text-[var(--pp-icon-active)]" />
                 <h3 className="font-medium">Current Projects</h3>
                 <Badge variant="secondary" className="text-xs">
                   {currentProjects.length}
@@ -142,7 +142,7 @@ export function ManageProjectDialog({
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <div 
                         className="w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: project.color || "#3b82f6" }}
+                        style={{ backgroundColor: project.color || "var(--pp-brand-blue)" }}
                       />
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-sm truncate">

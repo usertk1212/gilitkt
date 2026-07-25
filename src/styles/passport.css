@@ -1,0 +1,317 @@
+/* ==========================================================================
+   tiket.com Passport 4.6 — Color Foundation
+   Transcribed from the Passport 4.6 Color Foundation boards (light + dark).
+
+   Structure mirrors the design system:
+     1. Primitive tokens  — raw palette, never used directly in components
+     2. Semantic tokens   — Background / Text / Icon / Stroke, per mode
+     3. Gradient tokens   — Festive + Tier
+     4. Brand colors
+
+   GILI's shadcn variables in globals.css point AT the semantic tokens, so the
+   app inherits Passport without every component being rewritten.
+   ========================================================================== */
+
+:root {
+  /* ---------------- 1. PRIMITIVE TOKENS ---------------- */
+
+  /* Neutral */
+  --pp-n900: #18191B;
+  --pp-n800: #303135;
+  --pp-n700: #4D4F56;
+  --pp-n600: #71747D;
+  --pp-n500: #8C909E;
+  --pp-n400: #AEB2BE;
+  --pp-n300: #C0C3CF;
+  --pp-n200: #D8DCE8;
+  --pp-n100: #EEF0F7;
+  --pp-n50:  #F8F9FD;
+  --pp-n0:   #FFFFFF;
+
+  /* Blue */
+  --pp-b900: #001833;
+  --pp-b800: #002A58;
+  --pp-b700: #003D81;
+  --pp-b600: #004FA7;
+  --pp-b500: #0064D2;
+  --pp-b400: #007CFF;
+  --pp-b300: #5BAAFF;
+  --pp-b200: #A3CFFF;
+  --pp-b100: #E7F2FF;
+
+  /* Green */
+  --pp-g900: #022612;
+  --pp-g800: #054A24;
+  --pp-g700: #076A33;
+  --pp-g600: #088942;
+  --pp-g500: #0BAE54;
+  --pp-g400: #3CCC7D;
+  --pp-g300: #66CC94;
+  --pp-g200: #A8E5C4;
+  --pp-g100: #E2FBED;
+
+  /* Red */
+  --pp-r900: #380909;
+  --pp-r800: #610F0F;
+  --pp-r700: #8C1616;
+  --pp-r600: #B81D1D;
+  --pp-r500: #E52424;
+  --pp-r400: #F15C59;
+  --pp-r300: #FC7474;
+  --pp-r200: #FC9999;
+  --pp-r100: #FFDFDF;
+
+  /* Yellow */
+  --pp-y900: #3D3500;
+  --pp-y800: #6C5E00;
+  --pp-y700: #AD9700;
+  --pp-y600: #E5C700;
+  --pp-y500: #FEDD00;
+  --pp-y400: #FEE645;
+  --pp-y300: #FEEC73;
+  --pp-y200: #FEF2A2;
+  --pp-y100: #FEF8D0;
+
+  /* Magenta */
+  --pp-m900: #330724;
+  --pp-m800: #460C32;
+  --pp-m700: #8C1865;
+  --pp-m600: #C0218B;
+  --pp-m500: #DE3FA9;
+  --pp-m400: #E76FBF;
+  --pp-m300: #ED96D0;
+  --pp-m200: #F6CBE8;
+  --pp-m100: #FCEEF7;
+
+  /* Orange */
+  --pp-o900: #662E00;
+  --pp-o800: #8F4000;
+  --pp-o700: #B85300;
+  --pp-o600: #E06500;
+  --pp-o500: #FF7200;
+  --pp-o400: #FF841F;
+  --pp-o300: #FFA55C;
+  --pp-o200: #FFC799;
+  --pp-o100: #FFE9D6;
+
+  /* Purple */
+  --pp-p900: #24165C;
+  --pp-p800: #3A258F;
+  --pp-p700: #4F31B8;
+  --pp-p600: #5F3FD9;
+  --pp-p500: #6B46E3;
+  --pp-p400: #8A6BF0;
+  --pp-p300: #B29AF7;
+  --pp-p200: #D6C8FB;
+  --pp-p100: #EDE6FF;
+
+  /* Turquoise */
+  --pp-t900: #092227;
+  --pp-t800: #14353C;
+  --pp-t700: #174F59;
+  --pp-t600: #148692;
+  --pp-t500: #10A4AF;
+  --pp-t400: #30B6C5;
+  --pp-t300: #7CD4E4;
+  --pp-t200: #9FDFED;
+  --pp-t100: #E0F1F5;
+
+  /* Neutral Dark — the dark-mode neutral ramp. Inverted: nd900 is lightest. */
+  --pp-nd900: #F5F5F5;
+  --pp-nd800: #E2E4E9;
+  --pp-nd700: #C4C9D4;
+  --pp-nd600: #848FA4;
+  --pp-nd500: #525B6F;
+  --pp-nd400: #414858;
+  --pp-nd300: #363B49;
+  --pp-nd200: #2B2F3B;
+  --pp-nd100: #1E2029;
+  --pp-nd50:  #16171D;
+  --pp-nd0:   #0D0E12;
+
+  /* Alpha */
+  --pp-a80:  rgba(255, 255, 255, 0.8);
+  --pp-a60:  rgba(255, 255, 255, 0.6);
+  --pp-aw40: rgba(255, 255, 255, 0.4);
+  --pp-ab40: rgba(24, 25, 27, 0.4); /* #18191B @ 40% */
+
+  /* ---------------- 3. GRADIENT TOKENS ---------------- */
+
+  /* Festive */
+  --pp-grad-blue:       linear-gradient(90deg, #007BFF 0%, #00C1EB 100%);
+  --pp-grad-dark-blue:  linear-gradient(90deg, #003D81 0%, #30B6C5 100%);
+  --pp-grad-green:      linear-gradient(90deg, #01CF6C 0%, #02CD9C 100%);
+  --pp-grad-light-blue: linear-gradient(90deg, #E7F2FF 0%, #D9EAFE 100%);
+  --pp-grad-orange:     linear-gradient(90deg, #E52424 0%, #FF7200 100%);
+  --pp-grad-purple:     linear-gradient(90deg, #FA00B4 0%, #7600D2 100%);
+  --pp-grad-red:        linear-gradient(90deg, #FF4062 0%, #FF00B8 100%);
+  --pp-grad-tosca:      linear-gradient(90deg, #00CC9B 0%, #017CFF 100%);
+  --pp-grad-violet:     linear-gradient(90deg, #18DC9B 0%, #6E54EF 100%);
+
+  /* Tier */
+  --pp-grad-silver:   linear-gradient(90deg, #47506F 0%, #CBD6EC 100%);
+  --pp-grad-gold:     linear-gradient(90deg, #614500 0%, #EBBF4F 100%);
+  --pp-grad-platinum: linear-gradient(90deg, #0F0F0F 0%, #838990 100%);
+  --pp-grad-diamond:  linear-gradient(90deg, #000208 0%, #1258C9 100%);
+
+  /* GILI's own brand gradient. Was hardcoded in 6 components as
+     #5BAAFF -> #0062F6; #5BAAFF is exactly Passport B300, but #0062F6 is NOT a
+     Passport value (nearest is B500 #0064D2), so the end stop was snapped to
+     B500 to bring it onto the system. */
+  --pp-grad-brand: linear-gradient(90deg, var(--pp-b300) 0%, var(--pp-b500) 100%);
+
+  /* ---------------- 4. BRAND ---------------- */
+  --pp-brand-blue:   #0064D2; /* B500 */
+  --pp-brand-yellow: #FEDD00; /* Y500 */
+
+  /* ---------------- 2. SEMANTIC TOKENS — LIGHT MODE ---------------- */
+
+  /* Background */
+  --pp-bg-base:          var(--pp-n0);    /* Base screen without card, card container */
+  --pp-bg-sunken:        var(--pp-n50);   /* Form container, searchbox */
+  --pp-bg-backdrop:      var(--pp-n100);  /* Base screen with card */
+  --pp-bg-disabled:      var(--pp-n200);
+  --pp-bg-blue-high:     var(--pp-b400);
+  --pp-bg-blue-low:      var(--pp-b100);
+  --pp-bg-green-high:    var(--pp-g600);
+  --pp-bg-green-low:     var(--pp-g100);
+  --pp-bg-red-high:      var(--pp-r500);
+  --pp-bg-red-low:       var(--pp-r100);
+  --pp-bg-yellow-high:   var(--pp-y500);
+  --pp-bg-yellow-low:    var(--pp-y100);
+  --pp-bg-magenta-high:  var(--pp-m500);
+  --pp-bg-magenta-low:   var(--pp-m100);
+  --pp-bg-orange-high:   var(--pp-o500);
+  --pp-bg-orange-low:    var(--pp-o100);
+  --pp-bg-purple-high:   var(--pp-p500);
+  --pp-bg-purple-low:    var(--pp-p100);
+  --pp-bg-turquoise-high: var(--pp-t500);
+  --pp-bg-turquoise-low:  var(--pp-t100);
+  --pp-bg-overlay:       var(--pp-ab40); /* Scrim on bottom sheet / modal */
+
+  /* Text */
+  --pp-text-high:         var(--pp-n800);
+  --pp-text-low:          var(--pp-n600);
+  --pp-text-disabled:     var(--pp-n400);
+  --pp-text-invert:       var(--pp-n0);
+  --pp-text-invert-subtle: var(--pp-a80);
+  --pp-text-invert-light: var(--pp-a60);
+  --pp-text-active:       var(--pp-b400);
+  --pp-text-alert:        var(--pp-r400);
+  --pp-text-analytic:     var(--pp-o500);
+  --pp-text-cross-sell:   var(--pp-p500);
+  --pp-text-positive:     var(--pp-g600);
+  --pp-text-price:        var(--pp-r500);
+  --pp-text-usp:          var(--pp-t500);
+  --pp-text-static-white: var(--pp-n0);
+  --pp-text-static-black: var(--pp-n900);
+
+  /* Icon */
+  --pp-icon-high:         var(--pp-n700);
+  --pp-icon-low:          var(--pp-n400);
+  --pp-icon-disabled:     var(--pp-n200);
+  --pp-icon-invert:       var(--pp-n0);
+  --pp-icon-invert-subtle: var(--pp-a80);
+  --pp-icon-invert-light: var(--pp-a60);
+  --pp-icon-active:       var(--pp-b400);
+  --pp-icon-alert:        var(--pp-r400);
+  --pp-icon-analytic:     var(--pp-o500);
+  --pp-icon-cross-sell:   var(--pp-p500);
+  --pp-icon-positive:     var(--pp-g600);
+  --pp-icon-price:        var(--pp-r500);
+  --pp-icon-usp:          var(--pp-t500);
+  --pp-icon-static-white: var(--pp-n0);
+  --pp-icon-static-black: var(--pp-n900);
+
+  /* Stroke */
+  --pp-stroke-bold:       var(--pp-n900);
+  --pp-stroke-regular:    var(--pp-n600);
+  --pp-stroke-light:      var(--pp-n400);
+  --pp-stroke-disabled:   var(--pp-n200);
+  --pp-stroke-invert:     var(--pp-n0);
+  --pp-stroke-active:     var(--pp-b400);
+  --pp-stroke-alert:      var(--pp-r400);
+  --pp-stroke-analytic:   var(--pp-o500);
+  --pp-stroke-cross-sell: var(--pp-p500);
+  --pp-stroke-positive:   var(--pp-g600);
+  --pp-stroke-price:      var(--pp-r500);
+  --pp-stroke-usp:        var(--pp-t500);
+}
+
+/* ---------------- 2b. SEMANTIC TOKENS — DARK MODE ----------------
+   Only the semantic layer is re-pointed. Primitives are mode-independent,
+   which is the whole point of having two layers. */
+.dark {
+  /* Background */
+  --pp-bg-base:          var(--pp-nd100);
+  --pp-bg-sunken:        var(--pp-nd50);
+  --pp-bg-backdrop:      var(--pp-nd0);
+  --pp-bg-disabled:      var(--pp-nd200);
+  --pp-bg-blue-high:     var(--pp-b500);
+  --pp-bg-blue-low:      var(--pp-b900);
+  --pp-bg-green-high:    var(--pp-g700);
+  --pp-bg-green-low:     var(--pp-g900);
+  --pp-bg-red-high:      var(--pp-r400);
+  --pp-bg-red-low:       var(--pp-r900);
+  --pp-bg-yellow-high:   var(--pp-y600);
+  --pp-bg-yellow-low:    var(--pp-y900);
+  --pp-bg-magenta-high:  var(--pp-m600);
+  --pp-bg-magenta-low:   var(--pp-m900);
+  --pp-bg-orange-high:   var(--pp-o600);
+  --pp-bg-orange-low:    var(--pp-o900);
+  --pp-bg-purple-high:   var(--pp-p600);
+  --pp-bg-purple-low:    var(--pp-p900);
+  --pp-bg-turquoise-high: var(--pp-t600);
+  --pp-bg-turquoise-low:  var(--pp-t900);
+  --pp-bg-overlay:       var(--pp-aw40);
+
+  /* Text */
+  --pp-text-high:         var(--pp-nd800);
+  --pp-text-low:          var(--pp-nd600);
+  --pp-text-disabled:     var(--pp-nd400);
+  --pp-text-invert:       var(--pp-nd0);
+  --pp-text-invert-subtle: var(--pp-a80);
+  --pp-text-invert-light: var(--pp-a60);
+  --pp-text-active:       var(--pp-b500);
+  --pp-text-alert:        var(--pp-r500);
+  --pp-text-analytic:     var(--pp-o600);
+  --pp-text-cross-sell:   var(--pp-p600);
+  --pp-text-positive:     var(--pp-g700);
+  --pp-text-price:        var(--pp-r400);
+  --pp-text-usp:          var(--pp-t600);
+  --pp-text-static-white: var(--pp-nd900);
+  --pp-text-static-black: var(--pp-nd0);
+
+  /* Icon */
+  --pp-icon-high:         var(--pp-nd700);
+  --pp-icon-low:          var(--pp-nd400);
+  --pp-icon-disabled:     var(--pp-nd200);
+  --pp-icon-invert:       var(--pp-nd0);
+  --pp-icon-invert-subtle: var(--pp-a80);
+  --pp-icon-invert-light: var(--pp-a60);
+  --pp-icon-active:       var(--pp-b500);
+  --pp-icon-alert:        var(--pp-r500);
+  --pp-icon-analytic:     var(--pp-o600);
+  --pp-icon-cross-sell:   var(--pp-p600);
+  --pp-icon-positive:     var(--pp-g700);
+  --pp-icon-price:        var(--pp-r400);
+  --pp-icon-usp:          var(--pp-t600);
+  --pp-icon-static-white: var(--pp-nd900);
+  --pp-icon-static-black: var(--pp-nd0);
+
+  /* Stroke — note the dark board labels ND400 "Strong" where the light board
+     labels N400 "Light". Same slot in the ramp, so it's mapped to the same
+     --pp-stroke-light variable. Flagged rather than silently renamed. */
+  --pp-stroke-bold:       var(--pp-nd900);
+  --pp-stroke-regular:    var(--pp-nd600);
+  --pp-stroke-light:      var(--pp-nd400);
+  --pp-stroke-disabled:   var(--pp-nd200);
+  --pp-stroke-invert:     var(--pp-nd0);
+  --pp-stroke-active:     var(--pp-b500);
+  --pp-stroke-alert:      var(--pp-r500);
+  --pp-stroke-analytic:   var(--pp-o600);
+  --pp-stroke-cross-sell: var(--pp-p700); /* dark board specifies P700, not P500 */
+  --pp-stroke-positive:   var(--pp-g700);
+  --pp-stroke-price:      var(--pp-r400);
+  --pp-stroke-usp:        var(--pp-t600);
+}

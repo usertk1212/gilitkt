@@ -6,6 +6,7 @@ import { GiliLogo } from './GiliLogo';
 import { Asset } from '../utils/appwriteApi';
 import { useTheme } from '../utils/useTheme';
 import { cn } from './ui/utils';
+import { APP_VERSION } from '../version';
 import { ArrowLeft, BarChart3, Database, Download, Eye, Folder, FolderOpen, Image, KeyRound, Layers, Moon, Package, Palette, Settings, Sparkles, Sun, Trash2, Upload } from "./icons";
 
 export type AdminTab = "upload" | "manage" | "analytics" | "csv-viewer" | "export" | "hard-reset" | "settings";
@@ -157,9 +158,9 @@ export function SharedSidebar({
                       ? "w-full justify-between px-4 py-2.5 mx-0 rounded-none hover:bg-accent/50"
                       : "w-12 h-12 p-0 justify-center rounded-lg hover:bg-accent/50 flex items-center",
                     item.danger && !active && "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30",
-                    active && !item.danger && "bg-blue-50 text-[#0062F6] dark:bg-blue-500/15 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/15",
+                    active && !item.danger && "bg-accent text-accent-foreground dark:bg-blue-500/15 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/15",
                     active && item.danger && "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40",
-                    open && active && !item.danger && "border-l-4 border-[#0062F6] pl-3",
+                    open && active && !item.danger && "border-l-4 border-[var(--pp-brand-blue)] pl-3",
                     open && active && item.danger && "border-l-4 border-red-500 pl-3"
                   )}
                   tooltip={!open ? item.title : undefined}
@@ -225,7 +226,7 @@ export function SharedSidebar({
             onClick={showBackButton ? onNavigateBack : onNavigateToAssetManagement}
             title={!open ? (showBackButton ? "Back to Dashboard" : "Admin") : undefined}
             style={{
-              background: 'linear-gradient(to right, #5BAAFF, #0062F6)',
+              background: 'var(--pp-grad-brand)',
               color: 'white'
             }}
           >
@@ -288,6 +289,14 @@ export function SharedSidebar({
                 </span>
               </>
             )}
+          </div>
+
+          {/* Build version — so it's obvious which handover you're looking at. */}
+          <div className={cn(
+            "text-muted-foreground/70 transition-all duration-200 ease-linear",
+            open ? "px-2 pt-0.5 text-[11px]" : "pt-0.5 text-[10px] text-center"
+          )}>
+            {open ? `GILI v${APP_VERSION}` : `v${APP_VERSION}`}
           </div>
         </div>
       </SidebarFooter>

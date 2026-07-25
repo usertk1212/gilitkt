@@ -1,0 +1,121 @@
+/* ==========================================================================
+   Tiket Odyssey — self-hosted webfonts
+   Source: tiket_odyssey_master/fonts/{Text,Display}/webfonts (woff2 only)
+
+   The family ships Regular / SemiBold / Bold / ExtraBold. There is NO Medium
+   (500) cut. Tailwind's `font-medium` is used in a lot of GILI's UI, and under
+   the CSS font-matching rules an undeclared 500 resolves DOWN to 400 first,
+   which would have quietly flattened the app's type hierarchy everywhere.
+   So 500 is mapped to the real SemiBold file below and marked as such — swap it
+   to Regular if you'd rather `font-medium` read lighter than `font-semibold`.
+
+   font-display: swap — text paints immediately in the fallback and re-renders
+   once Odyssey lands, instead of leaving the UI blank on a slow connection.
+   ========================================================================== */
+
+/* ---------- Odyssey Text (UI / body) ---------- */
+@font-face {
+  font-family: "Tiket Odyssey Text";
+  src: url("/fonts/TiketOdysseyText-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Tiket Odyssey Text";
+  src: url("/fonts/TiketOdysseyText-Italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* 500 intentionally points at SemiBold — see note above. */
+@font-face {
+  font-family: "Tiket Odyssey Text";
+  src: url("/fonts/TiketOdysseyText-SemiBold.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Tiket Odyssey Text";
+  src: url("/fonts/TiketOdysseyText-SemiBoldItalic.woff2") format("woff2");
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Tiket Odyssey Text";
+  src: url("/fonts/TiketOdysseyText-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Tiket Odyssey Text";
+  src: url("/fonts/TiketOdysseyText-SemiBoldItalic.woff2") format("woff2");
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Tiket Odyssey Text";
+  src: url("/fonts/TiketOdysseyText-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Tiket Odyssey Text";
+  src: url("/fonts/TiketOdysseyText-BoldItalic.woff2") format("woff2");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Tiket Odyssey Text";
+  src: url("/fonts/TiketOdysseyText-ExtraBold.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Tiket Odyssey Text";
+  src: url("/fonts/TiketOdysseyText-ExtraBoldItalic.woff2") format("woff2");
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* ---------- Odyssey Display (headings / large type) ---------- */
+@font-face {
+  font-family: "Tiket Odyssey Display";
+  src: url("/fonts/TiketOdysseyDisplay-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Tiket Odyssey Display";
+  src: url("/fonts/TiketOdysseyDisplay-SemiBold.woff2") format("woff2");
+  font-weight: 500 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Tiket Odyssey Display";
+  src: url("/fonts/TiketOdysseyDisplay-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Tiket Odyssey Display";
+  src: url("/fonts/TiketOdysseyDisplay-ExtraBold.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}

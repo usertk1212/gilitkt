@@ -53,7 +53,7 @@ export function CreateProjectDialog({
         id: `project_${Date.now()}`,
         name: projectName.trim(),
         description: projectDescription.trim() || undefined,
-        color: "#3b82f6", // Default blue color
+        color: "var(--pp-brand-blue)", // Default blue color
         asset_ids: [asset.nama_file],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -158,7 +158,7 @@ export function CreateProjectDialog({
               handleCreateProject();
             }}
             disabled={!projectName.trim() || isCreating}
-            className="bg-blue-500 hover:bg-blue-600 text-white"
+            className="bg-primary hover:opacity-90 text-white"
           >
             {isCreating ? "Creating..." : "Create Project"}
           </Button>

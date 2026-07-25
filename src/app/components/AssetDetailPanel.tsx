@@ -192,7 +192,7 @@ export function AssetDetailPanel({
                 onClick={() => handleCopyClick(asset.url_lightroom)}
                 className="h-7 w-7 p-0 text-white rounded"
                 style={{
-                  background: isCopied ? '#10b981' : 'linear-gradient(to right, #5BAAFF, #0062F6)'
+                  background: isCopied ? 'var(--pp-bg-green-high)' : 'var(--pp-grad-brand)'
                 }}
               >
                 {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
@@ -206,7 +206,7 @@ export function AssetDetailPanel({
               onClick={() => onAssetOrganize?.(asset)}
               className="flex-1 h-9 text-white rounded-lg"
               style={{
-                background: 'linear-gradient(to right, #5BAAFF, #0062F6)'
+                background: 'var(--pp-grad-brand)'
               }}
             >
               <Plus className="w-4 h-4 mr-2" />

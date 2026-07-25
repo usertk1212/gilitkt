@@ -1,0 +1,218 @@
+/* ==========================================================================
+   tiket.com Passport 4.6 — Typography & Grid Foundation
+   Transcribed from the Typography Token table and the Column/Gutter/Margin board.
+
+   All sizes are px, exactly as specified. They are deliberately NOT rem:
+   GILI sets `html { font-size: 14px }`, so rem would silently scale every
+   Passport size by 14/16 and nothing would match the spec.
+
+   Tracking is "Normal" on every token, so no letter-spacing is emitted.
+   ========================================================================== */
+
+:root {
+  /* ---------------- TYPOGRAPHY TOKENS ----------------
+     Typeface is Odyssey throughout (see odyssey.css).
+     Weight column: "Bold/Regular" means the token exists in both cuts, so the
+     size/line-height is fixed and the weight is chosen per use. */
+
+  /* Heading 1 — Bold 56/60 (107%) — Banner title */
+  --pp-h1-size: 56px;
+  --pp-h1-lh: 60px;
+  --pp-h1-weight: 700;
+
+  /* Heading 2 — Bold 38/42 (111%) — Oversized screen title, once per page */
+  --pp-h2-size: 38px;
+  --pp-h2-lh: 42px;
+  --pp-h2-weight: 700;
+
+  /* Heading 3 — Bold 28/30 (107%) — Main titles, once per page */
+  --pp-h3-size: 28px;
+  --pp-h3-lh: 30px;
+  --pp-h3-weight: 700;
+
+  /* Body 1 — Bold/Regular 18/24 (133%) — Large button, link, sub heading */
+  --pp-body1-size: 18px;
+  --pp-body1-lh: 24px;
+
+  /* Body 2 — Bold/Regular 16/22 (138%) — Small button, link, body copy, textfield */
+  --pp-body2-size: 16px;
+  --pp-body2-lh: 22px;
+
+  /* Body 3 — Bold/Regular 14/20 (143%) — Caption, helper, label on textfield */
+  --pp-body3-size: 14px;
+  --pp-body3-lh: 20px;
+
+  /* Small — Semibold 12/16 (133%) — Label only */
+  --pp-small-size: 12px;
+  --pp-small-lh: 16px;
+  --pp-small-weight: 600;
+
+  /* Slashprice — Semibold 14/16 (133%) — struck-through original price */
+  --pp-slashprice-size: 14px;
+  --pp-slashprice-lh: 16px;
+  --pp-slashprice-weight: 600;
+
+  /* Extra Small — Bold/Regular 10/14 (140%) — Paragraph */
+  --pp-xs-size: 10px;
+  --pp-xs-lh: 14px;
+
+  /* Extra Small Print — Bold/Regular 8/12 (150%) — Label only */
+  --pp-xsp-size: 8px;
+  --pp-xsp-lh: 12px;
+
+  /* Shared weights for the Bold/Regular tokens */
+  --pp-weight-regular: 400;
+  --pp-weight-semibold: 600;
+  --pp-weight-bold: 700;
+
+  /* ---------------- GRID TOKENS ----------------
+     Gutter is a fixed value. Margin is fixed per breakpoint family.
+     Ultrawide uses a percentage margin instead of a fixed one. */
+  --pp-gutter: 24px;
+
+  --pp-cols-desktop: 12;
+  --pp-margin-desktop: 120px;
+
+  --pp-cols-dashboard: 16;
+  --pp-margin-dashboard: 28px;
+
+  /* Ultrawide margin as a percentage. The board says "margin using percentage"
+     without giving the number, so this is a placeholder, not a spec value. */
+  --pp-margin-ultrawide: 8%;
+}
+
+/* ==========================================================================
+   Typography utility classes
+   Use these instead of ad-hoc text-*/font-* stacks so type stays on-system.
+   Weight is left to the Bold/Regular variants where the spec allows both.
+   ========================================================================== */
+
+.pp-h1 {
+  font-size: var(--pp-h1-size);
+  line-height: var(--pp-h1-lh);
+  font-weight: var(--pp-h1-weight);
+}
+.pp-h2 {
+  font-size: var(--pp-h2-size);
+  line-height: var(--pp-h2-lh);
+  font-weight: var(--pp-h2-weight);
+}
+.pp-h3 {
+  font-size: var(--pp-h3-size);
+  line-height: var(--pp-h3-lh);
+  font-weight: var(--pp-h3-weight);
+}
+
+.pp-body-1 {
+  font-size: var(--pp-body1-size);
+  line-height: var(--pp-body1-lh);
+  font-weight: var(--pp-weight-regular);
+}
+.pp-body-1-bold {
+  font-size: var(--pp-body1-size);
+  line-height: var(--pp-body1-lh);
+  font-weight: var(--pp-weight-bold);
+}
+
+.pp-body-2 {
+  font-size: var(--pp-body2-size);
+  line-height: var(--pp-body2-lh);
+  font-weight: var(--pp-weight-regular);
+}
+.pp-body-2-bold {
+  font-size: var(--pp-body2-size);
+  line-height: var(--pp-body2-lh);
+  font-weight: var(--pp-weight-bold);
+}
+
+.pp-body-3 {
+  font-size: var(--pp-body3-size);
+  line-height: var(--pp-body3-lh);
+  font-weight: var(--pp-weight-regular);
+}
+.pp-body-3-bold {
+  font-size: var(--pp-body3-size);
+  line-height: var(--pp-body3-lh);
+  font-weight: var(--pp-weight-bold);
+}
+
+/* Small is Semibold-only per the spec — there is no Regular cut of it. */
+.pp-small {
+  font-size: var(--pp-small-size);
+  line-height: var(--pp-small-lh);
+  font-weight: var(--pp-small-weight);
+}
+
+.pp-slashprice {
+  font-size: var(--pp-slashprice-size);
+  line-height: var(--pp-slashprice-lh);
+  font-weight: var(--pp-slashprice-weight);
+  text-decoration: line-through;
+}
+
+.pp-xs {
+  font-size: var(--pp-xs-size);
+  line-height: var(--pp-xs-lh);
+  font-weight: var(--pp-weight-regular);
+}
+.pp-xs-bold {
+  font-size: var(--pp-xs-size);
+  line-height: var(--pp-xs-lh);
+  font-weight: var(--pp-weight-bold);
+}
+
+.pp-xs-print {
+  font-size: var(--pp-xsp-size);
+  line-height: var(--pp-xsp-lh);
+  font-weight: var(--pp-weight-regular);
+}
+.pp-xs-print-bold {
+  font-size: var(--pp-xsp-size);
+  line-height: var(--pp-xsp-lh);
+  font-weight: var(--pp-weight-bold);
+}
+
+/* Emphasis hierarchy — High first, Low only to differentiate two items that
+   share the same text style. Colours come from the Passport semantic layer. */
+.pp-emphasis-high {
+  color: var(--pp-text-high);
+}
+.pp-emphasis-low {
+  color: var(--pp-text-low);
+}
+
+/* ==========================================================================
+   Grid utility classes
+
+   GILI is a dashboard, so .pp-container / .pp-grid use the 16-column,
+   28px-margin dashboard spec. The 12-column/120px desktop spec is available as
+   the -desktop variants for marketing-style full-width pages.
+   ========================================================================== */
+
+.pp-container {
+  width: 100%;
+  padding-inline: var(--pp-margin-dashboard);
+}
+.pp-container-desktop {
+  width: 100%;
+  padding-inline: var(--pp-margin-desktop);
+}
+
+.pp-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--pp-cols-dashboard), minmax(0, 1fr));
+  gap: var(--pp-gutter);
+}
+.pp-grid-desktop {
+  display: grid;
+  grid-template-columns: repeat(var(--pp-cols-desktop), minmax(0, 1fr));
+  gap: var(--pp-gutter);
+}
+
+/* Ultrawide switches the fixed margin for a percentage one. */
+@media (min-width: 1920px) {
+  .pp-container,
+  .pp-container-desktop {
+    padding-inline: var(--pp-margin-ultrawide);
+  }
+}

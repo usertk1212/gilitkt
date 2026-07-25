@@ -157,7 +157,7 @@ export function Analytics({ onNavigateBack }: AnalyticsProps) {
             title="Total Assets"
             value={stats.total}
             icon={FileText}
-            color="#3b82f6"
+            color="var(--pp-brand-blue)"
           />
         </div>
 
@@ -175,7 +175,7 @@ export function Analytics({ onNavigateBack }: AnalyticsProps) {
               title="Micro Illustration"
               value={stats.byType.micro}
               icon={Sparkles}
-              color="#3b82f6"
+              color="var(--pp-brand-blue)"
             />
             <CategoryCard
               title="Icons"

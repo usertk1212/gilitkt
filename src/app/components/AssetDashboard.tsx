@@ -467,7 +467,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
                     onClick={() => setViewMode("grid")}
                     className="rounded-none h-8 lg:h-10 px-2 lg:px-4"
                     style={viewMode === "grid" ? {
-                      background: 'linear-gradient(to right, #5BAAFF, #0062F6)',
+                      background: 'var(--pp-grad-brand)',
                       color: 'white'
                     } : {}}
                   >
@@ -479,7 +479,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
                     onClick={() => setViewMode("list")}
                     className="rounded-none h-8 lg:h-10 px-2 lg:px-4 border-l"
                     style={viewMode === "list" ? {
-                      background: 'linear-gradient(to right, #5BAAFF, #0062F6)',
+                      background: 'var(--pp-grad-brand)',
                       color: 'white'
                     } : {}}
                   >

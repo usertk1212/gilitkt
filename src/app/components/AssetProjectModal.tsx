@@ -255,7 +255,7 @@ export function AssetProjectModal({
                   onClick={handleCreateNewProject}
                   className="flex-1"
                   style={{
-                    background: 'linear-gradient(to right, #5BAAFF, #0062F6)',
+                    background: 'var(--pp-grad-brand)',
                     color: 'white'
                   }}
                 >
@@ -283,7 +283,7 @@ export function AssetProjectModal({
               onClick={() => handleSave(true)}
               className="flex-1"
               style={{
-                background: 'linear-gradient(to right, #5BAAFF, #0062F6)',
+                background: 'var(--pp-grad-brand)',
                 color: 'white'
               }}
             >

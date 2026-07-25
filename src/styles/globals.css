@@ -2,91 +2,111 @@
 
 :root {
   --font-size: 14px;
-  --background: #F4F7FE;
-  --foreground: oklch(0.145 0 0);
-  --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.0058 264.53);
-  --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
-  --destructive: #d4183d;
-  --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
+
+  /* ---- Passport 4.6 mapping (light) ----
+     Every value below resolves to a Passport semantic token. To change a colour,
+     change the token in passport.css, not here. */
+  --background: var(--pp-bg-backdrop);          /* N100 — Backdrop Surface: base screen with cards */
+  --foreground: var(--pp-text-high);            /* N800 — High Emphasis */
+  --card: var(--pp-bg-base);                    /* N0  — Base Surface */
+  --card-foreground: var(--pp-text-high);
+  --popover: var(--pp-bg-base);
+  --popover-foreground: var(--pp-text-high);
+  --primary: var(--pp-brand-blue);              /* B500 — brand blue, was near-black #030213 */
+  --primary-foreground: var(--pp-text-invert);
+  --secondary: var(--pp-bg-sunken);             /* N50 */
+  --secondary-foreground: var(--pp-text-high);
+  --muted: var(--pp-bg-backdrop);               /* N100 */
+  --muted-foreground: var(--pp-text-low);       /* N600 — Low Emphasis */
+  --accent: var(--pp-bg-blue-low);              /* B100 — Low Blue, used for hover/selected */
+  --accent-foreground: var(--pp-text-active);   /* B400 — Active */
+  --destructive: var(--pp-bg-red-high);         /* R500 — High Red */
+  --destructive-foreground: var(--pp-text-invert);
+  --border: var(--pp-stroke-disabled);          /* N200 */
   --input: transparent;
-  --input-background: #f3f3f5;
-  --switch-background: #cbced4;
+  --input-background: var(--pp-bg-sunken);      /* N50 — Sunken Surface: form container */
+  --switch-background: var(--pp-n300);
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --ring: var(--pp-stroke-active);              /* B400 */
+
+  /* Charts — Passport accent hues, in the semantic order they read in Analytics */
+  --chart-1: var(--pp-b400);
+  --chart-2: var(--pp-t500);
+  --chart-3: var(--pp-p500);
+  --chart-4: var(--pp-o500);
+  --chart-5: var(--pp-g600);
+
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #030213;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-  
-  /* Typography scale */
-  --text-xs: 0.75rem;      /* 12px */
-  --text-sm: 0.875rem;     /* 14px */
-  --text-base: 1rem;       /* 16px */
-  --text-lg: 1.125rem;     /* 18px */
-  --text-xl: 1.25rem;      /* 20px */
-  --text-2xl: 1.5rem;      /* 24px */
+
+  --sidebar: var(--pp-bg-base);                 /* N0 */
+  --sidebar-foreground: var(--pp-text-high);
+  --sidebar-primary: var(--pp-brand-blue);
+  --sidebar-primary-foreground: var(--pp-text-invert);
+  --sidebar-accent: var(--pp-bg-blue-low);      /* B100 — selected nav item */
+  --sidebar-accent-foreground: var(--pp-text-active);
+  --sidebar-border: var(--pp-stroke-disabled);
+  --sidebar-ring: var(--pp-stroke-active);
+
+  /* Typography scale — aliased onto the Passport ladder.
+     Passport rungs are 8 / 10 / 12 / 14 / 16 / 18 / 28 / 38 / 56.
+     GILI's old --text-xl (20px) and --text-2xl (24px) have NO Passport
+     equivalent, so both snap up to the nearest real rung, Heading 3 (28px).
+     That makes them identical — use the .pp-* classes for real hierarchy. */
+  --text-xs: var(--pp-small-size);    /* 12px — Small */
+  --text-sm: var(--pp-body3-size);    /* 14px — Body 3 */
+  --text-base: var(--pp-body2-size);  /* 16px — Body 2 */
+  --text-lg: var(--pp-body1-size);    /* 18px — Body 1 */
+  --text-xl: var(--pp-h3-size);       /* 28px — snapped up from 20px */
+  --text-2xl: var(--pp-h3-size);      /* 28px — snapped up from 24px */
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
+  /* ---- Passport 4.6 mapping (dark) ----
+     Uses the Neutral Dark ramp. Note ND900 is the LIGHTEST value in that ramp. */
+  --background: var(--pp-bg-backdrop);          /* ND0  — Backdrop Surface */
+  --foreground: var(--pp-text-high);            /* ND800 */
+  --card: var(--pp-bg-base);                    /* ND100 — Base Surface */
+  --card-foreground: var(--pp-text-high);
+  --popover: var(--pp-bg-base);
+  --popover-foreground: var(--pp-text-high);
+  --primary: var(--pp-bg-blue-high);            /* B500 */
+  --primary-foreground: var(--pp-text-static-white);
+  --secondary: var(--pp-bg-sunken);             /* ND50 */
+  --secondary-foreground: var(--pp-text-high);
+  --muted: var(--pp-nd200);
+  --muted-foreground: var(--pp-text-low);       /* ND600 */
+  --accent: var(--pp-nd200);
+  --accent-foreground: var(--pp-text-high);
+  --destructive: var(--pp-bg-red-high);         /* R400 in dark */
+  --destructive-foreground: var(--pp-text-static-white);
+  --border: var(--pp-stroke-disabled);          /* ND200 */
+  --input: var(--pp-nd200);
+  --ring: var(--pp-stroke-active);              /* B500 */
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --chart-1: var(--pp-b400);
+  --chart-2: var(--pp-t500);
+  --chart-3: var(--pp-p500);
+  --chart-4: var(--pp-o500);
+  --chart-5: var(--pp-g500);
+  --sidebar: var(--pp-bg-base);                 /* ND100 */
+  --sidebar-foreground: var(--pp-text-high);
+  --sidebar-primary: var(--pp-bg-blue-high);
+  --sidebar-primary-foreground: var(--pp-text-static-white);
+  --sidebar-accent: var(--pp-nd200);
+  --sidebar-accent-foreground: var(--pp-text-high);
+  --sidebar-border: var(--pp-stroke-disabled);
+  --sidebar-ring: var(--pp-stroke-active);
 }
 
 @theme inline {
+  /* Tiket Odyssey — see src/styles/odyssey.css for the @font-face declarations.
+     font-sans drives every default Tailwind text class; font-display is opt-in
+     via the `font-display` utility for large headings. */
+  --font-sans: "Tiket Odyssey Text", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Tiket Odyssey Display", "Tiket Odyssey Text", ui-sans-serif, system-ui, sans-serif;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -143,52 +163,59 @@
  */
 @layer base {
   :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    /* Passport: Heading 3 is "Main titles, use only once per page" — which is
+       exactly what h1 is in this app. H1/H2 (56px/38px) are banner and
+       oversized-title sizes and would dwarf a dashboard, so they stay opt-in
+       via .pp-h1 / .pp-h2 rather than being bound to an element. */
     h1 {
-      font-size: var(--text-2xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.4;
+      font-size: var(--pp-h3-size);
+      line-height: var(--pp-h3-lh);
+      font-weight: var(--pp-h3-weight);
     }
 
     h2 {
-      font-size: var(--text-xl);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.4;
+      font-size: var(--pp-body1-size);
+      line-height: var(--pp-body1-lh);
+      font-weight: var(--pp-weight-bold);
     }
 
     h3 {
-      font-size: var(--text-lg);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.4;
+      font-size: var(--pp-body2-size);
+      line-height: var(--pp-body2-lh);
+      font-weight: var(--pp-weight-bold);
     }
 
     h4 {
-      font-size: var(--text-base);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.4;
+      font-size: var(--pp-body3-size);
+      line-height: var(--pp-body3-lh);
+      font-weight: var(--pp-weight-bold);
     }
 
     p {
-      font-size: var(--text-sm);
-      font-weight: var(--font-weight-normal);
-      line-height: 1.5;
+      font-size: var(--pp-body3-size);
+      line-height: var(--pp-body3-lh);
+      font-weight: var(--pp-weight-regular);
     }
 
+    /* Body 3 — "label on textfield" per the spec */
     label {
-      font-size: var(--text-sm);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.4;
+      font-size: var(--pp-body3-size);
+      line-height: var(--pp-body3-lh);
+      font-weight: var(--pp-weight-bold);
     }
 
+    /* Body 2 — "Small Button" per the spec */
     button {
-      font-size: var(--text-sm);
-      font-weight: var(--font-weight-medium);
-      line-height: 1.4;
+      font-size: var(--pp-body2-size);
+      line-height: var(--pp-body2-lh);
+      font-weight: var(--pp-weight-bold);
     }
 
+    /* Body 2 — "textfield" per the spec */
     input {
-      font-size: var(--text-sm);
-      font-weight: var(--font-weight-normal);
-      line-height: 1.4;
+      font-size: var(--pp-body2-size);
+      font-weight: var(--pp-weight-regular);
+      line-height: var(--pp-body2-lh);
     }
   }
 }
@@ -197,16 +224,25 @@ html {
   font-size: var(--font-size);
 }
 
+/* Odyssey Text as the app-wide default. Set on html/body rather than only via
+   Tailwind classes so plain elements and portalled UI inherit it too. */
+html,
+body {
+  font-family: "Tiket Odyssey Text", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* Custom sidebar styling for compact left-aligned layout */
 .sidebar-menu-item[data-active="true"] {
-  background: rgba(59, 130, 246, 0.1);
-  border-left: 4px solid #3b82f6;
+  background: var(--pp-bg-blue-low);
+  border-left: 4px solid var(--pp-stroke-active);
   margin-left: 0;
   border-radius: 0;
 }
 
 .sidebar-menu-item[data-active="true"] .sidebar-menu-text {
-  color: #3b82f6;
+  color: var(--pp-text-active);
   font-weight: 500;
 }
 
@@ -244,17 +280,17 @@ html {
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--pp-stroke-light);
   border-radius: 2px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--pp-stroke-regular);
 }
 
 .scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  scrollbar-color: var(--pp-stroke-light) transparent;
 }
 
 /* Detail panel specific styling */

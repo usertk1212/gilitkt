@@ -238,7 +238,7 @@ function AssetCardImpl({
     return (
       <Card 
         className={`bg-card hover:bg-accent/50 transition-all duration-200 cursor-pointer shadow-sm border border-border hover:shadow-md ${
-          isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
+          isSelected ? 'ring-2 ring-ring ring-offset-2' : ''
         }`}
         onClick={() => onSelect?.(asset)}
       >
@@ -284,8 +284,8 @@ function AssetCardImpl({
                           e.stopPropagation();
                           handleCopyClick(asset.url_lightroom);
                         }}
-                        className="shrink-0 h-8 w-8 p-0 bg-blue-500 hover:bg-blue-600 text-white rounded-md"
-                        style={isCopied ? { background: '#10b981' } : {}}
+                        className="shrink-0 h-8 w-8 p-0 bg-primary hover:opacity-90 text-white rounded-md"
+                        style={isCopied ? { background: 'var(--pp-bg-green-high)' } : {}}
                         title="Copy link"
                       >
                         {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -367,7 +367,7 @@ function AssetCardImpl({
   return (
     <Card
       className={`bg-card rounded-2xl shadow-sm group cursor-pointer transition-all duration-200 hover:shadow-lg overflow-hidden border border-border ${
-        isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
+        isSelected ? 'ring-2 ring-ring ring-offset-2' : ''
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -492,10 +492,10 @@ function AssetCardImpl({
                   e.stopPropagation();
                   handleCopyClick(asset.url_lightroom);
                 }}
-                className={`shrink-0 p-0 bg-blue-500 hover:bg-blue-600 text-white ${
+                className={`shrink-0 p-0 bg-primary hover:opacity-90 text-white ${
                   isSmallCard ? 'h-6 w-6 rounded-sm' : 'h-8 w-8 rounded-md'
                 }`}
-                style={isCopied ? { background: '#10b981' } : {}}
+                style={isCopied ? { background: 'var(--pp-bg-green-high)' } : {}}
                 title="Copy link"
               >
                 {isCopied ? (

@@ -56,7 +56,7 @@ export function AssetTableRow({ asset }: AssetTableRowProps) {
           onClick={() => handleCopyUrl(asset.url_lightroom, asset.asset_name)}
           className="h-7 px-2 text-xs"
           style={{
-            background: 'linear-gradient(to right, #5BAAFF, #0062F6)',
+            background: 'var(--pp-grad-brand)',
             color: 'white',
             border: 'none'
           }}

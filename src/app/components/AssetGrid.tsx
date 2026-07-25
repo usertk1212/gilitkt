@@ -221,7 +221,7 @@ export function AssetGrid({
   if (loading && assets.length === 0) {
     return (
       <div className="text-center py-20 flex flex-col items-center justify-center gap-4 animate-in fade-in duration-300">
-        <Loader2 className="w-10 h-10 animate-spin" style={{ color: '#0062F6' }} />
+        <Loader2 className="w-10 h-10 animate-spin" style={{ color: 'var(--pp-brand-blue)' }} />
         <div>
           <h3 className="mb-1">Menyiapkan asset kamu...</h3>
           <p className="text-muted-foreground text-sm">
@@ -260,7 +260,7 @@ export function AssetGrid({
           <Button
             onClick={onNavigateToAllAssets}
             style={{
-              background: 'linear-gradient(to right, #5BAAFF, #0062F6)',
+              background: 'var(--pp-grad-brand)',
               color: 'white'
             }}
           >
@@ -296,7 +296,7 @@ export function AssetGrid({
           <Button 
             onClick={onNavigateToAllAssets}
             style={{
-              background: 'linear-gradient(to right, #5BAAFF, #0062F6)',
+              background: 'var(--pp-grad-brand)',
               color: 'white'
             }}
           >

@@ -1,5 +1,8 @@
 @import 'tailwindcss' source(none);
 @source '../../**/*.{js,ts,jsx,tsx}';
 @import 'tw-animate-css';
+@import './odyssey.css';
+@import './passport.css';
+@import './passport-type-grid.css';
 @import './default_theme.css';
 @import './globals.css';

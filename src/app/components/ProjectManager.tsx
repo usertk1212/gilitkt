@@ -256,7 +256,7 @@ export function ProjectManager({
         <Button 
           onClick={() => setShowCreateModal(true)}
           style={{
-            background: 'linear-gradient(to right, #5BAAFF, #0062F6)',
+            background: 'var(--pp-grad-brand)',
             color: 'white'
           }}
         >
@@ -278,7 +278,7 @@ export function ProjectManager({
           <Button 
             onClick={() => setShowCreateModal(true)}
             style={{
-              background: 'linear-gradient(to right, #5BAAFF, #0062F6)',
+              background: 'var(--pp-grad-brand)',
               color: 'white'
             }}
           >
@@ -417,7 +417,7 @@ export function ProjectManager({
                         )}
                         {assetCounts.Micro > 0 && (
                           <div className="flex items-center gap-1">
-                            <Sparkles className="w-3 h-3 text-blue-500" />
+                            <Sparkles className="w-3 h-3 text-[var(--pp-icon-active)]" />
                             <span className="text-xs text-muted-foreground">{assetCounts.Micro}</span>
                           </div>
                         )}
@@ -490,7 +490,7 @@ export function ProjectManager({
               onClick={handleCreateProject}
               disabled={!newProjectName.trim()}
               style={{
-                background: 'linear-gradient(to right, #5BAAFF, #0062F6)',
+                background: 'var(--pp-grad-brand)',
                 color: 'white'
               }}
             >
@@ -548,7 +548,7 @@ export function ProjectManager({
               onClick={handleRenameProject}
               disabled={!renameProjectName.trim()}
               style={{
-                background: 'linear-gradient(to right, #5BAAFF, #0062F6)',
+                background: 'var(--pp-grad-brand)',
                 color: 'white'
               }}
             >
