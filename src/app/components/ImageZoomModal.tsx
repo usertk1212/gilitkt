@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { X, Plus, MinusIcon, RefreshCw } from "./icons";
+import { X, ZoomIn, ZoomOut, RefreshCw } from "./icons";
 import { Button } from "./ui/button";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 
@@ -121,7 +121,7 @@ export function ImageZoomModal({ src, alt, caption, isOpen, onClose }: ImageZoom
             className="h-8 w-8 p-0 text-white hover:bg-white/20 disabled:opacity-30"
             title="Zoom out (-)"
           >
-            <MinusIcon className="h-4 w-4" />
+            <ZoomOut className="h-4 w-4" />
           </Button>
 
           <span className="w-14 text-center text-sm tabular-nums text-white/80">
@@ -136,7 +136,7 @@ export function ImageZoomModal({ src, alt, caption, isOpen, onClose }: ImageZoom
             className="h-8 w-8 p-0 text-white hover:bg-white/20 disabled:opacity-30"
             title="Zoom in (+)"
           >
-            <Plus className="h-4 w-4" />
+            <ZoomIn className="h-4 w-4" />
           </Button>
 
           <Button

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import * as React from "react";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "./ui/sidebar";
 import { Breadcrumb, BreadcrumbEllipsis, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "./ui/breadcrumb";
-import { Search, Plus, Grid, List, Image, Palette, Sparkles, Layers, Upload, Folder, RefreshCw, Database, AlertCircle, Download, X, FolderOpen, ArrowLeft, Home, ChevronRight, SlidersHorizontal, Settings, CalendarDays } from "./icons";
+import { Search, Plus, Grid, List, Image, Palette, Sparkles, Layers, Upload, Folder, RefreshCw, Database, AlertCircle, Download, X, FolderOpen, ArrowLeft, Home, ChevronRight, SlidersHorizontal, Settings, Sort, Zap } from "./icons";
 import { Slider } from "./ui/slider";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -430,7 +430,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
               <div className="flex items-center gap-2 lg:gap-3 shrink-0 ml-auto">
                 <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
                   <SelectTrigger className="h-8 lg:h-10 text-xs lg:text-sm w-auto gap-1 lg:gap-2">
-                    <CalendarDays className="w-3 lg:w-4 h-3 lg:h-4 shrink-0" />
+                    <Sort className="w-3 lg:w-4 h-3 lg:h-4 shrink-0" />
                     <span className="hidden sm:inline"><SelectValue /></span>
                   </SelectTrigger>
                   <SelectContent>
@@ -467,7 +467,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
                     onClick={() => setViewMode("grid")}
                     className="rounded-none h-8 lg:h-10 px-2 lg:px-4"
                     style={viewMode === "grid" ? {
-                      background: 'var(--pp-grad-brand)',
+                      background: 'var(--pp-bg-blue-high)',
                       color: 'white'
                     } : {}}
                   >
@@ -479,7 +479,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
                     onClick={() => setViewMode("list")}
                     className="rounded-none h-8 lg:h-10 px-2 lg:px-4 border-l"
                     style={viewMode === "list" ? {
-                      background: 'var(--pp-grad-brand)',
+                      background: 'var(--pp-bg-blue-high)',
                       color: 'white'
                     } : {}}
                   >

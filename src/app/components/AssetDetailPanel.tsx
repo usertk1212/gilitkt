@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Copy, Check, Plus, Edit3, Link, Search } from "./icons";
+import { X, Copy, Check, Plus, Edit3, Link, ZoomIn } from "./icons";
 import { ImageZoomModal } from "./ImageZoomModal";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -112,7 +112,7 @@ export function AssetDetailPanel({
             />
             <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
               <span className="flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-medium text-neutral-900">
-                <Search className="h-3.5 w-3.5" />
+                <ZoomIn className="h-3.5 w-3.5" />
                 Zoom
               </span>
             </span>
@@ -192,7 +192,7 @@ export function AssetDetailPanel({
                 onClick={() => handleCopyClick(asset.url_lightroom)}
                 className="h-7 w-7 p-0 text-white rounded"
                 style={{
-                  background: isCopied ? 'var(--pp-bg-green-high)' : 'var(--pp-grad-brand)'
+                  background: isCopied ? 'var(--pp-bg-green-high)' : 'var(--pp-bg-blue-high)'
                 }}
               >
                 {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
@@ -206,7 +206,7 @@ export function AssetDetailPanel({
               onClick={() => onAssetOrganize?.(asset)}
               className="flex-1 h-9 text-white rounded-lg"
               style={{
-                background: 'var(--pp-grad-brand)'
+                background: 'var(--pp-bg-blue-high)'
               }}
             >
               <Plus className="w-4 h-4 mr-2" />

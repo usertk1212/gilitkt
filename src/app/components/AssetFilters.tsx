@@ -5,7 +5,7 @@ import { Badge } from "./ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Checkbox } from "./ui/checkbox";
 import { Slider } from "./ui/slider";
-import { X, CalendarDays, Palette, FileType, User } from "./icons";
+import { X, Sort, Palette, FileType, User } from "./icons";
 import { loadAssets, type Asset } from "../utils/dataLoader";
 
 export function AssetFilters() {
@@ -92,7 +92,7 @@ export function AssetFilters() {
         {/* Sort By */}
         <div className="space-y-2">
           <label className="flex items-center gap-2">
-            <CalendarDays className="w-4 h-4" />
+            <Sort className="w-4 h-4" />
             Sort By
           </label>
           <Select defaultValue="recent">

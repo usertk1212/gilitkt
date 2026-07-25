@@ -5,26 +5,45 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "./utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  // TDS Buttons: 8px radius, Body 2 (16/22) Bold label, flat fills only.
+  // `disabled:opacity-50` is replaced by real Disabled-Surface tokens per the
+  // spec — the TDS disabled state is a specific grey fill, not a faded copy of
+  // whatever variant you started from.
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[8px] text-[16px] leading-[22px] font-bold transition-all disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:bg-[var(--pp-bg-disabled)] disabled:text-[var(--pp-text-disabled)]",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
-        outline:
-          "border bg-background text-foreground hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
+        /* TDS 01 Primary — solid High Blue, Static White label.
+           :pressed in the spec is a LIGHTER fill (B300-ish), not a darker one,
+           which is why this uses b300 on active instead of the usual /90 dim. */
+        default:
+          "bg-[var(--pp-bg-blue-high)] text-[var(--pp-text-static-white)] hover:bg-[var(--pp-b500)] active:bg-[var(--pp-b300)]",
+
+        /* TDS 02 Secondary — Low Blue fill, Active-blue label */
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "bg-[var(--pp-bg-blue-low)] text-[var(--pp-text-active)] hover:bg-[var(--pp-b200)] active:bg-[var(--pp-b200)]",
+
+        /* TDS 03 Tertiary — no fill until pressed, Active-blue label */
         ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-transparent text-[var(--pp-text-active)] hover:bg-[var(--pp-bg-blue-low)] active:bg-[var(--pp-bg-blue-low)]",
+
+        /* TDS 04 Invert — no fill, High-Emphasis label; pressed picks up Low Blue */
+        outline:
+          "border border-[var(--pp-stroke-disabled)] bg-[var(--pp-bg-base)] text-[var(--pp-text-high)] hover:bg-[var(--pp-bg-sunken)] active:bg-[var(--pp-bg-blue-low)]",
+
+        /* TDS 05 Alert — Low Red fill, Alert-red label. Pressed goes to the
+           stronger High Red fill, matching the spec's darker pressed swatch. */
+        destructive:
+          "bg-[var(--pp-bg-red-low)] text-[var(--pp-text-alert)] hover:bg-[var(--pp-r200)] active:bg-[var(--pp-bg-red-high)] active:text-[var(--pp-text-static-white)] focus-visible:ring-[var(--pp-stroke-alert)]/30",
+
+        link: "text-[var(--pp-text-active)] underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9 rounded-md",
+        /* sm drops to Body 3 (14/20); the rest keep Body 2 from the base class. */
+        default: "h-10 px-4 py-2 has-[>svg]:px-3",
+        sm: "h-8 rounded-[8px] gap-1.5 px-3 text-[14px] leading-[20px] has-[>svg]:px-2.5",
+        lg: "h-12 rounded-[8px] px-6 text-[18px] leading-[24px] has-[>svg]:px-4",
+        icon: "size-10 rounded-[8px]",
       },
     },
     defaultVariants: {

@@ -91,7 +91,7 @@ export function AssetManagement({ onNavigateBack }: AssetManagementProps) {
               <SidebarTrigger className="size-9 hover:bg-accent/50 rounded-lg bg-transparent text-foreground shrink-0" />
               <div className="flex items-center gap-2">
                 <Home className="w-4 h-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Admin Dashboard</span>
+                <span className="text-muted-foreground">Superuser Dashboard</span>
                 <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 <span className="font-medium">Asset Management</span>
               </div>
@@ -103,7 +103,7 @@ export function AssetManagement({ onNavigateBack }: AssetManagementProps) {
                   </div>
                   <div className="text-sm">
                     <div className="font-medium">admin</div>
-                    <div className="text-xs text-muted-foreground">Administrator</div>
+                    <div className="text-xs text-muted-foreground">Superuser</div>
                   </div>
                 </div>
               </div>

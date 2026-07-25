@@ -7,7 +7,7 @@ import { Asset } from '../utils/appwriteApi';
 import { useTheme } from '../utils/useTheme';
 import { cn } from './ui/utils';
 import { APP_VERSION } from '../version';
-import { ArrowLeft, BarChart3, Database, Download, Eye, Folder, FolderOpen, Image, KeyRound, Layers, Moon, Package, Palette, Settings, Sparkles, Sun, Trash2, Upload } from "./icons";
+import { ArrowLeft, BarChart3, Database, Download, Eye, Folder, FolderOpen, Image, KeyRound, Layers, Moon, Package, Palette, Settings, Sparkles, Sun, Trash2, Upload, Zap } from "./icons";
 
 export type AdminTab = "upload" | "manage" | "analytics" | "csv-viewer" | "export" | "hard-reset" | "settings";
 
@@ -224,20 +224,20 @@ export function SharedSidebar({
             )}
             size="icon"
             onClick={showBackButton ? onNavigateBack : onNavigateToAssetManagement}
-            title={!open ? (showBackButton ? "Back to Dashboard" : "Admin") : undefined}
+            title={!open ? (showBackButton ? "Back to Dashboard" : "Superuser") : undefined}
             style={{
-              background: 'var(--pp-grad-brand)',
+              background: 'var(--pp-bg-blue-high)',
               color: 'white'
             }}
           >
             {showBackButton ? (
               <ArrowLeft className="w-5 h-5 shrink-0" />
             ) : (
-              <Settings className="w-5 h-5 shrink-0" />
+              <Zap className="w-5 h-5 shrink-0" />
             )}
             {open && (
               <span className="ml-2 text-sm">
-                {showBackButton ? "Back to Dashboard" : "Admin"}
+                {showBackButton ? "Back to Dashboard" : "Superuser"}
               </span>
             )}
           </Button>

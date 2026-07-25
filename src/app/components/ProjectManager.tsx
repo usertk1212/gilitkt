@@ -256,7 +256,7 @@ export function ProjectManager({
         <Button 
           onClick={() => setShowCreateModal(true)}
           style={{
-            background: 'var(--pp-grad-brand)',
+            background: 'var(--pp-bg-blue-high)',
             color: 'white'
           }}
         >
@@ -278,7 +278,7 @@ export function ProjectManager({
           <Button 
             onClick={() => setShowCreateModal(true)}
             style={{
-              background: 'var(--pp-grad-brand)',
+              background: 'var(--pp-bg-blue-high)',
               color: 'white'
             }}
           >
@@ -490,7 +490,7 @@ export function ProjectManager({
               onClick={handleCreateProject}
               disabled={!newProjectName.trim()}
               style={{
-                background: 'var(--pp-grad-brand)',
+                background: 'var(--pp-bg-blue-high)',
                 color: 'white'
               }}
             >
@@ -548,7 +548,7 @@ export function ProjectManager({
               onClick={handleRenameProject}
               disabled={!renameProjectName.trim()}
               style={{
-                background: 'var(--pp-grad-brand)',
+                background: 'var(--pp-bg-blue-high)',
                 color: 'white'
               }}
             >

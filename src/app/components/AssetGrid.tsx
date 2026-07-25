@@ -260,7 +260,7 @@ export function AssetGrid({
           <Button
             onClick={onNavigateToAllAssets}
             style={{
-              background: 'var(--pp-grad-brand)',
+              background: 'var(--pp-bg-blue-high)',
               color: 'white'
             }}
           >
@@ -296,7 +296,7 @@ export function AssetGrid({
           <Button 
             onClick={onNavigateToAllAssets}
             style={{
-              background: 'var(--pp-grad-brand)',
+              background: 'var(--pp-bg-blue-high)',
               color: 'white'
             }}
           >

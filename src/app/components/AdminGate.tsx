@@ -3,7 +3,7 @@ import { getAdminPassword } from "../utils/appwriteApi";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
-import { Lock, X, ArrowLeft } from "./icons";
+import { Zap, X, ArrowLeft } from "./icons";
 
 interface AdminGateProps {
   children: ReactNode;
@@ -59,9 +59,9 @@ export function AdminGate({ children, onCancel }: AdminGateProps) {
         )}
 
         <CardHeader className="text-center">
-          <Lock className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-          <CardTitle>Admin Only</CardTitle>
-          <CardDescription>Masukkan password untuk mengakses menu admin.</CardDescription>
+          <Zap className="w-8 h-8 mx-auto mb-2 text-[var(--pp-icon-active)]" />
+          <CardTitle>Superuser</CardTitle>
+          <CardDescription>Masukkan password untuk masuk ke menu Superuser.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <Input

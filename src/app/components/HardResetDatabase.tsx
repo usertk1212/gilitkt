@@ -82,7 +82,7 @@ export function HardResetDatabase() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Password Admin</label>
+            <label className="text-sm text-muted-foreground mb-1 block">Password Superuser</label>
             <Input
               type="password"
               placeholder="Masukin password admin"
