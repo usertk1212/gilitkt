@@ -238,6 +238,37 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 // then creates only the missing ones directly (skipping the redundant per-row
 // duplicate check), with a small delay between requests to stay well under
 // Appwrite's rate limit.
+/**
+ * Every `nama_file` currently in the database, as a Set for O(1) lookups.
+ *
+ * Used by the CSV Viewer to tell you which rows are genuinely new before you
+ * import anything. Same pagination as getAllAssets(), but only keeps filenames
+ * so a 5k-row library stays cheap to hold in memory.
+ */
+export async function getExistingFilenames(
+  onProgress?: (fetched: number) => void
+): Promise<ApiResponse<Set<string>>> {
+  const filenames = new Set<string>();
+  try {
+    let cursor: string | undefined;
+    while (true) {
+      const queries = [Query.limit(100)];
+      if (cursor) queries.push(Query.cursorAfter(cursor));
+      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, queries);
+      res.documents.forEach((doc: any) => {
+        if (doc.nama_file) filenames.add(doc.nama_file);
+      });
+      onProgress?.(filenames.size);
+      if (res.documents.length < 100) break;
+      cursor = res.documents[res.documents.length - 1].$id;
+      await sleep(50);
+    }
+    return { success: true, data: filenames, count: filenames.size };
+  } catch (error) {
+    return { success: false, error: `Failed to read existing filenames: ${errorMessage(error)}` };
+  }
+}
+
 export async function bulkCreateAssets(
   assets: Omit<Asset, 'created_at' | 'updated_at'>[],
   onProgress?: (done: number, total: number) => void,
