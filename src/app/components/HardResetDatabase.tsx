@@ -30,7 +30,7 @@ export function HardResetDatabase() {
   const handleDelete = async () => {
     if (confirmText.trim() !== CONFIRM_PHRASE) {
       setStatus("error");
-      setMessage(`Ketik "${CONFIRM_PHRASE}" persis (huruf besar semua) buat konfirmasi.`);
+      setMessage(`Type "${CONFIRM_PHRASE}" exactly (all caps) to confirm.`);
       return;
     }
 
@@ -52,7 +52,7 @@ export function HardResetDatabase() {
 
     if (res.success) {
       setStatus("success");
-      setMessage(res.message || "Semua asset berhasil dihapus dari database.");
+      setMessage(res.message || "All asset berhasil dihapus dari database.");
       setAssetCount(0);
       setPassword("");
       setConfirmText("");
@@ -71,8 +71,7 @@ export function HardResetDatabase() {
             Hard Reset Database
           </CardTitle>
           <CardDescription>
-            Ini bakal menghapus <strong>SEMUA</strong> asset di database secara permanen — gak bisa
-            di-undo. Cuma buat kamu sebagai kontrol admin, misalnya mau mulai ulang dari nol.
+            This permanently deletes <strong>EVERY</strong> asset in the database. It cannot be undone. Intended only as a Superuser control, e.g. when you want to start from scratch.
             {assetCount !== null && (
               <span className="block mt-2 font-medium text-foreground">
                 Saat ini ada {assetCount} asset di database.
@@ -85,7 +84,7 @@ export function HardResetDatabase() {
             <label className="text-sm text-muted-foreground mb-1 block">Password Superuser</label>
             <Input
               type="password"
-              placeholder="Masukin password admin"
+              placeholder="Enter the Superuser password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={status === "deleting" || status === "checking"}
@@ -119,7 +118,7 @@ export function HardResetDatabase() {
           {status === "deleting" && (
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span>Menghapus semua asset...</span>
+                <span>Deleting every asset…</span>
                 <span>{progress}%</span>
               </div>
               <Progress value={progress} />
@@ -137,7 +136,7 @@ export function HardResetDatabase() {
               ? "Memeriksa password..."
               : status === "deleting"
                 ? "Menghapus..."
-                : "Hapus Semua Data"}
+                : "Hapus All Data"}
           </Button>
         </CardContent>
       </Card>

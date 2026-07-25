@@ -223,7 +223,7 @@ export function AssetGrid({
       <div className="text-center py-20 flex flex-col items-center justify-center gap-4 animate-in fade-in duration-300">
         <Loader2 className="w-10 h-10 animate-spin" style={{ color: 'var(--pp-brand-blue)' }} />
         <div>
-          <h3 className="mb-1">Menyiapkan asset kamu...</h3>
+          <h3 className="mb-1">Getting your assets ready…</h3>
           <p className="text-muted-foreground text-sm">
             we're still preparing the assets for you, hang tight
           </p>
@@ -237,7 +237,7 @@ export function AssetGrid({
     return (
       <div className="text-center py-20 flex flex-col items-center justify-center gap-3 animate-in fade-in duration-300">
         <CheckCircle2 className="w-10 h-10 text-green-500" />
-        <p className="text-sm text-muted-foreground">Selesai! Menampilkan asset kamu...</p>
+        <p className="text-sm text-muted-foreground">Done! Showing your assets…</p>
       </div>
     );
   }
@@ -413,7 +413,7 @@ export function AssetGrid({
               size="sm"
               onClick={() => goToAssetPage(1)}
               disabled={safePage <= 1}
-              title="Halaman pertama"
+              title="First page"
             >
               <ChevronsLeft className="w-4 h-4" />
             </Button>
@@ -424,12 +424,12 @@ export function AssetGrid({
               disabled={safePage <= 1}
             >
               <ChevronLeft className="w-4 h-4 mr-1" />
-              Sebelumnya
+              Previous
             </Button>
           </div>
 
           <span className="text-sm text-muted-foreground">
-            Halaman {safePage} / {totalAssetPages} ({filteredAssets.length} asset)
+            Page {safePage} / {totalAssetPages} ({filteredAssets.length} asset)
           </span>
 
           <div className="flex items-center gap-2">
@@ -439,7 +439,7 @@ export function AssetGrid({
               onClick={() => goToAssetPage(safePage + 1)}
               disabled={safePage >= totalAssetPages}
             >
-              Berikutnya
+              Next
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
             <Button
@@ -447,7 +447,7 @@ export function AssetGrid({
               size="sm"
               onClick={() => goToAssetPage(totalAssetPages)}
               disabled={safePage >= totalAssetPages}
-              title="Halaman terakhir"
+              title="Last page"
             >
               <ChevronsRight className="w-4 h-4" />
             </Button>
@@ -462,7 +462,7 @@ export function AssetGrid({
               className="w-20 h-9"
             />
             <Button variant="outline" size="sm" onClick={handleJumpToAssetPage}>
-              Ke Halaman
+              Ke Page
             </Button>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react';
+import { useState, type ComponentType } from 'react';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter, SidebarHeader, useSidebar } from './ui/sidebar';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -7,6 +7,7 @@ import { Asset } from '../utils/appwriteApi';
 import { useTheme } from '../utils/useTheme';
 import { cn } from './ui/utils';
 import { APP_VERSION } from '../version';
+import { AboutModal } from './AboutModal';
 import { ArrowLeft, BarChart3, Database, Download, Eye, Folder, FolderOpen, Image, KeyRound, Layers, Moon, Package, Palette, Settings, Sparkles, Sun, Trash2, Upload, Zap } from "./icons";
 
 export type AdminTab = "upload" | "manage" | "analytics" | "csv-viewer" | "export" | "hard-reset" | "settings";
@@ -58,6 +59,7 @@ export function SharedSidebar({
   const { open } = useSidebar();
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
   const isAdminMode = mode === "admin";
 
   const dashboardItems: SidebarNavItem[] = [
@@ -291,15 +293,22 @@ export function SharedSidebar({
             )}
           </div>
 
-          {/* Build version — so it's obvious which handover you're looking at. */}
-          <div className={cn(
-            "text-muted-foreground/70 transition-all duration-200 ease-linear",
-            open ? "px-2 pt-0.5 text-[11px]" : "pt-0.5 text-[10px] text-center"
-          )}>
+          {/* Build version — clickable, opens the About dialog. */}
+          <button
+            type="button"
+            onClick={() => setIsAboutOpen(true)}
+            title="About GILI"
+            className={cn(
+              "w-full rounded-[4px] text-muted-foreground/70 transition-all duration-200 ease-linear hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              open ? "px-2 pt-0.5 text-left text-[11px]" : "pt-0.5 text-center text-[10px]"
+            )}
+          >
             {open ? `GILI v${APP_VERSION}` : `v${APP_VERSION}`}
-          </div>
+          </button>
         </div>
       </SidebarFooter>
+
+      <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
     </Sidebar>
   );
 }

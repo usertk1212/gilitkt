@@ -111,7 +111,7 @@ export function AssetManagement({ onNavigateBack }: AssetManagementProps) {
           </div>
 
           {/* Content */}
-          <div className="flex-1 p-6 bg-gray-50">
+          <div className="flex-1 p-6 bg-muted">
             <div className="bg-white rounded-lg border shadow-sm">
               {/* Search Header */}
               <div className="border-b p-4">
@@ -155,7 +155,7 @@ export function AssetManagement({ onNavigateBack }: AssetManagementProps) {
                 ) : (
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-gray-50">
+                      <TableRow className="bg-muted">
                         <TableHead className="w-20">Preview</TableHead>
                         <TableHead>Asset Name</TableHead>
                         <TableHead className="w-24">Type</TableHead>

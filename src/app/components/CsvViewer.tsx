@@ -13,7 +13,8 @@ import {
   ChevronsLeft, ChevronsRight, Eye, ArrowUp, ArrowDown, Search, Copy, RefreshCw,
 } from "./icons";
 import { parseCSV, ParsedAsset } from "../utils/csvParser";
-import { bulkCreateAssets, getExistingFilenames } from "../utils/appwriteApi";
+import { getExistingFilenames } from "../utils/appwriteApi";
+import { useUploadJob } from "../context/UploadJobContext";
 import { copyWithFeedback } from "../utils/clipboard";
 import { toast } from "sonner";
 
@@ -45,10 +46,11 @@ function formatRowRanges(nums: number[], maxParts = 40): string {
     prev = n;
   }
   if (parts.length <= maxParts) return parts.join(", ");
-  return `${parts.slice(0, maxParts).join(", ")} … (+${parts.length - maxParts} grup lagi)`;
+  return `${parts.slice(0, maxParts).join(", ")} … (+${parts.length - maxParts} more groups)`;
 }
 
 export function CsvViewer() {
+  const job = useUploadJob();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [parsedAssets, setParsedAssets] = useState<ParsedAsset[]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
@@ -71,10 +73,6 @@ export function CsvViewer() {
   const [fromRowInput, setFromRowInput] = useState("1");
   const [toRowInput, setToRowInput] = useState("");
 
-  const [isImporting, setIsImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState(0);
-  const [importStatus, setImportStatus] = useState<"idle" | "success" | "error">("idle");
-  const [importMessage, setImportMessage] = useState("");
   const [updateExistingType, setUpdateExistingType] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -144,8 +142,7 @@ export function CsvViewer() {
     }
 
     setSelectedFile(file);
-    setImportStatus("idle");
-    setImportMessage("");
+    job.reset();
 
     const content = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -178,7 +175,7 @@ export function CsvViewer() {
     setCheckedCount(0);
     try {
       const res = await getExistingFilenames((n) => setCheckedCount(n));
-      if (!res.success || !res.data) throw new Error(res.error || "Gagal baca database");
+      if (!res.success || !res.data) throw new Error(res.error || "Couldn't read the database");
       setExistingFilenames(res.data);
       setViewPage(1);
 
@@ -191,16 +188,16 @@ export function CsvViewer() {
       // so jump straight to the "new only" selection.
       if (newCount > 0) {
         setSelectionMode("new");
-        toast.success(`${newCount} baris belum ada di database`, {
-          description: `${parsedAssets.length - newCount} baris sudah ada dan akan dilewati.`,
+        toast.success(`${newCount} rows are not in the database yet`, {
+          description: `${parsedAssets.length - newCount} rows already exist and will be skipped.`,
         });
       } else {
-        toast.info("Semua baris di CSV ini sudah ada di database", {
-          description: "Gak ada asset baru buat di-import.",
+        toast.info("Every row in this CSV already exists in the database", {
+          description: "There are no new assets to import.",
         });
       }
     } catch (error) {
-      toast.error("Gagal cek database", {
+      toast.error("Database check failed", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
     } finally {
@@ -267,59 +264,37 @@ export function CsvViewer() {
   const handleCopyNewRows = () =>
     copyWithFeedback(
       formatRowRanges(newRowNos, Number.MAX_SAFE_INTEGER),
-      () => toast.success("Daftar baris baru dicopy"),
-      (msg) => toast.error("Copy gagal", { description: msg })
+      () => toast.success("Copied the list of new rows"),
+      (msg) => toast.error("Copy failed", { description: msg })
     );
 
   const handleImport = async () => {
     if (total === 0) return;
 
     if (selectedCount === 0) {
-      toast.error("Belum ada baris yang dipilih", {
+      toast.error("No rows selected", {
         description:
           selectionMode === "range"
-            ? "Isi 'dari baris' dan 'sampai baris' dengan angka yang valid dulu."
+            ? "Enter a valid 'from' and 'to' row first."
             : selectionMode === "manual"
-            ? "Centang minimal satu baris di tabel dulu."
-            : "Cek database dulu, atau semua baris di CSV ini memang sudah ada.",
+            ? "Tick at least one row in the table first."
+            : "Run the database check first, or every row in this CSV already exists.",
       });
       return;
     }
 
     const slice = selectedRowNos.map((n) => parsedAssets[n - 1]).filter(Boolean);
 
-    setIsImporting(true);
-    setImportProgress(0);
-    setImportStatus("idle");
+    // Handed to the app-level job provider rather than run here, so navigating
+    // away from the CSV Viewer doesn't kill the import.
+    await job.start(slice, {
+      label: `${selectedFile?.name || "CSV"} — ${selectedCount} rows`,
+      updateExistingType,
+    });
 
-    try {
-      const response = await bulkCreateAssets(
-        slice,
-        (done, doneTotal) => setImportProgress(doneTotal > 0 ? Math.round((done / doneTotal) * 100) : 100),
-        { updateExistingType }
-      );
-
-      if (!response.success) throw new Error(response.error || "Failed to import selected rows");
-
-      const createdCount = response.data?.length || 0;
-      const updatedCount = response.updatedCount || 0;
-      setImportStatus("success");
-      setImportMessage(
-        `${selectedCount} baris dipilih: ${createdCount} asset baru dibuat` +
-          (updateExistingType
-            ? `, ${updatedCount} asset lama diperbarui type-nya`
-            : `, sisanya (kalau ada) sudah ada di database dan dilewati`) +
-          `.`
-      );
-      // The database just changed, so the cached check is now stale.
-      setExistingFilenames(null);
-      setManualSelected(new Set());
-    } catch (error) {
-      setImportStatus("error");
-      setImportMessage(error instanceof Error ? error.message : "Gagal import baris yang dipilih");
-    } finally {
-      setIsImporting(false);
-    }
+    // The database just changed, so the cached check is stale.
+    setExistingFilenames(null);
+    setManualSelected(new Set());
   };
 
   const StatusBadge = ({ rowNo }: { rowNo: number }) => {
@@ -348,8 +323,7 @@ export function CsvViewer() {
             CSV Viewer & Import
           </CardTitle>
           <CardDescription>
-            Buka file CSV dari komputer kamu buat di-review dulu isinya, cek baris mana yang
-            belum ada di database, baru pilih yang mau di-import.
+            Open a CSV from your computer to review it, check which rows aren't in the database yet, then pick what to import.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -361,10 +335,10 @@ export function CsvViewer() {
             {selectedFile ? (
               <p className="font-medium text-[var(--pp-text-positive)]">{selectedFile.name}</p>
             ) : (
-              <p className="font-medium">Klik untuk pilih file CSV dari komputer</p>
+              <p className="font-medium">Click to choose a CSV file from your computer</p>
             )}
             <p className="text-sm text-muted-foreground mt-1">
-              Kolom: nama_file, asset_name, url_lightroom, type
+              Columns: nama_file, asset_name, url_lightroom, type
             </p>
           </div>
           <input
@@ -381,7 +355,7 @@ export function CsvViewer() {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            <p className="font-medium mb-1">{parseErrors.length} baris dilewati</p>
+            <p className="font-medium mb-1">{parseErrors.length} rows skipped</p>
             <ul className="text-sm list-disc pl-4 max-h-32 overflow-y-auto">
               {parseErrors.slice(0, 20).map((err, i) => (
                 <li key={i}>{err}</li>
@@ -398,21 +372,20 @@ export function CsvViewer() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Search className="w-5 h-5" />
-                Cek Database
+                Check Database
               </CardTitle>
               <CardDescription>
-                Bandingin nama_file di CSV ini sama yang sudah ada di database, biar kelihatan
-                baris mana aja yang beneran baru.
+                Compare the nama_file column against what's already in the database, so you can see exactly which rows are genuinely new.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <Button onClick={handleCheckDatabase} disabled={isChecking} className="w-full sm:w-auto">
                 <RefreshCw className={`w-4 h-4 mr-2 ${isChecking ? "animate-spin" : ""}`} />
                 {isChecking
-                  ? `Ngecek... (${checkedCount} asset dibaca)`
+                  ? `Checking… (${checkedCount} assets read)`
                   : existingFilenames
-                  ? "Cek Ulang"
-                  : "Cek Sekarang"}
+                  ? "Check Again"
+                  : "Check Now"}
               </Button>
 
               {existingFilenames && (
@@ -420,26 +393,26 @@ export function CsvViewer() {
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="rounded-lg bg-muted p-3">
                       <div className="text-xl font-bold">{total}</div>
-                      <div className="text-xs text-muted-foreground">baris di CSV</div>
+                      <div className="text-xs text-muted-foreground">rows in CSV</div>
                     </div>
                     <div className="rounded-lg bg-[var(--pp-bg-green-low)] p-3">
                       <div className="text-xl font-bold text-[var(--pp-text-positive)]">
                         {newRowNos.length}
                       </div>
-                      <div className="text-xs text-[var(--pp-text-positive)]">belum ada</div>
+                      <div className="text-xs text-[var(--pp-text-positive)]">not in DB</div>
                     </div>
                     <div className="rounded-lg bg-muted p-3">
                       <div className="text-xl font-bold text-muted-foreground">
                         {existingRowNos.length}
                       </div>
-                      <div className="text-xs text-muted-foreground">sudah ada</div>
+                      <div className="text-xs text-muted-foreground">already in DB</div>
                     </div>
                   </div>
 
                   {newRowNos.length > 0 && (
                     <div className="rounded-lg border p-3 space-y-2">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium">Baris yang belum ada</span>
+                        <span className="text-sm font-medium">Rows not in the database</span>
                         <Button variant="ghost" size="sm" onClick={handleCopyNewRows}>
                           <Copy className="w-3.5 h-3.5 mr-1.5" />
                           Copy
@@ -452,9 +425,7 @@ export function CsvViewer() {
                   )}
 
                   <p className="text-xs text-muted-foreground">
-                    Database punya {existingFilenames.size} asset total. Hasil cek ini bakal
-                    di-reset otomatis setelah import atau kalau kamu buka file lain, biar gak
-                    kelihatan status yang sudah kedaluwarsa.
+                    The database holds {existingFilenames.size} assets in total. This check resets automatically after an import, or when you open a different file, so you never act on a stale status.
                   </p>
                 </div>
               )}
@@ -464,10 +435,10 @@ export function CsvViewer() {
           {/* ---------- Preview ---------- */}
           <Card>
             <CardHeader>
-              <CardTitle>Review Data ({total} baris total)</CardTitle>
+              <CardTitle>Review Data ({total} rows total)</CardTitle>
               <CardDescription>
-                Nampilin {VIEW_PAGE_SIZE} baris per halaman.
-                {statusFilter !== "all" && ` Difilter: ${visibleRows.length} baris.`}
+                Showing {VIEW_PAGE_SIZE} rows per page.
+                {statusFilter !== "all" && ` Filtered: ${visibleRows.length} rows.`}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -478,7 +449,7 @@ export function CsvViewer() {
                   ) : (
                     <ArrowDown className="w-4 h-4 mr-1.5" />
                   )}
-                  {sortDir === "asc" ? "Baris 1 dulu" : "Baris terakhir dulu"}
+                  {sortDir === "asc" ? "Row 1 first" : "Last row first"}
                 </Button>
 
                 {existingFilenames && (
@@ -493,7 +464,7 @@ export function CsvViewer() {
                           setViewPage(1);
                         }}
                       >
-                        {f === "all" ? "Semua" : f === "new" ? `Baru (${newRowNos.length})` : `Sudah ada (${existingRowNos.length})`}
+                        {f === "all" ? "All" : f === "new" ? `New (${newRowNos.length})` : `Already in DB (${existingRowNos.length})`}
                       </Button>
                     ))}
                   </div>
@@ -502,10 +473,10 @@ export function CsvViewer() {
                 {selectionMode === "manual" && (
                   <div className="flex items-center gap-1 ml-auto">
                     <Button variant="outline" size="sm" onClick={selectAllOnPage}>
-                      Centang halaman ini
+                      Select this page
                     </Button>
                     <Button variant="ghost" size="sm" onClick={clearPageSelection}>
-                      Hapus centang
+                      Clear selection
                     </Button>
                   </div>
                 )}
@@ -523,11 +494,11 @@ export function CsvViewer() {
                           className="inline-flex items-center gap-1 font-medium transition-colors hover:text-foreground"
                           title={
                             sortDir === "asc"
-                              ? "Klik buat liat baris terakhir (yang baru ditambahin) dulu"
-                              : "Klik buat balik ke urutan asli"
+                              ? "Click to see the last rows (the ones you just added) first"
+                              : "Click to go back to the original order"
                           }
                         >
-                          Baris
+                          Row
                           {sortDir === "asc" ? (
                             <ArrowUp className="w-3.5 h-3.5" />
                           ) : (
@@ -557,7 +528,7 @@ export function CsvViewer() {
                             <Checkbox
                               checked={manualSelected.has(rowNo)}
                               onCheckedChange={() => toggleManualRow(rowNo)}
-                              aria-label={`Pilih baris ${rowNo}`}
+                              aria-label={`Select row ${rowNo}`}
                             />
                           </TableCell>
                         )}
@@ -576,7 +547,7 @@ export function CsvViewer() {
                     {pageRows.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
-                          Gak ada baris yang cocok sama filter ini.
+                          No rows match this filter.
                         </TableCell>
                       </TableRow>
                     )}
@@ -586,32 +557,32 @@ export function CsvViewer() {
 
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => goToPage(1)} disabled={safeViewPage <= 1} title="Halaman pertama">
+                  <Button variant="outline" size="sm" onClick={() => goToPage(1)} disabled={safeViewPage <= 1} title="First page">
                     <ChevronsLeft className="w-4 h-4" />
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => goToPage(safeViewPage - 1)} disabled={safeViewPage <= 1}>
                     <ChevronLeft className="w-4 h-4 mr-1" />
-                    Sebelumnya
+                    Previous
                   </Button>
                 </div>
 
                 <span className="text-sm text-muted-foreground">
-                  Halaman {safeViewPage} / {totalViewPages}
+                  Page {safeViewPage} / {totalViewPages}
                 </span>
 
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => goToPage(safeViewPage + 1)} disabled={safeViewPage >= totalViewPages}>
-                    Berikutnya
+                    Next
                     <ChevronRight className="w-4 h-4 ml-1" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => goToPage(totalViewPages)} disabled={safeViewPage >= totalViewPages} title="Halaman terakhir">
+                  <Button variant="outline" size="sm" onClick={() => goToPage(totalViewPages)} disabled={safeViewPage >= totalViewPages} title="Last page">
                     <ChevronsRight className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 justify-end">
-                <label className="text-sm text-muted-foreground whitespace-nowrap">Lompat ke halaman</label>
+                <label className="text-sm text-muted-foreground whitespace-nowrap">Jump to page</label>
                 <Input
                   type="number"
                   min={1}
@@ -623,7 +594,7 @@ export function CsvViewer() {
                   className="w-24 h-9"
                 />
                 <Button variant="outline" size="sm" onClick={handleJumpToPage}>
-                  Ke Halaman
+                  Ke Page
                 </Button>
               </div>
             </CardContent>
@@ -634,18 +605,18 @@ export function CsvViewer() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Database className="w-5 h-5" />
-                Pilih Baris untuk Di-import
+                Pilih Row untuk Di-import
               </CardTitle>
-              <CardDescription>Tiga cara pilih baris — pakai yang paling cocok.</CardDescription>
+              <CardDescription>Three ways to pick rows — use whichever fits.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Mode switcher */}
               <div className="grid gap-2 sm:grid-cols-3">
                 {(
                   [
-                    { key: "new", label: "Yang belum ada", hint: "Otomatis pilih semua baris baru" },
-                    { key: "manual", label: "Centang manual", hint: "Pilih baris satu-satu di tabel" },
-                    { key: "range", label: "Rentang baris", hint: "Dari baris X sampai Y" },
+                    { key: "new", label: "Not in database", hint: "Automatically selects every new row" },
+                    { key: "manual", label: "Pick manually", hint: "Tick rows one by one in the table" },
+                    { key: "range", label: "Row range", hint: "From row X to row Y" },
                   ] as { key: SelectionMode; label: string; hint: string }[]
                 ).map((m) => {
                   const disabled = m.key === "new" && !existingFilenames;
@@ -663,7 +634,7 @@ export function CsvViewer() {
                     >
                       <div className="text-sm font-medium">{m.label}</div>
                       <div className="text-xs text-muted-foreground">
-                        {disabled ? "Cek database dulu" : m.hint}
+                        {disabled ? "Run the database check first" : m.hint}
                       </div>
                     </button>
                   );
@@ -673,7 +644,7 @@ export function CsvViewer() {
               {selectionMode === "range" && (
                 <div className="flex items-center gap-3">
                   <div className="flex-1">
-                    <label className="text-sm text-muted-foreground mb-1 block">Dari baris</label>
+                    <label className="text-sm text-muted-foreground mb-1 block">From row</label>
                     <Input
                       type="number"
                       min={1}
@@ -683,7 +654,7 @@ export function CsvViewer() {
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="text-sm text-muted-foreground mb-1 block">Sampai baris</label>
+                    <label className="text-sm text-muted-foreground mb-1 block">To row</label>
                     <Input
                       type="number"
                       min={1}
@@ -697,7 +668,7 @@ export function CsvViewer() {
 
               {selectionMode === "manual" && (
                 <p className="text-sm text-muted-foreground">
-                  Centang baris di tabel di atas. Kepilih sekarang: <strong>{manualSelected.size}</strong> baris.
+                  Tick rows in the table above. Currently selected: <strong>{manualSelected.size}</strong> rows.
                   {existingFilenames && newRowNos.length > 0 && (
                     <>
                       {" "}
@@ -706,7 +677,7 @@ export function CsvViewer() {
                         className="underline hover:no-underline"
                         onClick={() => setManualSelected(new Set(newRowNos))}
                       >
-                        Centang semua yang belum ada ({newRowNos.length})
+                        Centang semua yang not in DB ({newRowNos.length})
                       </button>
                     </>
                   )}
@@ -716,20 +687,20 @@ export function CsvViewer() {
               <div className="rounded-lg bg-muted p-3 text-sm">
                 {selectedCount > 0 ? (
                   <>
-                    <strong>{selectedCount}</strong> baris akan di-import
+                    <strong>{selectedCount}</strong> rows will be imported
                     {selectionMode === "range" && rangeValid && ` (baris ${clampedFrom}-${clampedTo})`}
                     {selectionMode === "new" && ` — baris ${formatRowRanges(newRowNos, 8)}`}
                     .
                     {existingFilenames && selectionMode !== "new" && (
                       <span className="text-muted-foreground">
                         {" "}
-                        Dari jumlah itu,{" "}
-                        {selectedRowNos.filter((n) => rowStatus(n) === "new").length} beneran baru.
+                        Of those,{" "}
+                        {selectedRowNos.filter((n) => rowStatus(n) === "new").length} are genuinely new.
                       </span>
                     )}
                   </>
                 ) : (
-                  <span className="text-muted-foreground">Belum ada baris yang dipilih.</span>
+                  <span className="text-muted-foreground">No rows selected yet.</span>
                 )}
               </div>
 
@@ -741,59 +712,71 @@ export function CsvViewer() {
                   className="mt-0.5"
                 />
                 <Label htmlFor="csv-viewer-update-existing-type" className="text-sm font-normal leading-snug cursor-pointer">
-                  Update <strong>type</strong> untuk asset yang nama filenya sudah ada di database
-                  (asset_name & URL yang lama gak berubah, cuma type-nya aja yang di-update ke
-                  yang ada di baris terpilih ini). Kalau gak dicentang, asset yang sudah ada
-                  dibiarkan seperti semula.
+                  Update the <strong>type</strong> of assets whose filename already exists in the
+                  database (asset_name and URL stay as they are — only type is updated). Leave
+                  this off and existing assets are left untouched.
                 </Label>
               </div>
 
-              {!isImporting && importStatus !== "success" && (
+              {!job.isActive && (
                 <Button className="w-full" size="lg" onClick={handleImport} disabled={total === 0}>
                   <Upload className="w-4 h-4 mr-2" />
-                  {selectedCount > 0 ? `Import ${selectedCount} Baris` : "Import Baris Terpilih"}
+                  {selectedCount > 0 ? `Import ${selectedCount} rows` : "Import selected rows"}
                 </Button>
               )}
 
-              {isImporting && (
+              {job.isActive && (
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span>Mengimpor ke Database: Appwrite...</span>
-                    <span>{importProgress}%</span>
+                    <span>{job.status === "paused" ? "Import paused" : "Importing to Appwrite…"}</span>
+                    <span>{job.progress}%</span>
                   </div>
-                  <Progress value={importProgress} />
+                  <Progress value={job.progress} />
+                  <p className="text-xs text-muted-foreground">
+                    {job.done} / {job.total} rows. Use the panel in the bottom-right corner to
+                    pause, resume or stop — it keeps running even if you go back to the dashboard.
+                  </p>
+                  <div className="flex gap-2">
+                    {job.status === "running" ? (
+                      <Button size="sm" variant="secondary" onClick={job.pause}>Pause</Button>
+                    ) : (
+                      <Button size="sm" onClick={job.resume}>Resume</Button>
+                    )}
+                    <Button size="sm" variant="destructive" onClick={job.cancel}>Stop</Button>
+                  </div>
                 </div>
               )}
 
-              {importStatus === "success" && (
+              {job.status === "done" && (
                 <Alert className="border-[var(--pp-stroke-positive)] bg-[var(--pp-bg-green-low)]">
                   <CheckCircle className="h-4 w-4 text-[var(--pp-icon-positive)]" />
                   <AlertDescription className="text-[var(--pp-text-positive)] space-y-2">
-                    <p>{importMessage}</p>
+                    <p>{job.message}</p>
                     <p className="text-xs opacity-80">
-                      Status "belum ada / sudah ada" sudah di-reset. Klik Cek Ulang di atas kalau
-                      mau lihat kondisi terbaru.
+                      The "new / already exists" status has been reset. Run Check Again above to
+                      see the current state.
                     </p>
-                    <Button
-                      size="sm"
-                      variant="default"
-                      onClick={() => {
-                        setImportStatus("idle");
-                        setImportMessage("");
-                      }}
-                    >
-                      Pilih Baris Lain / Import Lagi
-                    </Button>
+                    <Button size="sm" onClick={job.reset}>Select other rows / import again</Button>
                   </AlertDescription>
                 </Alert>
               )}
 
-              {importStatus === "error" && (
+              {job.status === "cancelled" && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="space-y-2">
+                    <p>{job.message}</p>
+                    <Button size="sm" onClick={job.reset}>Dismiss</Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {job.status === "error" && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    <p className="font-medium">Import gagal</p>
-                    <p className="text-sm">{importMessage}</p>
+                    <p className="font-bold">Import failed</p>
+                    <p className="text-sm">{job.message}</p>
                   </AlertDescription>
                 </Alert>
               )}

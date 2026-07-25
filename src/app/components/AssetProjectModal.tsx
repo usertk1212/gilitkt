@@ -155,7 +155,7 @@ export function AssetProjectModal({
 
         <div className="space-y-4">
           {/* Asset Info */}
-          <div className="bg-gray-50 rounded-lg p-3">
+          <div className="bg-muted rounded-lg p-3">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-white rounded border flex items-center justify-center overflow-hidden">
                 <img 
@@ -195,7 +195,7 @@ export function AssetProjectModal({
               filteredProjects.map((project) => (
                 <div
                   key={project.id}
-                  className={`flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-all ${
+                  className={`flex items-center space-x-3 p-2 rounded-lg hover:bg-muted cursor-pointer transition-all ${
                     justCreatedProjectId === project.id 
                       ? 'bg-blue-50 border-2 border-blue-200 shadow-sm' 
                       : ''

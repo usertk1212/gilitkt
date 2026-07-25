@@ -282,10 +282,9 @@ custom_graphic.png,https://example.com/image4.jpg,Supergraphic`;
                   className="mt-0.5"
                 />
                 <Label htmlFor="update-existing-type" className="text-sm font-normal leading-snug cursor-pointer">
-                  Update <strong>type</strong> untuk asset yang nama filenya sudah ada di database
-                  (asset_name & URL yang lama gak berubah, cuma type-nya aja yang di-update ke
-                  yang ada di CSV ini). Kalau gak dicentang, asset yang sudah ada dibiarkan
-                  seperti semula.
+                  Update the <strong>type</strong> of assets whose filename already exists in the
+                  database (asset_name and URL stay as they are — only type is updated). Leave
+                  this off and existing assets are left untouched.
                 </Label>
               </div>
               <Button

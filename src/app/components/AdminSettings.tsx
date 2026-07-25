@@ -46,9 +46,9 @@ export function AdminSettings() {
             Ganti Password Admin
           </CardTitle>
           <CardDescription>
-            Password ini cuma penghalang biar orang gak sengaja masuk ke menu admin —
+            This password is only a speed bump against accidentally opening the Superuser menu —
             bukan proteksi keamanan penuh, karena app ini jalan di browser (client-side)
-            dan bisa dilihat sumber kodenya lewat devtools.
+            and it is visible in the source via devtools.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

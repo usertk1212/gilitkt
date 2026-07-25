@@ -6,7 +6,11 @@
   /* ---- Passport 4.6 mapping (light) ----
      Every value below resolves to a Passport semantic token. To change a colour,
      change the token in passport.css, not here. */
-  --background: var(--pp-bg-backdrop);          /* N100 — Backdrop Surface: base screen with cards */
+  /* Passport calls the with-cards screen "Backdrop Surface" (N100), but the
+     grey read too heavy behind GILI's white cards, so this is Base Surface
+     (N0 / #FFFFFF) by explicit request. Swap back to --pp-bg-backdrop to
+     follow the spec literally. */
+  --background: var(--pp-bg-base);              /* N0 — #FFFFFF */
   --foreground: var(--pp-text-high);            /* N800 — High Emphasis */
   --card: var(--pp-bg-base);                    /* N0  — Base Surface */
   --card-foreground: var(--pp-text-high);

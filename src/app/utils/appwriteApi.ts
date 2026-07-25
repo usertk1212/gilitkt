@@ -279,6 +279,17 @@ export async function bulkCreateAssets(
     // left alone. Off by default so re-running an import is always a no-op
     // for rows that already exist, unless you explicitly opt in.
     updateExistingType?: boolean;
+    /**
+     * Lets the caller pause / resume / cancel a long import without losing the
+     * rows already written. Checked once per row, so a paused import stops at a
+     * clean boundary rather than mid-write.
+     */
+    control?: {
+      isPaused: () => boolean;
+      isCancelled: () => boolean;
+    };
+    /** Fires whenever the loop parks on a pause, so the UI can say so. */
+    onPausedChange?: (paused: boolean) => void;
   }
 ): Promise<ApiResponse<Asset[]>> {
   console.log(`📦 Bulk creating ${assets.length} assets with filename keys...`);
@@ -312,7 +323,27 @@ export async function bulkCreateAssets(
   let updatedCount = 0;
   onProgress?.(0, total);
 
+  let cancelled = false;
+  let announcedPause = false;
+
   for (const asset of assets) {
+    // --- pause / cancel gate, evaluated once per row ---
+    while (options?.control?.isPaused() && !options?.control?.isCancelled()) {
+      if (!announcedPause) {
+        announcedPause = true;
+        options?.onPausedChange?.(true);
+      }
+      await sleep(250);
+    }
+    if (announcedPause) {
+      announcedPause = false;
+      options?.onPausedChange?.(false);
+    }
+    if (options?.control?.isCancelled()) {
+      cancelled = true;
+      break;
+    }
+
     const filename = asset.nama_file?.trim();
     if (!filename || !asset.asset_name || !asset.url_lightroom || !asset.type) {
       errors.push(`Invalid asset data: ${filename || 'unknown'}`);
@@ -366,7 +397,9 @@ export async function bulkCreateAssets(
     await sleep(DELAY_MS);
   }
 
-  if (created.length === 0 && updatedCount === 0 && existingByFilename.size === 0) {
+  // A cancelled run is still a success for everything it managed to write —
+  // reporting it as a failure would imply nothing landed, which is wrong.
+  if (!cancelled && created.length === 0 && updatedCount === 0 && existingByFilename.size === 0) {
     return { success: false, error: 'No valid assets found in the provided data', errors };
   }
 

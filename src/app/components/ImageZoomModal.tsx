@@ -188,7 +188,7 @@ export function ImageZoomModal({ src, alt, caption, isOpen, onClose }: ImageZoom
       </div>
 
       <p className="pb-3 text-center text-xs text-white/40">
-        Scroll buat zoom · drag buat geser · double-click buat toggle 2x · Esc buat nutup
+        Scroll to zoom · drag to pan · double-click to toggle 2x · Esc to close
       </p>
     </div>
   );

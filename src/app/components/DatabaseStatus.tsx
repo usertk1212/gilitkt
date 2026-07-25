@@ -48,7 +48,7 @@ export function DatabaseStatus() {
       case 'checking':
         return 'text-yellow-600 bg-yellow-50 border-yellow-200';
       default:
-        return 'text-gray-600 bg-gray-50 border-gray-200';
+        return 'text-gray-600 bg-muted border-gray-200';
     }
   };
 

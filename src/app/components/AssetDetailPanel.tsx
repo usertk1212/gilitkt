@@ -100,7 +100,7 @@ export function AssetDetailPanel({
           <button
             type="button"
             onClick={() => setIsZoomOpen(true)}
-            title="Klik buat zoom"
+            title="Click to zoom"
             className="group relative mb-4 block aspect-[4/3] w-full overflow-hidden rounded-lg bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ImageWithFallback
@@ -128,7 +128,7 @@ export function AssetDetailPanel({
               <button
                 type="button"
                 onClick={() => handleCopyClick(displayName)}
-                title={`${displayName} — klik buat copy`}
+                title={`${displayName} — click to copy`}
                 className="info-value line-clamp-3 break-all text-left text-base leading-snug transition-opacity hover:opacity-70"
               >
                 {displayName}

@@ -23,7 +23,7 @@ export function AssetTableRow({ asset }: AssetTableRowProps) {
   };
 
   return (
-    <TableRow className="hover:bg-gray-50">
+    <TableRow className="hover:bg-muted">
       <TableCell>
         <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
           <ImageWithFallback

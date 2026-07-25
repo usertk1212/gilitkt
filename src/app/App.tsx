@@ -14,10 +14,12 @@ import { Tabs, TabsContent } from "./components/ui/tabs";
 import { SidebarProvider, SidebarTrigger } from "./components/ui/sidebar";
 import { Menu, Download, RefreshCw } from "./components/icons";
 import { useAssetData } from "./components/hooks/useAssetData";
+import { UploadJobProvider } from "./context/UploadJobContext";
+import { UploadJobWidget } from "./components/UploadJobWidget";
 
 type ViewType = "dashboard" | "asset-menu";
 
-export default function App() {
+function AppShell() {
   const [currentView, setCurrentView] = useState<ViewType>("dashboard");
   const [dashboardKey, setDashboardKey] = useState(0);
   const [activeTab, setActiveTab] = useState<AdminTab>("upload");
@@ -128,7 +130,7 @@ export default function App() {
                               Export CSV
                             </h2>
                             <p className="text-sm text-muted-foreground mt-1">
-                              Download semua asset yang ada di database sekarang sebagai file CSV.
+                              Download every asset currently in the database as a CSV file.
                             </p>
                           </div>
                           <Button
@@ -170,5 +172,22 @@ export default function App() {
       key={dashboardKey} 
       onNavigateToAssetManagement={handleNavigateToAssetMenu} 
     />
+  );
+}
+/**
+ * UploadJobProvider sits ABOVE the dashboard/superuser view switch on purpose:
+ * a running CSV import must survive navigating back to the dashboard. If it
+ * lived inside CsvViewer it would be torn down the moment that view unmounted
+ * and the import would have to restart from row 0.
+ *
+ * UploadJobWidget is rendered here too so import progress and pause/resume are
+ * reachable from every screen, not just the CSV Viewer.
+ */
+export default function App() {
+  return (
+    <UploadJobProvider>
+      <AppShell />
+      <UploadJobWidget />
+    </UploadJobProvider>
   );
 }

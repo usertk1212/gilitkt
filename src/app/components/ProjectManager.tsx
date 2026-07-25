@@ -138,16 +138,16 @@ export function ProjectManager({
       return;
     }
 
-    // Create CSV content
-    const headers = ["asset_library_name", "url_lightroom", "type", "format"];
+    // Two columns only: the raw nama_file exactly as stored in the database,
+    // and the Lightroom URL. The old export wrote the prettified asset_name
+    // ("Ot Bt Cc Zoom Travel2"), which is a display label — not a filename you
+    // can look anything up by.
+    const headers = ["nama_file", "url_lightroom"];
     const csvContent = [
       headers.join(","),
-      ...projectAssets.map(asset => [
-        `"${asset.asset_name || asset.nama_file}"`,
-        `"${asset.url_lightroom}"`,
-        `"${asset.type}"`,
-        `"${asset.format || 'Unknown'}"`
-      ].join(","))
+      ...projectAssets.map(asset =>
+        [`"${asset.nama_file}"`, `"${asset.url_lightroom}"`].join(",")
+      )
     ].join("\n");
 
     // Download CSV
@@ -176,19 +176,12 @@ export function ProjectManager({
       return;
     }
 
-    // Create TXT content
-    const txtContent = [
-      `Project: ${project.name}`,
-      project.description ? `Description: ${project.description}` : "",
-      `Total Assets: ${projectAssets.length}`,
-      `Created: ${new Date(project.created_at).toLocaleDateString()}`,
-      "",
-      "Assets:",
-      "--------",
-      ...projectAssets.map((asset, index) => 
-        `${index + 1}. ${asset.asset_name || asset.nama_file}\n   URL: ${asset.url_lightroom}\n   Type: ${asset.type}\n`
-      )
-    ].filter(Boolean).join("\n");
+    // Same two fields as the CSV, one key: value pair per line, assets
+    // separated by a blank line. No project header — the filename already
+    // carries the project name, and headers make the file harder to paste from.
+    const txtContent = projectAssets
+      .map(asset => `nama_file: ${asset.nama_file}\nurl_lightroom: ${asset.url_lightroom}`)
+      .join("\n\n");
 
     // Download TXT
     const blob = new Blob([txtContent], { type: "text/plain" });
