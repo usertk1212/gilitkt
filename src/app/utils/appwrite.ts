@@ -13,21 +13,22 @@ export const APPWRITE_DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID as
 // removes one env var you'd otherwise have to set correctly in Vercel.
 // If you ever recreate the table with a different ID, update this value.
 export const APPWRITE_ASSETS_COLLECTION_ID = 'assets';
-// Storage bucket holding the About-dialog image.
+// Storage bucket holding app settings: the About-dialog image and the Superuser
+// credential. Named "gili-settings" in the console; this is its generated ID.
 //
-// Create it once in the Appwrite console → Storage → Create bucket:
-//   Bucket ID   gili-settings   (must match exactly — it's referenced here)
-//   Permissions Any → Create, Read, Update, Delete
-//   File security  off, so the bucket permissions above apply
+// Appwrite assigns an ID when you leave the Bucket ID field blank, and the ID —
+// not the display name — is what the API takes. Renaming the bucket is fine;
+// changing its ID means updating this line.
 //
-// A bucket rather than a database column because the cropped JPEG is ~50-100 KB.
-// As a file it stays binary and is served from Appwrite's CDN; as a base64 string
-// in a document it would be ~35% larger and bump against attribute size limits.
-export const APPWRITE_SETTINGS_BUCKET_ID = 'gili-settings';
+// Bucket settings this code assumes:
+//   File security  off, so the bucket-level permissions apply
+//   Permissions    Any → Create, Read, Update, Delete
+export const APPWRITE_SETTINGS_BUCKET_ID = '6a664fbd002089a25aa0';
 
-// Fixed file ID, so "the About image" is always the same object — saving again
-// replaces it instead of piling up orphans.
+// Fixed file IDs, so each setting is always the same object — saving replaces it
+// instead of piling up orphans.
 export const ABOUT_IMAGE_FILE_ID = 'about_image';
+export const SUPERUSER_CREDENTIAL_FILE_ID = 'superuser_auth';
 
 const client = new Client()
   .setEndpoint(APPWRITE_ENDPOINT)

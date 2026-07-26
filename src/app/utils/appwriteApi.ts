@@ -9,6 +9,7 @@ import {
   APPWRITE_ASSETS_COLLECTION_ID,
   APPWRITE_SETTINGS_BUCKET_ID,
   ABOUT_IMAGE_FILE_ID,
+  SUPERUSER_CREDENTIAL_FILE_ID,
 } from './appwrite';
 
 export interface Asset {
@@ -757,22 +758,138 @@ export function generateAssetNameFromFilename(nama_file: string): string {
 //
 // One superuser, one password, no accounts.
 //
-// The password is never stored — not here, not in Appwrite. What ships is a
-// PBKDF2-SHA256 digest compiled into the bundle (src/app/authConfig.ts), and
-// unlocking hashes the input and compares digests. Nothing touches the network,
-// so this works offline and produces no console 404s.
+// The password itself is never stored. What's stored — in Appwrite Storage, as a
+// tiny JSON file — is a salted PBKDF2-SHA256 credential. Changing the password
+// rewrites that file, which is why a change applies immediately on every device
+// with no rebuild.
 //
-// This is still a soft gate. Hashing means nobody can *read* the password out of
-// the app or the database; it does not stop someone with devtools from setting
-// the sessionStorage unlock flag by hand. See utils/authHash.ts for the full
-// caveat.
-import { SUPERUSER_PASSWORD_HASH } from '../authConfig';
-import { verifyPassword } from './authHash';
+// Resolution order:
+//   1. Appwrite Storage        the real answer, shared by everyone
+//   2. IndexedDB mirror        so an offline reload still unlocks
+//   3. Compiled-in default     first-run fallback before any password is set
+//
+// This remains a soft gate. Hashing means nobody can read the password out of the
+// app or Appwrite; it does not stop someone with devtools from setting the
+// sessionStorage unlock flag by hand. See utils/authHash.ts.
+import { DEFAULT_SUPERUSER_CREDENTIAL } from '../authConfig';
+import { createCredential, verifyCredential } from './authHash';
 
-/** True when the typed password matches the compiled-in digest. */
+const CREDENTIAL_LOCAL_KEY = 'superuser_credential';
+
+/** Memoised per page load. Unlocking shouldn't re-fetch on every keystroke. */
+let cachedCredential: string | null = null;
+
+export type CredentialSource = 'appwrite' | 'local' | 'default';
+let credentialSource: CredentialSource = 'default';
+
+/** Where the credential currently in use came from. For the Settings screen. */
+export function getCredentialSource(): CredentialSource {
+  return credentialSource;
+}
+
+async function fetchStoredCredential(): Promise<string | null> {
+  try {
+    // no-store, because the URL is stable across updates and a cached copy would
+    // keep accepting the previous password after a change.
+    const url = storage.getFileView(APPWRITE_SETTINGS_BUCKET_ID, SUPERUSER_CREDENTIAL_FILE_ID).toString();
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) return null; // 404 = nobody has set a password yet
+    const body = await res.json();
+    const encoded = typeof body?.credential === 'string' ? body.credential : null;
+    if (!encoded) return null;
+    // Mirror locally so an offline reload can still unlock.
+    await localSettingSet(CREDENTIAL_LOCAL_KEY, encoded);
+    return encoded;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveCredential(): Promise<string> {
+  if (cachedCredential) return cachedCredential;
+
+  const remote = await fetchStoredCredential();
+  if (remote) {
+    credentialSource = 'appwrite';
+    cachedCredential = remote;
+    return remote;
+  }
+
+  const local = await localSettingGet<string>(CREDENTIAL_LOCAL_KEY);
+  if (local) {
+    credentialSource = 'local';
+    cachedCredential = local;
+    return local;
+  }
+
+  credentialSource = 'default';
+  cachedCredential = DEFAULT_SUPERUSER_CREDENTIAL;
+  return DEFAULT_SUPERUSER_CREDENTIAL;
+}
+
+/** True when the typed password matches the credential in force. */
 export async function verifyAdminPassword(input: string): Promise<boolean> {
   if (!input) return false; // an empty field must never unlock anything
-  return verifyPassword(input, SUPERUSER_PASSWORD_HASH);
+  return verifyCredential(input, await resolveCredential());
+}
+
+/** Drop the memoised credential so the next check re-reads from Appwrite. */
+export function invalidateCredentialCache() {
+  cachedCredential = null;
+}
+
+/**
+ * Change the password.
+ *
+ * Requires the current password — being unlocked isn't enough. Otherwise anyone
+ * who wandered in behind an already-unlocked session could lock the owner out.
+ *
+ * Writes to Appwrite so the change is global. A local-only fallback is
+ * deliberately NOT offered here: a password that changed on one laptop while
+ * every other device kept accepting the old one is worse than a clear failure.
+ */
+export async function changeSuperuserPassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<ApiResponse<null>> {
+  const current = await resolveCredential();
+  if (!(await verifyCredential(currentPassword, current))) {
+    return { success: false, error: 'That is not the current password.' };
+  }
+  if (await verifyCredential(newPassword, current)) {
+    return { success: false, error: 'The new password is the same as the current one.' };
+  }
+
+  let encoded: string;
+  try {
+    encoded = await createCredential(newPassword);
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+
+  const payload = JSON.stringify({ v: 1, credential: encoded, updatedAt: new Date().toISOString() });
+  const file = new File([payload], 'superuser_auth.json', { type: 'application/json' });
+
+  try {
+    try {
+      await storage.deleteFile(APPWRITE_SETTINGS_BUCKET_ID, SUPERUSER_CREDENTIAL_FILE_ID);
+    } catch (error) {
+      if (!isMissingResource(error)) throw error;
+    }
+    await storage.createFile(APPWRITE_SETTINGS_BUCKET_ID, SUPERUSER_CREDENTIAL_FILE_ID, file);
+  } catch (error) {
+    return {
+      success: false,
+      error: isMissingResource(error)
+        ? `Couldn't reach the Appwrite Storage bucket "${APPWRITE_SETTINGS_BUCKET_ID}". The password was NOT changed.`
+        : `Appwrite rejected the change, so the password was NOT changed: ${errorMessage(error)}`,
+    };
+  }
+
+  await localSettingSet(CREDENTIAL_LOCAL_KEY, encoded);
+  cachedCredential = encoded;
+  credentialSource = 'appwrite';
+  return { success: true, message: 'Password changed. It applies on every device from now on.' };
 }
 
 // --- About-dialog image ---

@@ -20,6 +20,10 @@ interface AdminGateProps {
 // can inspect.
 const SESSION_KEY = "gili_admin_unlocked";
 const SESSION_EXPIRES_KEY = "gili_admin_expires_at";
+const FAILED_ATTEMPTS_KEY = "gili_admin_failures";
+const LOCKOUT_UNTIL_KEY = "gili_admin_lockout_until";
+/** Free tries before the cooldown starts escalating. */
+const MAX_ATTEMPTS_BEFORE_LOCKOUT = 5;
 
 /** Idle time before the Superuser session locks itself. */
 const SESSION_IDLE_MS = 15 * 60 * 1000; // 15 minutes
@@ -105,17 +109,41 @@ export function AdminGate({ children, onCancel }: AdminGateProps) {
   }, [expiredNotice]);
 
   const handleUnlock = async () => {
+    // Throttle repeated failures. This only slows guessing through the UI —
+    // it's client-side, so it's a speed bump, not a defence. The real protection
+    // against guessing is the 600k-iteration credential and a long password.
+    const lockedUntil = Number(sessionStorage.getItem(LOCKOUT_UNTIL_KEY) || 0);
+    if (lockedUntil > Date.now()) {
+      const wait = Math.ceil((lockedUntil - Date.now()) / 1000);
+      setError(`Too many attempts. Wait ${wait}s.`);
+      return;
+    }
+
     setChecking(true);
     setError("");
     try {
       const ok = await verifyAdminPassword(input);
       if (ok) {
+        sessionStorage.removeItem(FAILED_ATTEMPTS_KEY);
+        sessionStorage.removeItem(LOCKOUT_UNTIL_KEY);
         sessionStorage.setItem(SESSION_KEY, "true");
         extendSession();
         setUnlocked(true);
         setExpiredNotice(false);
       } else {
-        setError("Wrong password.");
+        const failures = Number(sessionStorage.getItem(FAILED_ATTEMPTS_KEY) || 0) + 1;
+        sessionStorage.setItem(FAILED_ATTEMPTS_KEY, String(failures));
+
+        if (failures >= MAX_ATTEMPTS_BEFORE_LOCKOUT) {
+          // Back off geometrically: 15s, 30s, 60s, 120s… capped at 5 minutes.
+          const step = failures - MAX_ATTEMPTS_BEFORE_LOCKOUT;
+          const delayMs = Math.min(15_000 * Math.pow(2, step), 300_000);
+          sessionStorage.setItem(LOCKOUT_UNTIL_KEY, String(Date.now() + delayMs));
+          setError(`Wrong password. Too many attempts — wait ${Math.round(delayMs / 1000)}s.`);
+        } else {
+          const left = MAX_ATTEMPTS_BEFORE_LOCKOUT - failures;
+          setError(`Wrong password. ${left} ${left === 1 ? "try" : "tries"} before a cooldown.`);
+        }
       }
     } catch {
       setError("Couldn't verify the password. Try again.");

@@ -1,25 +1,18 @@
 /**
- * The one and only Superuser credential.
+ * First-run Superuser credential.
  *
- * This is a PBKDF2-SHA256 digest, NOT the password. Reading this file tells you
- * nothing about what to type. Nothing here is secret in the sense that it needs
- * protecting — it's safe in git, safe in the bundle, safe in a screenshot.
+ * This is a salted PBKDF2-SHA256 credential, NOT a password. Reading it tells you
+ * nothing about what to type, and it's safe in git, in the bundle, in a
+ * screenshot.
  *
- * ── TO CHANGE THE PASSWORD ──────────────────────────────────────────────────
- * The digest is compiled into the app, so changing it needs a rebuild — you
- * cannot change it from the UI alone, and GILI no longer pretends otherwise.
+ * It is only a FALLBACK. Once you change the password in Superuser → Settings,
+ * the new credential is stored in Appwrite Storage and this value is ignored
+ * everywhere, on every device. It exists so a fresh deployment isn't locked out
+ * before anyone has set a password.
  *
- *   1. Open Superuser → Settings and type the new password.
- *   2. Press "Generate hash", then Copy.
- *   3. Send that line back, or paste it over SUPERUSER_PASSWORD_HASH below.
- *   4. Rebuild and redeploy.
- *
- * The generator runs entirely in your browser and never transmits the password.
- *
- * ── CURRENT VALUE ───────────────────────────────────────────────────────────
- * Digest of the initial password, using the parameters in
- * utils/authHash.ts (salt "gili.superuser.v1", 200,000 iterations, SHA-256).
- * Regenerating with different parameters will invalidate this value.
+ * Because it ships in the source, the initial password should be treated as
+ * public knowledge among anyone who can see the repo — change it once in Settings
+ * and it stops mattering.
  */
-export const SUPERUSER_PASSWORD_HASH =
-  'c0703f4558b7850cee2ffaf59e1f5d50a4b67e9ec16d18cea7ad869c4e65468a';
+export const DEFAULT_SUPERUSER_CREDENTIAL =
+  'pbkdf2-sha256$600000$w3EmmDgHMkr1iF-tJOpoug$9SIJZY384Hko9rMbdVMAhc2TtuhBSdlV7eXNwMP3Px0';

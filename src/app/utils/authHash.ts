@@ -1,88 +1,225 @@
 /**
  * Password hashing for the Superuser gate.
  *
- * WHAT THIS DOES
- * The plaintext password exists nowhere in GILI — not in the source, not in the
- * JS bundle, not in the network tab, not in Appwrite. Only a PBKDF2-SHA256
- * digest is stored (see ../authConfig.ts). Unlocking hashes what you typed and
- * compares digests.
+ * ── WHAT IS STORED ─────────────────────────────────────────────────────────────
+ * Never the password. Only a self-describing string:
  *
- * WHAT THIS DOES NOT DO
- * It is not encryption, and it is not a security boundary. GILI is a static
- * client-side bundle with no backend, so the comparison happens in the browser.
- * Anyone who opens devtools can still walk past the gate by setting the unlock
- * flag in sessionStorage by hand — no amount of hashing changes that. Real
- * enforcement would mean Appwrite accounts plus collection-level permissions.
+ *   pbkdf2-sha256$600000$<salt base64url>$<digest base64url>
  *
- * What hashing genuinely buys us: the password can no longer be *read* out of
- * the app by someone poking around, and it can't leak from the database,
- * because it was never put there.
+ * The parameters travel with the digest, so raising ITERATIONS later doesn't
+ * invalidate credentials created today — verification uses whatever the stored
+ * string says, while new passwords get the current settings.
  *
- * PARAMETERS — do not change these without regenerating the stored digest,
- * since every one of them is an input to the result.
+ * ── HOW HARD IS THIS TO BRUTE-FORCE ────────────────────────────────────────────
+ * Three things make offline guessing expensive:
+ *
+ *   1. 600,000 PBKDF2-SHA256 iterations. Every single guess costs the attacker
+ *      the same ~600k compressions it costs us. On a high-end GPU rig that's
+ *      roughly 10^4 guesses/second, versus ~10^10/s for a plain SHA-256.
+ *   2. A random 16-byte salt per password. No rainbow tables, no precomputation,
+ *      and no sharing work between two GILI installs.
+ *   3. A minimum strength requirement on new passwords (see estimateStrength).
+ *
+ * That third one is the only one that actually decides the outcome. Iterations
+ * multiply the cost per guess by a constant; password length multiplies the
+ * NUMBER of guesses exponentially. A short or dictionary-based password falls in
+ * minutes no matter how high the iteration count, because the attacker tries
+ * likely candidates rather than enumerating the whole keyspace. This is why the
+ * Settings screen refuses weak passwords instead of just warning about them.
+ *
+ * ── WHAT THIS STILL DOESN'T DO ─────────────────────────────────────────────────
+ * It does not make the Superuser menu secure. GILI is a static site with no
+ * backend: the comparison runs in your browser, so someone with devtools can set
+ * the unlock flag by hand and never touch a password. Hashing protects the
+ * password. Only real accounts and server-side permissions protect the menu.
  */
-const SALT = 'gili.superuser.v1';
-const ITERATIONS = 200_000;
+
+const ALGORITHM = 'pbkdf2-sha256';
+/** Iterations for newly created credentials. Verification honours what's stored. */
+export const ITERATIONS = 600_000;
+const SALT_BYTES = 16;
 const KEY_BITS = 256;
 
-/**
- * Web Crypto is only exposed on secure origins (https, or localhost). On a
- * plain-http deployment crypto.subtle is undefined, and we'd rather say so
- * loudly than fall back to something weaker or, worse, let everyone in.
- */
 export function isHashingAvailable(): boolean {
-  return typeof crypto !== 'undefined' && !!crypto.subtle;
+  return typeof crypto !== 'undefined' && !!crypto.subtle && !!crypto.getRandomValues;
 }
 
-function toHex(buffer: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buffer))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-/** PBKDF2-SHA256(password, SALT, 200k) as a 64-character hex string. */
-export async function hashPassword(password: string): Promise<string> {
+function assertAvailable() {
   if (!isHashingAvailable()) {
     throw new Error(
-      'This browser will not expose Web Crypto on an insecure origin. Open GILI over https (or on localhost).'
+      'This browser will not expose Web Crypto on an insecure origin. Open GILI over https, or on localhost.'
     );
   }
-  const encoder = new TextEncoder();
+}
+
+// base64url, so the encoded credential is safe in JSON, URLs and source files.
+function toBase64Url(bytes: Uint8Array): string {
+  let binary = '';
+  bytes.forEach((b) => (binary += String.fromCharCode(b)));
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function fromBase64Url(value: string): Uint8Array {
+  const padded = value.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(padded + '='.repeat((4 - (padded.length % 4)) % 4));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function derive(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
+  assertAvailable();
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(password),
+    new TextEncoder().encode(password),
     'PBKDF2',
     false,
     ['deriveBits']
   );
   const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt: encoder.encode(SALT), iterations: ITERATIONS, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: salt as unknown as BufferSource, iterations, hash: 'SHA-256' },
     keyMaterial,
     KEY_BITS
   );
-  return toHex(bits);
+  return new Uint8Array(bits);
 }
 
-/**
- * Compare in constant time.
- *
- * Honestly, timing-attacking a client-side comparison is absurd when you could
- * just edit the JS — but a length-independent compare costs three lines, so
- * there's no reason to write the sloppy version.
- */
-function constantTimeEquals(a: string, b: string): boolean {
+/** Hash a password with a fresh random salt. Returns the encoded credential. */
+export async function createCredential(password: string): Promise<string> {
+  assertAvailable();
+  const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
+  const digest = await derive(password, salt, ITERATIONS);
+  return `${ALGORITHM}$${ITERATIONS}$${toBase64Url(salt)}$${toBase64Url(digest)}`;
+}
+
+/** Constant-time byte comparison. */
+function constantTimeEquals(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
   return diff === 0;
 }
 
-/** True when `input` hashes to `expectedHex`. Empty input never matches. */
-export async function verifyPassword(input: string, expectedHex: string): Promise<boolean> {
-  if (!input || !expectedHex) return false;
-  const actual = await hashPassword(input);
-  return constantTimeEquals(actual.toLowerCase(), expectedHex.trim().toLowerCase());
+/** True when `password` matches the encoded credential. Malformed input is false. */
+export async function verifyCredential(password: string, encoded: string): Promise<boolean> {
+  if (!password || !encoded) return false;
+  const parts = encoded.trim().split('$');
+  if (parts.length !== 4) return false;
+  const [algorithm, iterationsRaw, saltRaw, digestRaw] = parts;
+  if (algorithm !== ALGORITHM) return false;
+
+  const iterations = Number.parseInt(iterationsRaw, 10);
+  // Guard against a tampered credential specifying 1 iteration (which would make
+  // guessing cheap) or something absurd enough to hang the tab.
+  if (!Number.isFinite(iterations) || iterations < 100_000 || iterations > 5_000_000) return false;
+
+  try {
+    const salt = fromBase64Url(saltRaw);
+    const expected = fromBase64Url(digestRaw);
+    const actual = await derive(password, salt, iterations);
+    return constantTimeEquals(actual, expected);
+  } catch {
+    return false; // unparseable base64 — treat as a non-match, never as a pass
+  }
 }
 
-/** Exposed so the Settings screen can show which parameters produced a digest. */
-export const HASH_PARAMS = { algorithm: 'PBKDF2-SHA256', salt: SALT, iterations: ITERATIONS, bits: KEY_BITS };
+/** Iteration count baked into a stored credential, for display. Null if unknown. */
+export function credentialIterations(encoded: string): number | null {
+  const n = Number.parseInt(encoded.split('$')[1] ?? '', 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+// ── Strength estimation ───────────────────────────────────────────────────────
+//
+// Deliberately pessimistic. It assumes the attacker knows the password's shape
+// and only has to search that shape, which is how real cracking works — a
+// wordlist plus mangling rules, not a blind enumeration of every byte string.
+
+const COMMON_WORDS = [
+  'password', 'passw0rd', 'gili', 'tiket', 'admin', 'superuser', 'joy', 'welcome',
+  'qwerty', 'letmein', 'secret', 'illustration', 'design', 'asset', 'library',
+];
+
+export interface Strength {
+  /** Estimated bits of entropy, after penalties. */
+  bits: number;
+  verdict: 'unacceptable' | 'weak' | 'fair' | 'strong';
+  /** Passes the minimum bar the Settings screen enforces. */
+  acceptable: boolean;
+  /** Plain-language reasons, shown to the user. */
+  reasons: string[];
+  /** Time for an offline attacker at the assumed rate. */
+  crackTime: string;
+}
+
+/**
+ * Assumed attacker: a GPU rig managing 100,000 PBKDF2-SHA256(600k) guesses per
+ * second. That is generous — a single high-end card is closer to 10,000 — so
+ * treat the resulting estimate as a floor, not a promise.
+ */
+const ASSUMED_GUESSES_PER_SEC = 100_000;
+
+function humanDuration(seconds: number): string {
+  if (seconds < 1) return 'instantly';
+  const units: [number, string][] = [
+    [60, 'seconds'], [60, 'minutes'], [24, 'hours'], [365, 'days'], [1000, 'years'],
+  ];
+  let value = seconds;
+  let label = 'seconds';
+  for (const [factor, next] of units) {
+    if (value < factor) break;
+    value /= factor;
+    label = next;
+  }
+  if (label === 'years' && value >= 1000) return 'longer than anyone will wait';
+  return `about ${value < 10 ? value.toFixed(1) : Math.round(value)} ${label}`;
+}
+
+export function estimateStrength(password: string): Strength {
+  const reasons: string[] = [];
+  if (!password) {
+    return { bits: 0, verdict: 'unacceptable', acceptable: false, reasons: [], crackTime: 'instantly' };
+  }
+
+  const lower = password.toLowerCase();
+  let charset = 0;
+  if (/[a-z]/.test(password)) charset += 26;
+  if (/[A-Z]/.test(password)) charset += 26;
+  if (/[0-9]/.test(password)) charset += 10;
+  if (/[^a-zA-Z0-9]/.test(password)) charset += 33;
+
+  let bits = password.length * Math.log2(Math.max(charset, 2));
+
+  // Penalties for the patterns crackers try first.
+  const matchedWord = COMMON_WORDS.find((w) => lower.includes(w));
+  if (matchedWord) {
+    bits -= 14;
+    reasons.push(`Contains "${matchedWord}", which is on every wordlist — and on one aimed at this project in particular.`);
+  }
+  if (/^[a-z]+[0-9]{1,4}$/.test(password)) {
+    bits -= 12;
+    reasons.push('Word-then-digits is the single most common password shape, so it gets tried early.');
+  }
+  if (/(.)\1{2,}/.test(password)) {
+    bits -= 4;
+    reasons.push('Repeated characters add length without adding unpredictability.');
+  }
+  if (/^(?:0123|1234|abcd|qwer)/i.test(password)) {
+    bits -= 10;
+    reasons.push('Starts with a keyboard or counting sequence.');
+  }
+  if (password.length < 12) {
+    reasons.push('Under 12 characters. Length is the only lever that scales against offline guessing.');
+  }
+  bits = Math.max(bits, 0);
+
+  const seconds = Math.pow(2, bits) / 2 / ASSUMED_GUESSES_PER_SEC;
+
+  // The bar: 12+ characters AND at least 60 bits after penalties. 60 bits at the
+  // assumed rate is ~180 years, which is where this stops being the weak link.
+  const acceptable = password.length >= 12 && bits >= 60;
+  const verdict: Strength['verdict'] =
+    bits < 40 ? 'unacceptable' : !acceptable ? 'weak' : bits < 75 ? 'fair' : 'strong';
+
+  return { bits: Math.round(bits), verdict, acceptable, reasons, crackTime: humanDuration(seconds) };
+}
