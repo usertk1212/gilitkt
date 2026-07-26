@@ -11,7 +11,7 @@ import { AboutModal } from './AboutModal';
 import { SyncStatusLine } from './SyncStatusLine';
 import { ArrowLeft, BarChart3, Database, Download, Eye, Folder, FolderOpen, Image, KeyRound, Layers, Moon, Package, Palette, Settings, Sparkles, Sun, Trash2, Upload, Zap } from "./icons";
 
-export type AdminTab = "upload" | "manage" | "analytics" | "csv-viewer" | "export" | "hard-reset" | "settings";
+export type AdminTab = "upload" | "manage" | "analytics" | "csv-viewer" | "export" | "hard-reset" | "settings" | "about-image";
 
 interface SidebarNavItem {
   key: string;
@@ -38,6 +38,8 @@ interface SharedSidebarProps {
   // items (Upload, Manage, Analytics, etc.) instead of the asset-type list.
   mode?: "dashboard" | "admin";
   activeAdminTab?: AdminTab;
+  /** "superuser" unlocks the hidden About Image item. */
+  adminRole?: "superuser" | "admin";
   onAdminTabChange?: (tab: AdminTab) => void;
 }
 
@@ -55,6 +57,7 @@ export function SharedSidebar({
   selectedCategory,
   mode = "dashboard",
   activeAdminTab,
+  adminRole = "admin",
   onAdminTabChange
 }: SharedSidebarProps) {
   const { open } = useSidebar();
@@ -88,6 +91,12 @@ export function SharedSidebar({
   const adminSettingsItems: SidebarNavItem[] = [
     { key: "settings", title: "Settings", icon: KeyRound },
   ];
+
+  // Superuser-only. Empty for the admin role, so the group renders nothing and
+  // the menu looks exactly as it did before.
+  const superuserItems: SidebarNavItem[] = adminRole === "superuser"
+    ? [{ key: "about-image", title: "About Image", icon: Image }]
+    : [];
 
   const isItemActive = (item: SidebarNavItem) =>
     isAdminMode ? activeAdminTab === item.key : selectedCategory === item.title;
@@ -222,6 +231,7 @@ export function SharedSidebar({
             {renderMenuGroup("Admin Menu", adminItems)}
             {renderMenuGroup("Danger Zone", adminDangerItems)}
             {renderMenuGroup(null, adminSettingsItems)}
+            {superuserItems.length > 0 && renderMenuGroup("Superuser Only", superuserItems)}
           </>
         ) : (
           renderMenuGroup("Asset Types", dashboardItems)

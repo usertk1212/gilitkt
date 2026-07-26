@@ -506,10 +506,12 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
 
             {/* Bottom row: Breadcrumb Navigation */}
             <div className="px-4 lg:px-7 py-2 lg:py-3 border-t bg-muted/30">
-              {/* Kept on one row at every width. Stacking the count onto its own
-                  line on mobile pushed the first asset ~40px further down for no
-                  benefit — the badge is short enough to sit inline. */}
-              <div className="flex flex-row items-center justify-between gap-2">
+              {/* Stacks on mobile, single row on desktop.
+                  Inline at every width collided once a category name got long
+                  ("Micro Illustration" + "4486 total assets" + sort doesn't fit
+                  in 360px), so below the desktop breakpoint the count and sort
+                  drop to their own line. */}
+              <div className="flex flex-col items-stretch gap-2 lg:flex-row lg:items-center lg:justify-between">
                 <Breadcrumb>
                   <BreadcrumbList>
                     {getBreadcrumbItems().map((item, index) => (
@@ -540,7 +542,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
                     Sort lives here rather than in its own row so it sits on the
                     same line as the thing it describes, and costs no extra
                     vertical space on mobile. */}
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 items-center justify-between gap-2 lg:justify-end">
                   <Badge
                     variant="secondary"
                     className="shrink-0 px-2 py-1 text-xs lg:px-3 lg:text-sm"

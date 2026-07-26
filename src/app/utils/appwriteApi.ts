@@ -762,6 +762,93 @@ export async function getAdminPassword(): Promise<string> {
   }
 }
 
+/**
+ * Two access levels, distinguished purely by which password you type.
+ *
+ *   superuser -> joy1212  : everything, including the hidden About Image menu
+ *   admin     -> gili1212 : everything else
+ *
+ * Same caveat as above, doubled: this is a client-side bundle, so BOTH passwords
+ * are readable by anyone who opens devtools. "Hidden" here means "not in the way
+ * of normal use", not "protected".
+ */
+export type AdminRole = 'superuser' | 'admin';
+
+const DEFAULT_SUPERUSER_PASSWORD = 'joy1212';
+const SUPERUSER_PASSWORD_DOC_ID = 'superuser_password';
+
+export async function getSuperuserPassword(): Promise<string> {
+  try {
+    const doc = await databases.getDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, SUPERUSER_PASSWORD_DOC_ID);
+    return (doc as any).value || DEFAULT_SUPERUSER_PASSWORD;
+  } catch {
+    return DEFAULT_SUPERUSER_PASSWORD;
+  }
+}
+
+/**
+ * Resolve a typed password to a role, or null if it matches neither.
+ * Superuser is checked first so that if the two are ever set to the same string,
+ * the higher privilege wins rather than silently downgrading.
+ */
+export async function resolveAdminRole(input: string): Promise<AdminRole | null> {
+  const [superuserPw, adminPw] = await Promise.all([getSuperuserPassword(), getAdminPassword()]);
+  if (input === superuserPw) return 'superuser';
+  if (input === adminPw) return 'admin';
+  return null;
+}
+
+// --- About-dialog image (hidden Superuser feature) ---
+//
+// Stored as a data URL in the settings collection so every device sees the same
+// image. The uploader downscales and JPEG-encodes before saving specifically to
+// keep this well under Appwrite's string-attribute limit — see AboutImageManager.
+const ABOUT_IMAGE_DOC_ID = 'about_image';
+
+export async function getAboutImage(): Promise<string | null> {
+  try {
+    const doc = await databases.getDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, ABOUT_IMAGE_DOC_ID);
+    return (doc as any).value || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setAboutImage(dataUrl: string): Promise<ApiResponse<null>> {
+  try {
+    try {
+      await databases.updateDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, ABOUT_IMAGE_DOC_ID, {
+        key: 'about_image',
+        value: dataUrl,
+      });
+    } catch {
+      await databases.createDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, ABOUT_IMAGE_DOC_ID, {
+        key: 'about_image',
+        value: dataUrl,
+      });
+    }
+    return { success: true, message: 'About image saved' };
+  } catch (error) {
+    // Most likely cause: the settings collection's `value` attribute is too
+    // small for a data URL. Surface it plainly instead of a generic failure.
+    return {
+      success: false,
+      error:
+        `${errorMessage(error)} — if this mentions a length/size limit, widen the ` +
+        `"value" attribute on the Appwrite "settings" collection (needs ~200,000 characters).`,
+    };
+  }
+}
+
+export async function clearAboutImage(): Promise<ApiResponse<null>> {
+  try {
+    await databases.deleteDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, ABOUT_IMAGE_DOC_ID);
+    return { success: true, message: 'Reverted to the placeholder' };
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+}
+
 export async function setAdminPassword(newPassword: string): Promise<ApiResponse<null>> {
   try {
     try {

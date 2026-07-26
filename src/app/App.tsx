@@ -8,6 +8,7 @@ import { AdminGate } from "./components/AdminGate";
 import { AdminSettings } from "./components/AdminSettings";
 import { CsvViewer } from "./components/CsvViewer";
 import { HardResetDatabase } from "./components/HardResetDatabase";
+import { AboutImageManager } from "./components/AboutImageManager";
 import { SharedSidebar, type AdminTab } from "./components/SharedSidebar";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsContent } from "./components/ui/tabs";
@@ -33,6 +34,7 @@ function AppShell() {
     export: "Export CSV",
     "hard-reset": "Hard Reset Database",
     settings: "Settings",
+    "about-image": "About Image",
   };
 
   // Asset data for sidebar (only used in asset-menu view)
@@ -72,6 +74,7 @@ function AppShell() {
   if (currentView === "asset-menu") {
     return (
       <AdminGate onCancel={handleNavigateToDashboard}>
+        {(role) => (
         <SidebarProvider>
           <div className="min-h-screen flex w-full bg-background">
             {/* Sidebar — shows the Admin submenu instead of the asset-type list */}
@@ -88,6 +91,7 @@ function AppShell() {
               mode="admin"
               activeAdminTab={activeTab}
               onAdminTabChange={handleTabChange}
+              adminRole={role}
             />
 
             {/* Main Content */}
@@ -157,12 +161,22 @@ function AppShell() {
                     <TabsContent value="settings" className="h-full m-0 overflow-hidden">
                       <AdminSettings />
                     </TabsContent>
+
+                    {/* Superuser-only. Also guarded here, not just in the menu —
+                        otherwise the tab would still be reachable by anyone who
+                        set activeTab another way. */}
+                    {role === "superuser" && (
+                      <TabsContent value="about-image" className="h-full m-0 overflow-y-auto">
+                        <AboutImageManager />
+                      </TabsContent>
+                    )}
                   </div>
                 </Tabs>
               </div>
             </div>
           </div>
         </SidebarProvider>
+        )}
       </AdminGate>
     );
   }
