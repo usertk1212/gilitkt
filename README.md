@@ -1,8 +1,7 @@
 # GILI
+Graphical Illustration Library
 
-Asset management dashboard for organizing illustration assets.
-
-**Version:** 1.0.22
+**Version:** 1.0.23
 
 ## ✨ Features
 
@@ -22,7 +21,6 @@ Asset management dashboard for organizing illustration assets.
 - About dialog, opened from the version label in the sidebar footer
 
 ### Superuser
-*(formerly "Admin")*
 - Password-protected Superuser panel *(client-side only)*
 - **Session auto-locks after 15 minutes idle**, with a 60-second warning; any click or keypress extends it
 - **Sessions never expire mid-import** — a running job holds the session open
@@ -39,73 +37,3 @@ Asset management dashboard for organizing illustration assets.
 - Hard reset database (password + typed confirmation required)
 - Change Superuser password
 
-## 🎨 Design System
-
-Follows **tiket.com Passport 4.6**.
-
-- **Color:** full primitive + semantic token layers (Background / Text / Icon / Stroke), light and dark, plus Festive and Tier gradients
-- **Typography:** Tiket Odyssey (self-hosted woff2), Passport type ladder from Heading 1 down to Extra Small Print
-- **Buttons:** TDS variants — Primary, Secondary, Tertiary, Invert, Alert — flat fills, no gradients
-- **Radius:** 8px
-- **Grid:** 16-column dashboard (28px margin) and 12-column desktop (120px margin), 24px gutter
-- **Icons:** single in-house solid 24×24 set, `currentColor` throughout so dark mode works
-
-## ⚙️ Tech
-- **Backend:** Appwrite Cloud (Frankfurt)
-- **Cache:** 5-minute client-side cache with manual refresh
-- **Import:** Retry-safe, skips already imported rows, pausable and resumable
-- **Deployment:** Vercel with automatic GitHub deployments
-
-## 🚀 Running locally
-
-```bash
-npm i
-npm run dev
-```
-
-## 📝 Changelog
-
-### 1.0.22
-- Asset detail panel gained a **Source** row that opens the asset directly in Lightroom
-- About dialog copy is now "Crafted & developed with JOY"
-
-### 1.0.21
-- Clicking the version label in the sidebar opens an About dialog (3:2 image placeholder + "designed & developed by YOJ.")
-
-### 1.0.20
-- Project export (CSV and TXT) now writes only `nama_file` (raw database value) and `url_lightroom`
-- Superuser session auto-locks after 15 minutes idle, and never locks during an active import
-- Pause / Resume / Stop controls for CSV imports, in a floating panel available app-wide
-- Imports keep running when you navigate back to the dashboard
-- All UI copy switched to English
-- Dashboard background set to white (N0)
-
-### 1.0.19
-- Buttons rebuilt on the TDS spec: five flat variants, no gradients, real disabled tokens
-- 8px radius applied across the app
-- Every icon now comes from the in-house SVG set, including the shadcn primitives
-- "Most Recent" uses a sort icon; Admin renamed to **Superuser** with a lightning icon
-- Dedicated zoom-in / zoom-out icons in the image inspector
-
-### 1.0.18
-- CSV database checker: see exactly which rows are missing before importing
-- Three selection modes (not-in-database / manual / range), per-row status badges and filters
-
-### 1.0.17
-- Passport typography tokens and utility classes
-- 16-column dashboard and 12-column desktop grid tokens
-
-### 1.0.16
-- Passport 4.6 color foundation wired into light and dark mode
-
-### 1.0.15
-- Tiket Odyssey self-hosted webfonts
-- Semantic versioning introduced, version shown in the sidebar footer
-
-## 🔒 Security note
-
-The Superuser password is **not** a security boundary. GILI is a static site with
-no backend, so the password is fetched into the browser to be compared, and the
-unlock flag lives in `sessionStorage`. It keeps casual users out of destructive
-actions; it does not stop anyone who opens devtools. Enforcing this properly
-would mean Appwrite accounts plus collection-level permissions.
