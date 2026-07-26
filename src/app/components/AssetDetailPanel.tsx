@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, Copy, Check, Plus, Edit3, Link, ZoomIn, ArrowRight } from "./icons";
+import { X, Copy, Check, Plus, Link, ZoomIn, ArrowRight } from "./icons";
 import { ImageZoomModal } from "./ImageZoomModal";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -264,30 +264,17 @@ export function AssetDetailPanel({
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-2">
-            <Button
-              onClick={() => onAssetOrganize?.(asset)}
-              className="flex-1 h-9 text-white rounded-lg"
-              style={{
-                background: 'var(--pp-bg-blue-high)'
-              }}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add to Project
-            </Button>
-
-            <Button
-              onClick={() => {
-                toast.info("Edit functionality coming soon!");
-              }}
-              variant="outline"
-              className="flex-1 h-9 px-3 rounded-lg"
-            >
-              <Edit3 className="w-4 h-4 mr-2" />
-              Edit File Details
-            </Button>
-          </div>
+          {/* Single full-width action. "Edit File Details" used to sit next to
+              this — it only fired a "coming soon" toast, and the two-button row
+              was what overflowed the panel edge. */}
+          <Button
+            onClick={() => onAssetOrganize?.(asset)}
+            className="h-9 w-full rounded-lg text-white"
+            style={{ background: 'var(--pp-bg-blue-high)' }}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add to Project
+          </Button>
         </div>
       </div>
 

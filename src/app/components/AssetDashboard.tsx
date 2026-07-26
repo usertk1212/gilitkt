@@ -3,6 +3,8 @@ import * as React from "react";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "./ui/sidebar";
 import { Breadcrumb, BreadcrumbEllipsis, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "./ui/breadcrumb";
 import { Search, Plus, Grid, List, Image, Palette, Sparkles, Layers, Upload, Folder, RefreshCw, Database, AlertCircle, Download, X, FolderOpen, ArrowLeft, Home, ChevronRight, SlidersHorizontal, Settings, Sort, Zap } from "./icons";
+import { GiliLogo } from "./GiliLogo";
+import { AboutModal } from "./AboutModal";
 import { Slider } from "./ui/slider";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -48,6 +50,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dataSource, setDataSource] = useState<string>('loading');
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
   // Brief "done!" confirmation shown right after the initial load finishes,
@@ -402,6 +405,22 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
               <div className="flex items-center gap-3 lg:gap-6 flex-1">
                 {/* Sidebar Toggle Button - Outside sidebar */}
                 <SidebarTrigger className="size-9 lg:size-10 hover:bg-accent/50 rounded-lg bg-transparent text-foreground shrink-0 flex items-center justify-center transition-colors" />
+
+                {/* Brand mark, mobile only.
+                    On mobile the sidebar is an off-canvas sheet, so the GILI
+                    logo is hidden until you open it — leaving no indication of
+                    which app you're in. On desktop the sidebar is always
+                    visible and already shows the full wordmark, so this would
+                    just be a duplicate. */}
+                <button
+                  type="button"
+                  onClick={() => setIsAboutOpen(true)}
+                  title="About GILI"
+                  aria-label="About GILI"
+                  className="shrink-0 rounded-lg p-0.5 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+                >
+                  <GiliLogo collapsed />
+                </button>
                 
                 {/* Large Search Bar - Now takes more space */}
                 <div className="relative flex-1">
@@ -599,6 +618,10 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
             </div>
           </div>
         </SidebarInset>
+
+        {/* About dialog — reachable from the mobile brand mark in the header,
+            since on mobile the sidebar (and its version label) is hidden. */}
+        <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
 
         {/* Asset Detail Panel */}
         <AssetDetailPanel
