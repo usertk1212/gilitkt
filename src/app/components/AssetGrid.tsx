@@ -33,13 +33,6 @@ interface AssetGridProps {
   sortBy?: SortOption;
   loading?: boolean; // Still fetching from the database — show a loading state instead of "No assets"
   justFinishedLoading?: boolean; // Brief "done!" checkmark right after loading completes
-  /** Lets the sticky header render a compact pager without re-deriving any of
-   *  the pagination maths. Single source of truth stays here in AssetGrid. */
-  onPageStateChange?: (state: {
-    page: number;
-    totalPages: number;
-    goToPage: (p: number) => void;
-  }) => void;
 }
 
 export function AssetGrid({
@@ -134,14 +127,6 @@ export function AssetGrid({
     }
     setJumpToPageInput("");
   };
-
-  // Publish page state to the parent. goToAssetPage is stable enough here; the
-  // effect re-runs whenever page or total changes, which is exactly when the
-  // header pager needs updating.
-  useEffect(() => {
-    onPageStateChange?.({ page: safePage, totalPages: totalAssetPages, goToPage: goToAssetPage });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [safePage, totalAssetPages]);
 
   const toggleFavorite = (nama_file: string) => {
     setFavorites(prev => {

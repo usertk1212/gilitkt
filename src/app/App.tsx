@@ -16,6 +16,7 @@ import { Menu, Download, RefreshCw } from "./components/icons";
 import { useAssetData } from "./components/hooks/useAssetData";
 import { UploadJobProvider } from "./context/UploadJobContext";
 import { UploadJobWidget } from "./components/UploadJobWidget";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 type ViewType = "dashboard" | "asset-menu";
 
@@ -185,9 +186,11 @@ function AppShell() {
  */
 export default function App() {
   return (
-    <UploadJobProvider>
-      <AppShell />
-      <UploadJobWidget />
-    </UploadJobProvider>
+    <ErrorBoundary>
+      <UploadJobProvider>
+        <AppShell />
+        <UploadJobWidget />
+      </UploadJobProvider>
+    </ErrorBoundary>
   );
 }

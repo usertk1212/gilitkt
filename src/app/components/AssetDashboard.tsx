@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import * as React from "react";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "./ui/sidebar";
 import { Breadcrumb, BreadcrumbEllipsis, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "./ui/breadcrumb";
-import { Search, Plus, Grid, List, Image, Palette, Sparkles, Layers, Upload, Folder, RefreshCw, Database, AlertCircle, Download, X, FolderOpen, ArrowLeft, Home, ChevronRight, SlidersHorizontal, Settings, Sort, Zap, Package, ChevronLeft } from "./icons";
+import { Search, Plus, Grid, List, Image, Palette, Sparkles, Layers, Upload, Folder, RefreshCw, Database, AlertCircle, Download, X, FolderOpen, ArrowLeft, Home, ChevronRight, SlidersHorizontal, Settings, Sort, Zap, Package } from "./icons";
 import { GiliLogo } from "./GiliLogo";
 import { AboutModal } from "./AboutModal";
 import { Slider } from "./ui/slider";
@@ -51,13 +51,6 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
   const [error, setError] = useState<string | null>(null);
   const [dataSource, setDataSource] = useState<string>('loading');
   const [isAboutOpen, setIsAboutOpen] = useState(false);
-  // Mirrored from AssetGrid so the sticky header can show a compact pager.
-  // AssetGrid remains the single source of truth for pagination.
-  const [pageState, setPageState] = useState<{
-    page: number;
-    totalPages: number;
-    goToPage: (p: number) => void;
-  } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
   // Brief "done!" confirmation shown right after the initial load finishes,
@@ -555,39 +548,6 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
                     {getAssetCount()}
                   </Badge>
 
-                  {/* Compact pager, desktop only.
-                      Costs no extra vertical space because this row already
-                      exists — that's why it beats a sticky bottom bar here. On
-                      mobile there's no room, so the grid renders a sticky bottom
-                      pager instead. */}
-                  {pageState && pageState.totalPages > 1 && (
-                    <div className="hidden items-center gap-1 lg:flex">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-9 w-9 p-0"
-                        onClick={() => pageState.goToPage(pageState.page - 1)}
-                        disabled={pageState.page <= 1}
-                        title="Previous page"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <span className="min-w-[62px] text-center text-sm tabular-nums text-muted-foreground">
-                        {pageState.page} / {pageState.totalPages}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-9 w-9 p-0"
-                        onClick={() => pageState.goToPage(pageState.page + 1)}
-                        disabled={pageState.page >= pageState.totalPages}
-                        title="Next page"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-
                   {(currentView === "category" || currentView === "project-detail") && (
                     <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
                       <SelectTrigger className="h-8 w-auto gap-1.5 text-xs lg:h-9 lg:gap-2 lg:text-sm">
@@ -650,7 +610,6 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
                     sortBy={sortBy}
                     loading={loading}
                     justFinishedLoading={justFinishedLoading}
-                  onPageStateChange={setPageState}
                     assets={getFilteredAssets()}
                     selectedAsset={selectedAsset}
                     onSelectAsset={handleSelectAsset}
