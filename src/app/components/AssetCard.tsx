@@ -468,17 +468,24 @@ function AssetCardImpl({
           </p>
 
           {/* URL with copy button - responsive sizing */}
-          <div className={`bg-muted border border-border rounded-lg ${
+          <div className={`overflow-hidden bg-muted border border-border rounded-lg ${
             isSmallCard ? 'mb-2' : 'mb-3'
           }`}>
             <div className={`flex items-center gap-2 ${
               isSmallCard ? 'px-2 py-1.5' : 'px-3 py-2'
             }`}>
+              {/* min-w-0 + size={1} are load-bearing.
+                  A flex item defaults to min-width:auto, and for an <input>
+                  that resolves to its INTRINSIC width — roughly 20 characters,
+                  ~180px. So the input refused to shrink and shoved the copy
+                  button outside the card at dense column counts (7-10), where
+                  the whole card is only ~130px wide. */}
               <input
                 type="text"
+                size={1}
                 value={asset.url_lightroom}
                 readOnly
-                className={`flex-1 text-muted-foreground bg-transparent border-none outline-none cursor-pointer ${
+                className={`min-w-0 flex-1 text-muted-foreground bg-transparent border-none outline-none cursor-pointer ${
                   isSmallCard ? 'text-xs' : 'text-sm'
                 }`}
                 onClick={(e) => {

@@ -201,9 +201,10 @@ export function AssetDetailPanel({
               <Link className="w-4 h-4 text-muted-foreground shrink-0" />
               <input
                 type="text"
+                size={1}
                 value={asset.url_lightroom}
                 readOnly
-                className="flex-1 text-sm text-muted-foreground bg-transparent border-none outline-none"
+                className="min-w-0 flex-1 text-sm text-muted-foreground bg-transparent border-none outline-none"
                 onClick={(e) => {
                   (e.target as HTMLInputElement).select();
                 }}
