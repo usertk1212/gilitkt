@@ -76,11 +76,11 @@ export function AssetDetailPanel({
       onClick={onClose}
     >
       <div
-        className="w-[340px] bg-card h-full shadow-xl overflow-y-auto overscroll-contain animate-in slide-in-from-right-0 duration-300 asset-detail-panel"
+        className="w-full max-w-[340px] lg:w-[340px] bg-card h-full shadow-xl overflow-y-auto overscroll-contain animate-in slide-in-from-right-0 duration-300 asset-detail-panel"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with Asset Details */}
-        <div className="p-6 border-b">
+        <div className="p-4 lg:p-6 border-b">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-foreground">Asset Details</h2>
             <Button
@@ -192,7 +192,7 @@ export function AssetDetailPanel({
         <Separator />
 
         {/* Detail Section */}
-        <div className="p-6">
+        <div className="p-4 lg:p-6">
           <h3 className="text-base font-semibold text-foreground mb-4">Detail</h3>
 
           {/* Lightroom Link */}

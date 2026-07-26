@@ -105,10 +105,10 @@ export function ImageZoomModal({ src, alt, caption, isOpen, onClose }: ImageZoom
     >
       {/* Toolbar */}
       <div
-        className="flex items-center justify-between gap-3 px-4 py-3 text-white"
+        className="flex items-center justify-between gap-2 px-3 py-2 text-white lg:gap-3 lg:px-4 lg:py-3"
         onClick={(e) => e.stopPropagation()}
       >
-        <span className="min-w-0 flex-1 truncate text-sm text-white/70" title={caption}>
+        <span className="hidden min-w-0 flex-1 truncate text-sm text-white/70 sm:block" title={caption}>
           {caption}
         </span>
 
@@ -188,7 +188,7 @@ export function ImageZoomModal({ src, alt, caption, isOpen, onClose }: ImageZoom
       </div>
 
       <p className="pb-3 text-center text-xs text-white/40">
-        Scroll to zoom · drag to pan · double-click to toggle 2x · Esc to close
+        Scroll or pinch to zoom · drag to pan · double-click for 2x · Esc to close
       </p>
     </div>
   );

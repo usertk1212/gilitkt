@@ -200,19 +200,34 @@ export function AssetGrid({
   // Determine if we're in project context
   const isProjectView = category === "Project" && currentProject;
 
-  // Generate dynamic grid classes based on gridColumns
+  // Grid columns per breakpoint.
+  //
+  // Ladder now matches the tiket breakpoints defined in passport-type-grid.css:
+  //   base <480  1 col   — a 2-up grid at 360px leaves ~160px cards; the
+  //                        filename, URL field and tags don't fit legibly
+  //   sm   480+  2 cols
+  //   md   640+  3 cols  (still mobile, but wide enough)
+  //   lg   840+  the user's chosen density starts applying — this is desktop
+  //   xl/2xl/3xl/4xl step up to the full requested count
+  //
+  // The 3xl/4xl steps were previously referenced but never defined as
+  // breakpoints, so settings 7-10 compiled to nothing and silently capped out.
   const getGridClasses = () => {
     const baseClasses = "grid gap-3 lg:gap-4";
     const columnClasses = {
-      4: "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4", // Largest cards (4 columns max)
-      5: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5", // Large cards
-      6: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6", // Default medium cards
-      7: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7", // Small cards
-      8: "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7 4xl:grid-cols-8", // Smaller cards
-      9: "grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 4xl:grid-cols-9", // Very small cards
-      10: "grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 3xl:grid-cols-9 4xl:grid-cols-10" // Smallest cards
+      // Column counts are tuned against the CONTENT width, not the viewport:
+      // at >=840px the 256px sidebar appears, so the first desktop step has to
+      // stay conservative. 840px minus sidebar minus 2x28px margin leaves only
+      // ~528px, where 4 columns would give 123px cards — narrower than mobile.
+      4:  "grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4",
+      5:  "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5",
+      6:  "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6",
+      7:  "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7",
+      8:  "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 3xl:grid-cols-7 4xl:grid-cols-8",
+      9:  "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 4xl:grid-cols-9",
+      10: "grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 3xl:grid-cols-9 4xl:grid-cols-10"
     };
-    
+
     return `${baseClasses} ${columnClasses[gridColumns as keyof typeof columnClasses] || columnClasses[6]}`;
   };
 

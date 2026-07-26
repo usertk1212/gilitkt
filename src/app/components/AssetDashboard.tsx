@@ -398,7 +398,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
           {/* Header with Search and Controls */}
           <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             {/* Top row: Search and controls */}
-            <div className="flex flex-col lg:flex-row h-auto lg:h-20 items-stretch lg:items-center px-4 lg:px-6 gap-4 lg:gap-6 py-4 lg:py-0">
+            <div className="flex flex-col lg:flex-row h-auto lg:h-20 items-stretch lg:items-center px-4 lg:px-7 gap-3 lg:gap-6 py-3 lg:py-0">
               <div className="flex items-center gap-3 lg:gap-6 flex-1">
                 {/* Sidebar Toggle Button - Outside sidebar */}
                 <SidebarTrigger className="size-9 lg:size-10 hover:bg-accent/50 rounded-lg bg-transparent text-foreground shrink-0 flex items-center justify-center transition-colors" />
@@ -490,8 +490,11 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
             </div>
 
             {/* Bottom row: Breadcrumb Navigation */}
-            <div className="px-4 lg:px-6 py-3 border-t bg-muted/30">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+            <div className="px-4 lg:px-7 py-2 lg:py-3 border-t bg-muted/30">
+              {/* Kept on one row at every width. Stacking the count onto its own
+                  line on mobile pushed the first asset ~40px further down for no
+                  benefit — the badge is short enough to sit inline. */}
+              <div className="flex flex-row items-center justify-between gap-2">
                 <Breadcrumb>
                   <BreadcrumbList>
                     {getBreadcrumbItems().map((item, index) => (
@@ -530,7 +533,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
 
           {/* Content */}
           <div className="flex-1 overflow-auto">
-            <div className="p-4 lg:p-6">
+            <div className="p-4 lg:p-7">
               {currentView === "projects" && (
                 <ProjectManager
                   assets={assets}

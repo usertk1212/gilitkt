@@ -9,6 +9,35 @@
    Tracking is "Normal" on every token, so no letter-spacing is emitted.
    ========================================================================== */
 
+
+/* ==========================================================================
+   Breakpoints — tiket.com responsive spec
+     mobile  : 360px – 839px
+     desktop : 840px and up
+
+   `lg:` is THE mobile/desktop switch and is redefined to 840px. GILI already
+   uses `lg:` for that split in ~69 places, but Tailwind's default `lg` is
+   1024px — so every screen from 840–1023px was getting the mobile layout even
+   though tiket considers it desktop. That gap is the "cramped" feeling.
+
+   sm/md stay BELOW 840px as density steps inside the mobile range (a 700px
+   tablet can fit 3 asset columns instead of 2) — they are not layout switches.
+   xl and up add columns on large desktops.
+
+   3xl/4xl are declared here because AssetGrid already references them for the
+   7–10 column settings. They were never defined, so those classes compiled to
+   nothing and the column slider silently capped out.
+   ========================================================================== */
+@theme {
+  --breakpoint-sm: 480px;
+  --breakpoint-md: 640px;
+  --breakpoint-lg: 840px;   /* tiket desktop breakpoint */
+  --breakpoint-xl: 1200px;
+  --breakpoint-2xl: 1440px;
+  --breakpoint-3xl: 1720px;
+  --breakpoint-4xl: 2040px;
+}
+
 :root {
   /* ---------------- TYPOGRAPHY TOKENS ----------------
      Typeface is Odyssey throughout (see odyssey.css).
