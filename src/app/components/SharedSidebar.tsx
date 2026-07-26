@@ -100,26 +100,38 @@ export function SharedSidebar({
     }
   };
 
-  // Database status display logic
+  // Database status display logic.
+  //
+  // NOTE: this switch must cover every `source` value getAllAssets() can return.
+  // 1.0.23 added 'cache' / 'appwrite' / 'cache-offline' / 'cache-fallback' and
+  // this list wasn't updated, so a perfectly healthy cache hit fell through to
+  // the default branch and displayed a red "Offline" — alarming, and wrong.
   const getDatabaseStatus = () => {
     switch (dataSource) {
       case 'database':
-        return {
-          text: 'Appwrite',
-          color: 'bg-green-500',
-          isActive: true
-        };
       case 'kv_store':
+      case 'empty':
+      case 'appwrite':
         return {
           text: 'Appwrite',
           color: 'bg-green-500',
           isActive: true
         };
-      case 'empty':
+      // Served from the local cache, but the server WAS reached — the freshness
+      // check succeeded and reported no changes. That's online, not offline.
+      case 'cache':
         return {
           text: 'Appwrite',
           color: 'bg-green-500',
           isActive: true
+        };
+      // Genuinely couldn't reach Appwrite; showing the last known copy.
+      case 'cache-offline':
+      case 'cache-fallback':
+        return {
+          text: 'Cached copy',
+          color: 'bg-yellow-500',
+          isActive: false
         };
       case 'loading':
         return {
