@@ -407,8 +407,11 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
             </button>
 
             {/* Top row: Search and controls */}
-            <div className="flex flex-col lg:flex-row h-auto lg:h-20 items-stretch lg:items-center px-4 lg:px-7 gap-3 lg:gap-6 py-3 lg:py-0">
-              <div className="flex items-center gap-3 lg:gap-6 flex-1">
+            {/* Single row at every width. This used to be flex-col below lg, which
+                pushed the view toggle onto its own second line on mobile and
+                wasted ~50px of vertical space above the grid. */}
+            <div className="flex h-auto flex-row items-center gap-2 px-4 py-3 lg:h-20 lg:gap-6 lg:px-7 lg:py-0">
+              <div className="flex min-w-0 flex-1 items-center gap-2 lg:gap-6">
                 {/* Sidebar Toggle Button - Outside sidebar */}
                 <SidebarTrigger className="size-9 lg:size-10 hover:bg-accent/50 rounded-lg bg-transparent text-foreground shrink-0 flex items-center justify-center transition-colors" />
 
@@ -436,8 +439,8 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
                 </div>
               </div>
               
-              {/* Controls - Now positioned at the far right */}
-              <div className="flex items-center gap-2 lg:gap-3 shrink-0 ml-auto">
+              {/* Controls, far right of the same row */}
+              <div className="flex shrink-0 items-center gap-2 lg:gap-3">
                 {/* Card Size Slider - Only visible in grid view */}
                 {viewMode === "grid" && (
                   <div className="hidden lg:flex items-center gap-2 px-3 py-2 border rounded-lg bg-background">
@@ -519,12 +522,32 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
                   </BreadcrumbList>
                 </Breadcrumb>
                 
-                <Badge 
-                  variant="secondary"
-                  className="text-xs lg:text-sm px-2 lg:px-3 py-1 shrink-0"
-                >
-                  {getAssetCount()}
-                </Badge>
+                {/* Count + Sort share the right edge of the breadcrumb row.
+                    Sort lives here rather than in its own row so it sits on the
+                    same line as the thing it describes, and costs no extra
+                    vertical space on mobile. */}
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge
+                    variant="secondary"
+                    className="shrink-0 px-2 py-1 text-xs lg:px-3 lg:text-sm"
+                  >
+                    {getAssetCount()}
+                  </Badge>
+
+                  {(currentView === "category" || currentView === "project-detail") && (
+                    <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                      <SelectTrigger className="h-8 w-auto gap-1.5 text-xs lg:h-9 lg:gap-2 lg:text-sm">
+                        <Sort className="h-3.5 w-3.5 shrink-0 lg:h-4 lg:w-4" />
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent align="end">
+                        <SelectItem value="recent">Most Recent</SelectItem>
+                        <SelectItem value="alphabetical">Alphabetical</SelectItem>
+                        <SelectItem value="type">By Type</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -545,25 +568,6 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
 
               {(currentView === "category" || currentView === "project-detail") && (
                 <>
-                  {/* Sort row.
-                      Moved out of the top toolbar and down here, right-aligned
-                      directly above the grid it acts on — it's a property of the
-                      list, not of the page chrome. This also replaces the old
-                      "Manage and organize your graphic assets" line, which was
-                      static copy that never told you anything. */}
-                  <div className="mb-3 flex items-center justify-end lg:mb-4">
-                    <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                      <SelectTrigger className="h-9 w-auto gap-2 text-sm lg:h-10">
-                        <Sort className="h-4 w-4 shrink-0" />
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent align="end">
-                        <SelectItem value="recent">Most Recent</SelectItem>
-                        <SelectItem value="alphabetical">Alphabetical</SelectItem>
-                        <SelectItem value="type">By Type</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
 
                   {/* Error Alert */}
                   {error && (
