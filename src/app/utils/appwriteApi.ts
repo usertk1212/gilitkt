@@ -69,74 +69,162 @@ export async function initializeAssetSystem(): Promise<ApiResponse<any>> {
   }
 }
 
-// --- Local cache for the full asset list ---
-// Every load of the app used to re-fetch ALL documents from Appwrite (dozens of
-// paginated requests for a few thousand rows), even when nothing had changed —
-// slow and wasteful on bandwidth. This caches the result in localStorage for a
-// few minutes so opening/reopening the app feels instant, while still fetching
-// fresh data automatically once the cache goes stale, or immediately after any
-// write (create/update/delete/import) so you never see outdated data.
-const ASSETS_CACHE_KEY = 'gili_assets_cache_v1';
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+// --- Persistent asset cache (IndexedDB) + one-request freshness check ---
+//
+// The old design cached in localStorage with a 5-minute TTL. Two problems:
+//   1. Almost every visit landed outside the 5-minute window, so opening GILI
+//      meant ~45 paginated requests and a 1.84 MB download, every time.
+//   2. At 4,486 assets the payload is ~3.67 MB in localStorage's UTF-16 storage
+//      against a ~5 MB quota — and it fails silently on overflow.
+//
+// Now: the cache never expires on a timer. Instead each load asks Appwrite ONE
+// cheap question — "how many documents, and when was the newest one touched?" —
+// and only re-downloads when the answer differs from what the cache recorded.
+// Unchanged libraries cost a single small request instead of forty-five.
+import {
+  readCachedAssets,
+  writeCachedAssets,
+  clearCachedAssets,
+  isPersistentCacheAvailable,
+  type CacheMeta,
+} from './assetStore';
 
-function readAssetsCache(): { data: Asset[]; timestamp: number } | null {
-  try {
-    const raw = localStorage.getItem(ASSETS_CACHE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+export type { CacheMeta };
+
+/** Emitted whenever the cache state changes, so the UI can show "last synced". */
+export type SyncStatus = 'cache-hit' | 'synced' | 'offline-cache' | 'no-cache';
+
+let lastSync: { status: SyncStatus; meta: CacheMeta | null } = { status: 'no-cache', meta: null };
+const syncListeners = new Set<(s: typeof lastSync) => void>();
+
+export function getSyncState() {
+  return lastSync;
 }
 
-function writeAssetsCache(data: Asset[]) {
+export function onSyncStateChange(fn: (s: typeof lastSync) => void) {
+  syncListeners.add(fn);
+  return () => syncListeners.delete(fn);
+}
+
+function setSyncState(status: SyncStatus, meta: CacheMeta | null) {
+  lastSync = { status, meta };
+  syncListeners.forEach((fn) => fn(lastSync));
+}
+
+/**
+ * The whole point of this module: one request that answers "did anything change?"
+ *
+ * `total` comes back on every listDocuments response, so asking for a single
+ * document ordered by $updatedAt descending gets us both numbers at once.
+ * total    -> catches creates and deletes
+ * updatedAt-> catches edits, and disambiguates "one deleted + one added"
+ */
+export async function fetchServerFingerprint(): Promise<{ total: number; latestUpdatedAt: string } | null> {
   try {
-    localStorage.setItem(ASSETS_CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
-  } catch {
-    // localStorage full/unavailable — skip caching silently, app still works, just slower.
+    const res = await databases.listDocuments(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, [
+      Query.orderDesc('$updatedAt'),
+      Query.limit(1),
+    ]);
+    return {
+      total: res.total,
+      latestUpdatedAt: (res.documents[0] as any)?.$updatedAt || '',
+    };
+  } catch (error) {
+    console.warn('Freshness check failed:', errorMessage(error));
+    return null;
   }
 }
 
 // Call after any write so stale cached data never lingers.
 export function invalidateAssetsCache() {
-  try {
-    localStorage.removeItem(ASSETS_CACHE_KEY);
-  } catch {
-    // no-op
-  }
+  void clearCachedAssets();
+  setSyncState('no-cache', null);
 }
 
-// Get all assets. Pass { forceRefresh: true } (e.g. from a manual "Refresh" button)
-// to skip the cache and hit Appwrite directly.
-export async function getAllAssets(options?: { forceRefresh?: boolean }): Promise<ApiResponse<Asset[]>> {
-  if (!options?.forceRefresh) {
-    const cached = readAssetsCache();
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-      console.log(`📦 Using cached assets (${cached.data.length}) — no request sent to Appwrite.`);
-      return { success: true, data: cached.data, count: cached.data.length };
+export { isPersistentCacheAvailable };
+
+async function fetchAllFromAppwrite(onProgress?: (fetched: number) => void): Promise<Asset[]> {
+  const assets: Asset[] = [];
+  let cursor: string | undefined;
+  while (true) {
+    const queries = [Query.limit(100)];
+    if (cursor) queries.push(Query.cursorAfter(cursor));
+    const res = await databases.listDocuments(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, queries);
+    res.documents.forEach((doc: any) => assets.push(toAsset(doc)));
+    onProgress?.(assets.length);
+    if (res.documents.length < 100) break;
+    cursor = res.documents[res.documents.length - 1].$id;
+  }
+  return assets;
+}
+
+/**
+ * Get all assets, cache-first.
+ *
+ * Flow:
+ *   1. Read the cache (fast, local, async — doesn't block paint).
+ *   2. Ask the server for its fingerprint (ONE request).
+ *   3. Fingerprints match -> return the cache, download nothing.
+ *      They differ, or there's no cache -> full fetch, then re-cache.
+ *   4. Server unreachable but cache present -> serve the cache rather than
+ *      failing. Being slightly stale beats showing an empty library.
+ *
+ * `forceRefresh` (the manual Refresh button) skips straight to the full fetch.
+ */
+export async function getAllAssets(options?: {
+  forceRefresh?: boolean;
+  onProgress?: (fetched: number) => void;
+}): Promise<ApiResponse<Asset[]>> {
+  const cached = options?.forceRefresh ? null : await readCachedAssets<Asset>();
+
+  if (cached) {
+    const fingerprint = await fetchServerFingerprint();
+
+    if (!fingerprint) {
+      // Offline or Appwrite unreachable — the cache is the best answer we have.
+      console.log(`📦 Offline: serving ${cached.data.length} cached assets.`);
+      setSyncState('offline-cache', cached.meta);
+      return { success: true, data: cached.data, count: cached.data.length, source: 'cache-offline' };
     }
+
+    const unchanged =
+      fingerprint.total === cached.meta.total &&
+      fingerprint.latestUpdatedAt === cached.meta.latestUpdatedAt;
+
+    if (unchanged) {
+      console.log(`📦 Nothing changed — serving ${cached.data.length} cached assets (1 request).`);
+      setSyncState('cache-hit', cached.meta);
+      return { success: true, data: cached.data, count: cached.data.length, source: 'cache' };
+    }
+
+    console.log(
+      `🔄 Server changed (${cached.meta.total} -> ${fingerprint.total} assets). Re-syncing…`
+    );
   }
 
-  console.log('📋 Fetching all assets from Appwrite...');
   try {
-    const assets: Asset[] = [];
-    let cursor: string | undefined;
+    const assets = await fetchAllFromAppwrite(options?.onProgress);
 
-    // Page through all documents (Appwrite caps a single list call at 100 by default)
-    while (true) {
-      const queries = [Query.limit(100)];
-      if (cursor) queries.push(Query.cursorAfter(cursor));
+    // Re-read the fingerprint AFTER the download rather than reusing the one
+    // from before it. If a write landed mid-sync, storing the older fingerprint
+    // would mark the cache fresh while it's actually missing that row.
+    const after = await fetchServerFingerprint();
+    const meta: CacheMeta = {
+      total: after?.total ?? assets.length,
+      latestUpdatedAt: after?.latestUpdatedAt ?? '',
+      syncedAt: Date.now(),
+    };
 
-      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, queries);
-      res.documents.forEach((doc: any) => assets.push(toAsset(doc)));
-
-      if (res.documents.length < 100) break;
-      cursor = res.documents[res.documents.length - 1].$id;
-    }
-
-    writeAssetsCache(assets);
-    return { success: true, data: assets, count: assets.length };
+    await writeCachedAssets(assets, meta);
+    setSyncState('synced', meta);
+    return { success: true, data: assets, count: assets.length, source: 'appwrite' };
   } catch (error) {
     console.error('🚨 Failed to fetch assets:', error);
+    // Last resort: if the network fetch blew up but we have a cache, use it.
+    if (cached) {
+      setSyncState('offline-cache', cached.meta);
+      return { success: true, data: cached.data, count: cached.data.length, source: 'cache-fallback' };
+    }
     return { success: false, error: errorMessage(error) };
   }
 }

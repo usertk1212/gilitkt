@@ -8,6 +8,7 @@ import { useTheme } from '../utils/useTheme';
 import { cn } from './ui/utils';
 import { APP_VERSION } from '../version';
 import { AboutModal } from './AboutModal';
+import { SyncStatusLine } from './SyncStatusLine';
 import { ArrowLeft, BarChart3, Database, Download, Eye, Folder, FolderOpen, Image, KeyRound, Layers, Moon, Package, Palette, Settings, Sparkles, Sun, Trash2, Upload, Zap } from "./icons";
 
 export type AdminTab = "upload" | "manage" | "analytics" | "csv-viewer" | "export" | "hard-reset" | "settings";
@@ -292,6 +293,8 @@ export function SharedSidebar({
               </>
             )}
           </div>
+
+          <SyncStatusLine open={open} />
 
           {/* Build version — clickable, opens the About dialog. */}
           <button
