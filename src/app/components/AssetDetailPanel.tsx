@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, Copy, Check, Plus, Edit3, Link, ZoomIn, ArrowRight } from "./icons";
 import { ImageZoomModal } from "./ImageZoomModal";
 import { Button } from "./ui/button";
@@ -27,6 +27,44 @@ export function AssetDetailPanel({
 }: AssetDetailPanelProps) {
   const [isCopied, setIsCopied] = useState(false);
   const [isZoomOpen, setIsZoomOpen] = useState(false);
+
+  // Lock the page behind the panel.
+  //
+  // Without this the body keeps scrolling under a position:fixed overlay, which
+  // on mobile makes the panel look like it's sliding around — you think you're
+  // scrolling the panel but you're moving the page beneath it. position:fixed
+  // on <body> also has to restore the previous scroll offset on close, or
+  // dismissing the panel silently jumps you back to the top of the grid.
+  useEffect(() => {
+    if (!isOpen) return;
+    const scrollY = window.scrollY;
+    const { body } = document;
+    const prev = {
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
+      overflow: body.style.overflow,
+    };
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+    return () => {
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.width = prev.width;
+      body.style.overflow = prev.overflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, [isOpen]);
+
+  // Esc closes, matching the zoom modal.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -72,11 +110,15 @@ export function AssetDetailPanel({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 z-50 flex justify-end"
+      className="fixed inset-0 z-50 flex justify-end bg-black/50"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-[340px] lg:w-[340px] bg-card h-full shadow-xl overflow-y-auto overscroll-contain animate-in slide-in-from-right-0 duration-300 asset-detail-panel"
+        /* h-dvh over h-full: mobile browsers resize the viewport as the address
+           bar hides/reveals, and h-full re-measures against it, so the panel
+           kept growing and shrinking. The slide-in animation is desktop-only —
+           on a full-width mobile sheet it read as the panel drifting. */
+        className="asset-detail-panel h-dvh w-full max-w-[340px] overflow-y-auto overscroll-contain bg-card shadow-xl lg:h-full lg:w-[340px] lg:animate-in lg:slide-in-from-right-0 lg:duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with Asset Details */}
