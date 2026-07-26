@@ -356,15 +356,6 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
     }
   };
 
-  const getPageDescription = () => {
-    if (currentView === "projects") {
-      return "Organize your assets into collections for easy management";
-    } else if (currentView === "project-detail" && selectedProject) {
-      return `${selectedProject.description || 'Project assets'} • ${selectedProject.asset_ids.length} assets`;
-    } else {
-      return "Manage and organize your graphic assets";
-    }
-  };
 
   const getAssetCount = () => {
     if (currentView === "project-detail" && selectedProject) {
@@ -400,28 +391,28 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
         <SidebarInset>
           {/* Header with Search and Controls */}
           <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            {/* Mobile brand row.
+                On mobile the sidebar is an off-canvas sheet, so the GILI
+                wordmark is invisible until you open it — nothing tells you which
+                app you're in. Desktop already shows it in the persistent
+                sidebar, so this row is mobile-only to avoid duplicating it. */}
+            <button
+              type="button"
+              onClick={() => setIsAboutOpen(true)}
+              title="About GILI"
+              aria-label="About GILI"
+              className="flex w-full items-center px-4 pt-4 pb-1 transition-opacity hover:opacity-80 focus-visible:outline-none lg:hidden"
+            >
+              <GiliLogo />
+            </button>
+
             {/* Top row: Search and controls */}
             <div className="flex flex-col lg:flex-row h-auto lg:h-20 items-stretch lg:items-center px-4 lg:px-7 gap-3 lg:gap-6 py-3 lg:py-0">
               <div className="flex items-center gap-3 lg:gap-6 flex-1">
                 {/* Sidebar Toggle Button - Outside sidebar */}
                 <SidebarTrigger className="size-9 lg:size-10 hover:bg-accent/50 rounded-lg bg-transparent text-foreground shrink-0 flex items-center justify-center transition-colors" />
 
-                {/* Brand mark, mobile only.
-                    On mobile the sidebar is an off-canvas sheet, so the GILI
-                    logo is hidden until you open it — leaving no indication of
-                    which app you're in. On desktop the sidebar is always
-                    visible and already shows the full wordmark, so this would
-                    just be a duplicate. */}
-                <button
-                  type="button"
-                  onClick={() => setIsAboutOpen(true)}
-                  title="About GILI"
-                  aria-label="About GILI"
-                  className="shrink-0 rounded-lg p-0.5 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
-                >
-                  <GiliLogo collapsed />
-                </button>
-                
+
                 {/* Large Search Bar - Now takes more space */}
                 <div className="relative flex-1">
                   <Search className="absolute left-3 lg:left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 lg:w-5 h-4 lg:h-5" />
@@ -447,18 +438,6 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
               
               {/* Controls - Now positioned at the far right */}
               <div className="flex items-center gap-2 lg:gap-3 shrink-0 ml-auto">
-                <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                  <SelectTrigger className="h-8 lg:h-10 text-xs lg:text-sm w-auto gap-1 lg:gap-2">
-                    <Sort className="w-3 lg:w-4 h-3 lg:h-4 shrink-0" />
-                    <span className="hidden sm:inline"><SelectValue /></span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="recent">Most Recent</SelectItem>
-                    <SelectItem value="alphabetical">Alphabetical</SelectItem>
-                    <SelectItem value="type">By Type</SelectItem>
-                  </SelectContent>
-                </Select>
-
                 {/* Card Size Slider - Only visible in grid view */}
                 {viewMode === "grid" && (
                   <div className="hidden lg:flex items-center gap-2 px-3 py-2 border rounded-lg bg-background">
@@ -566,12 +545,24 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
 
               {(currentView === "category" || currentView === "project-detail") && (
                 <>
-                  <div className="flex items-center justify-between mb-4 lg:mb-6">
-                    <div>
-                      <p className="text-sm lg:text-base text-muted-foreground">
-                        {getPageDescription()}
-                      </p>
-                    </div>
+                  {/* Sort row.
+                      Moved out of the top toolbar and down here, right-aligned
+                      directly above the grid it acts on — it's a property of the
+                      list, not of the page chrome. This also replaces the old
+                      "Manage and organize your graphic assets" line, which was
+                      static copy that never told you anything. */}
+                  <div className="mb-3 flex items-center justify-end lg:mb-4">
+                    <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                      <SelectTrigger className="h-9 w-auto gap-2 text-sm lg:h-10">
+                        <Sort className="h-4 w-4 shrink-0" />
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent align="end">
+                        <SelectItem value="recent">Most Recent</SelectItem>
+                        <SelectItem value="alphabetical">Alphabetical</SelectItem>
+                        <SelectItem value="type">By Type</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Error Alert */}
