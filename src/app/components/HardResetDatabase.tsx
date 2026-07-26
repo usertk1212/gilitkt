@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getAdminPassword, deleteAllAssets, getAllAssets } from "../utils/appwriteApi";
+import { verifyAdminPassword, deleteAllAssets, getAllAssets } from "../utils/appwriteApi";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
@@ -36,10 +36,11 @@ export function HardResetDatabase() {
 
     setStatus("checking");
     setMessage("");
-    const correctPassword = await getAdminPassword();
-    if (password !== correctPassword) {
+    // Compares digests — the plaintext password is never available to compare against.
+    const ok = await verifyAdminPassword(password);
+    if (!ok) {
       setStatus("error");
-      setMessage("Password admin salah.");
+      setMessage("Incorrect Superuser password.");
       return;
     }
 

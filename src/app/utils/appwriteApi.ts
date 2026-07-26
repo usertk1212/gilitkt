@@ -1,6 +1,15 @@
 /* Data access layer for the "assets" table in Appwrite.
    See ./appwrite.ts for the client/config setup. */
-import { databases, ID, Query, APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, APPWRITE_SETTINGS_COLLECTION_ID } from './appwrite';
+import {
+  databases,
+  storage,
+  ID,
+  Query,
+  APPWRITE_DATABASE_ID,
+  APPWRITE_ASSETS_COLLECTION_ID,
+  APPWRITE_SETTINGS_BUCKET_ID,
+  ABOUT_IMAGE_FILE_ID,
+} from './appwrite';
 
 export interface Asset {
   id: string; // Appwrite's own document $id — always unique, use this for React keys etc.
@@ -744,176 +753,160 @@ export function generateAssetNameFromFilename(nama_file: string): string {
     .trim();
 }
 
-// --- Admin menu password ---
-// NOTE: this is a soft gate, not real security. The app is a static client-side
-// bundle (Vite/React) with no backend of its own — anyone who opens devtools can
-// read the network response containing the password, or just view the app's
-// source. It's meant to keep casual users from wandering into the admin menu,
-// not to protect genuinely sensitive data. Don't rely on it for anything more
-// than that.
-const DEFAULT_ADMIN_PASSWORD = 'gili1212';
-const ADMIN_PASSWORD_DOC_ID = 'admin_password'; // fixed custom $id, used as a simple key-value row
+// --- Superuser password ---
+//
+// One superuser, one password, no accounts.
+//
+// The password is never stored — not here, not in Appwrite. What ships is a
+// PBKDF2-SHA256 digest compiled into the bundle (src/app/authConfig.ts), and
+// unlocking hashes the input and compares digests. Nothing touches the network,
+// so this works offline and produces no console 404s.
+//
+// This is still a soft gate. Hashing means nobody can *read* the password out of
+// the app or the database; it does not stop someone with devtools from setting
+// the sessionStorage unlock flag by hand. See utils/authHash.ts for the full
+// caveat.
+import { SUPERUSER_PASSWORD_HASH } from '../authConfig';
+import { verifyPassword } from './authHash';
 
-export async function getAdminPassword(): Promise<string> {
-  try {
-    const doc = await databases.getDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, ADMIN_PASSWORD_DOC_ID);
-    return (doc as any).value || DEFAULT_ADMIN_PASSWORD;
-  } catch {
-    // Row (or even the table) doesn't exist yet — nobody has changed the
-    // password before, so the default is still in effect.
-    return DEFAULT_ADMIN_PASSWORD;
-  }
-}
-
-/**
- * Two accepted passwords, one access level.
- *
- *   joy1212  and  gili1212  both unlock the full Superuser menu.
- *
- * There is deliberately no role distinction: they're two keys to the same door,
- * so nobody has to remember which one grants what. Both are overridable via the
- * settings collection.
- *
- * Same caveat as above: this is a client-side bundle, so both passwords are
- * readable by anyone who opens devtools. It keeps casual users out; it is not
- * access control.
- */
-const DEFAULT_SUPERUSER_PASSWORD = 'joy1212';
-const SUPERUSER_PASSWORD_DOC_ID = 'superuser_password';
-
-// Memoised for the page session. Without this every unlock attempt re-hit
-// Appwrite for both passwords — and when the settings collection is absent that
-// meant two guaranteed 404s in the console per attempt.
-let cachedPasswords: string[] | null = null;
-
-export async function getSuperuserPassword(): Promise<string> {
-  try {
-    const doc = await databases.getDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, SUPERUSER_PASSWORD_DOC_ID);
-    return (doc as any).value || DEFAULT_SUPERUSER_PASSWORD;
-  } catch {
-    return DEFAULT_SUPERUSER_PASSWORD;
-  }
-}
-
-/** True if the typed password matches either accepted value. */
+/** True when the typed password matches the compiled-in digest. */
 export async function verifyAdminPassword(input: string): Promise<boolean> {
-  if (!input) return false; // never let an empty field match an empty stored value
-  if (!cachedPasswords) {
-    const [a, b] = await Promise.all([getSuperuserPassword(), getAdminPassword()]);
-    cachedPasswords = [a, b].filter(Boolean);
-  }
-  return cachedPasswords.includes(input);
+  if (!input) return false; // an empty field must never unlock anything
+  return verifyPassword(input, SUPERUSER_PASSWORD_HASH);
 }
 
-/** Called after a password change so the next unlock re-reads from Appwrite. */
-export function invalidatePasswordCache() {
-  cachedPasswords = null;
-}
-
-// --- About-dialog image (Superuser feature) ---
+// --- About-dialog image ---
 //
-// Appwrite-first, with a local fallback.
+// Stored as a FILE in an Appwrite Storage bucket, not as a database value.
 //
-// The "settings" collection is optional in a GILI deployment — it may simply not
-// exist, in which case every read/write against it 404s. Rather than making this
-// feature unusable until someone creates the collection by hand, writes fall
-// back to IndexedDB. The trade-off is real and surfaced in the UI: a local save
-// is per-device, so colleagues won't see the image until the collection exists.
-const ABOUT_IMAGE_DOC_ID = 'about_image';
+// History worth keeping, because it caused a real bug: this used to write a
+// base64 data URL into a document in the "settings" collection. When that
+// collection's columns didn't match what the code wrote, every save was rejected
+// and quietly fell back to IndexedDB — which is per-browser. The result was an
+// image that looked saved but showed the placeholder in incognito and on every
+// other device, with the UI still claiming saves were shared.
+//
+// A bucket avoids the whole class of problem: no attribute size ceiling, no
+// schema to match, the file is served from Appwrite's CDN, and it's ~35% smaller
+// than the base64 form. IndexedDB is still written, but only as a same-device
+// render cache, never as the source of truth.
 const ABOUT_IMAGE_LOCAL_KEY = 'about_image';
 
-/** Where a saved value ended up, so the UI can be honest about scope. */
+/** Where the saved image actually ended up, so the UI can tell the truth. */
 export type SettingScope = 'appwrite' | 'local';
 
-function isMissingCollection(error: unknown): boolean {
+function isMissingResource(error: unknown): boolean {
   const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
   const code = (error as any)?.code;
   return code === 404 || msg.includes('could not be found') || msg.includes('not found');
 }
 
+/**
+ * Public URL for the stored file, cache-busted by the file's own updatedAt.
+ *
+ * Without the version parameter the browser and the CDN would keep serving the
+ * previous image after a re-upload, since the URL is otherwise identical.
+ */
+function aboutImageUrl(updatedAt?: string): string {
+  const base = storage.getFileView(APPWRITE_SETTINGS_BUCKET_ID, ABOUT_IMAGE_FILE_ID).toString();
+  if (!updatedAt) return base;
+  return `${base}${base.includes('?') ? '&' : '?'}v=${encodeURIComponent(updatedAt)}`;
+}
+
+/**
+ * Returns a URL when the shared image exists, otherwise the local data URL,
+ * otherwise null so the caller shows the placeholder.
+ */
 export async function getAboutImage(): Promise<string | null> {
   try {
-    const doc = await databases.getDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, ABOUT_IMAGE_DOC_ID);
-    const value = (doc as any).value;
-    if (value) return value;
+    const file = await storage.getFile(APPWRITE_SETTINGS_BUCKET_ID, ABOUT_IMAGE_FILE_ID);
+    return aboutImageUrl((file as any).$updatedAt);
   } catch {
-    // Row or collection missing — fall through to the local copy.
+    // No bucket, or no file in it yet — fall through to whatever this device has.
   }
   return localSettingGet<string>(ABOUT_IMAGE_LOCAL_KEY);
 }
 
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, base64] = dataUrl.split(',');
+  const mime = /:(.*?);/.exec(header)?.[1] || 'image/jpeg';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
 export async function setAboutImage(dataUrl: string): Promise<ApiResponse<null> & { scope?: SettingScope }> {
-  // 1) Try Appwrite so the image is shared across devices.
+  // Always keep a local copy for instant rendering, whatever happens next.
+  await localSettingSet(ABOUT_IMAGE_LOCAL_KEY, dataUrl);
+
   try {
+    const blob = dataUrlToBlob(dataUrl);
+    const file = new File([blob], 'about_image.jpg', { type: blob.type });
+
+    // Appwrite file IDs are immutable, so "replace" means delete-then-create.
+    // A missing file on delete is the normal first-run case, not an error.
     try {
-      await databases.updateDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, ABOUT_IMAGE_DOC_ID, {
-        key: 'about_image',
-        value: dataUrl,
-      });
-    } catch {
-      await databases.createDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, ABOUT_IMAGE_DOC_ID, {
-        key: 'about_image',
-        value: dataUrl,
-      });
+      await storage.deleteFile(APPWRITE_SETTINGS_BUCKET_ID, ABOUT_IMAGE_FILE_ID);
+    } catch (error) {
+      if (!isMissingResource(error)) throw error;
     }
-    // Mirror locally too, so the About dialog can render instantly next time.
-    await localSettingSet(ABOUT_IMAGE_LOCAL_KEY, dataUrl);
-    return { success: true, message: 'Saved to Appwrite — visible on every device.', scope: 'appwrite' };
+
+    await storage.createFile(APPWRITE_SETTINGS_BUCKET_ID, ABOUT_IMAGE_FILE_ID, file);
+    return {
+      success: true,
+      scope: 'appwrite',
+      message: 'Saved to Appwrite Storage — everyone sees this image, on every device.',
+    };
   } catch (error) {
-    // 2) Appwrite refused. Save locally so the feature still works, and say why.
-    const savedLocally = await localSettingSet(ABOUT_IMAGE_LOCAL_KEY, dataUrl);
-    if (!savedLocally) {
-      return { success: false, error: `Couldn't save to Appwrite or locally: ${errorMessage(error)}` };
-    }
     return {
       success: true,
       scope: 'local',
-      message: isMissingCollection(error)
-        ? 'Saved on this device only — the Appwrite "settings" collection does not exist yet.'
-        : `Saved on this device only — Appwrite rejected it: ${errorMessage(error)}`,
+      message: isMissingResource(error)
+        ? `Saved on this device only — the Appwrite Storage bucket "${APPWRITE_SETTINGS_BUCKET_ID}" doesn't exist yet, so it can't be shared.`
+        : `Saved on this device only — Appwrite Storage rejected the upload: ${errorMessage(error)}`,
     };
   }
 }
 
 export async function clearAboutImage(): Promise<ApiResponse<null>> {
-  let appwriteError: unknown = null;
+  let sharedRemoved = false;
   try {
-    await databases.deleteDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, ABOUT_IMAGE_DOC_ID);
-  } catch (error) {
-    appwriteError = error;
+    await storage.deleteFile(APPWRITE_SETTINGS_BUCKET_ID, ABOUT_IMAGE_FILE_ID);
+    sharedRemoved = true;
+  } catch {
+    // Nothing shared to remove, or no bucket. Either way the local reset below
+    // is what the person in front of the screen actually asked for.
   }
   await localSettingDelete(ABOUT_IMAGE_LOCAL_KEY);
-  // Clearing the local copy is what the user actually sees, so this succeeds
-  // even when there was no Appwrite row to delete.
-  return { success: true, message: appwriteError ? 'Reverted to the placeholder (local only).' : 'Reverted to the placeholder.' };
+  return {
+    success: true,
+    message: sharedRemoved
+      ? 'Reverted to the placeholder everywhere.'
+      : 'Reverted to the placeholder on this device.',
+  };
 }
 
-/** Does the Appwrite settings collection actually exist and accept writes? */
-export async function checkSettingsCollection(): Promise<boolean> {
+/**
+ * Can we actually write a shared image?
+ *
+ * The previous version of this check called listDocuments and returned true if
+ * the collection merely existed — which is why the UI cheerfully reported
+ * "shared across devices" while every single write was being rejected. Listing
+ * files exercises the same bucket and the same read permission the app depends
+ * on, so a true here means considerably more than it used to.
+ */
+export async function checkSharedImageStorage(): Promise<boolean> {
   try {
-    await databases.listDocuments(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, [Query.limit(1)]);
+    await storage.listFiles(APPWRITE_SETTINGS_BUCKET_ID, [Query.limit(1)]);
     return true;
   } catch {
     return false;
   }
 }
 
-export async function setAdminPassword(newPassword: string): Promise<ApiResponse<null>> {
-  try {
-    try {
-      await databases.updateDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, ADMIN_PASSWORD_DOC_ID, {
-        key: 'admin_password',
-        value: newPassword,
-      });
-    } catch {
-      // Row doesn't exist yet — create it the first time the password is changed.
-      await databases.createDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, ADMIN_PASSWORD_DOC_ID, {
-        key: 'admin_password',
-        value: newPassword,
-      });
-    }
-    return { success: true, message: 'Password updated' };
-  } catch (error) {
-    return { success: false, error: errorMessage(error) };
-  }
-}
+// setAdminPassword() used to write the new password into Appwrite. It's gone on
+// purpose: the digest is compiled into the bundle, so nothing written at runtime
+// could change it. Keeping a function that reported "Password updated" while the
+// old password still worked would be worse than not having one. The Settings
+// screen now generates a digest for you to paste in and rebuild instead.

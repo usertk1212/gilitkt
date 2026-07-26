@@ -3,7 +3,8 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Image as ImageIcon, Upload, ZoomIn, ZoomOut, RefreshCw, Check, AlertCircle, Trash2 } from "./icons";
-import { getAboutImage, setAboutImage, clearAboutImage, checkSettingsCollection } from "../utils/appwriteApi";
+import { getAboutImage, setAboutImage, clearAboutImage, checkSharedImageStorage } from "../utils/appwriteApi";
+import { APPWRITE_SETTINGS_BUCKET_ID } from "../utils/appwrite";
 import { toast } from "sonner";
 
 /** Output size. 3:2, and small enough that the encoded data URL stays modest. */
@@ -13,16 +14,15 @@ const OUT_H = 600;
 const QUALITY = 0.82;
 
 /**
- * Hidden Superuser tool: replace the About dialog's 3:2 placeholder.
+ * Superuser tool: replace the About dialog's 3:2 placeholder.
  *
  * Flow: pick a local file -> reposition and zoom inside a fixed 3:2 frame ->
- * save. The saved value is a downscaled JPEG data URL held in the Appwrite
- * settings collection, so every device sees the same image.
+ * save. The result is uploaded as a downscaled JPEG to an Appwrite Storage
+ * bucket, so every device and browser sees the same image.
  *
- * Why re-encode instead of storing the original: a phone photo is 3-8 MB, which
- * would blow past Appwrite's string-attribute limit and make the About dialog
- * slow to open. 900x600 at q0.82 lands around 80-150 KB, roughly 110-200 KB once
- * base64-encoded.
+ * Why re-encode instead of uploading the original: a phone photo is 3-8 MB, and
+ * the About dialog would stall on opening. 900x600 at q0.82 lands around
+ * 50-100 KB as a file.
  */
 export function AboutImageManager() {
   const [srcUrl, setSrcUrl] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export function AboutImageManager() {
   const [saving, setSaving] = useState(false);
   const [current, setCurrent] = useState<string | null>(null);
   const [loadingCurrent, setLoadingCurrent] = useState(true);
-  // null while probing. false = the Appwrite "settings" collection is missing,
+  // null while probing. false = the Appwrite Storage bucket is unreachable,
   // so saves land on this device only.
   const [shared, setShared] = useState<boolean | null>(null);
 
@@ -48,7 +48,7 @@ export function AboutImageManager() {
     getAboutImage()
       .then(setCurrent)
       .finally(() => setLoadingCurrent(false));
-    checkSettingsCollection().then(setShared);
+    checkSharedImageStorage().then(setShared);
   }, []);
 
   // Revoke the object URL when it's replaced, or the browser leaks the blob.
@@ -191,23 +191,23 @@ export function AboutImageManager() {
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="space-y-1 text-sm">
-                <p className="font-bold">Saving to this device only</p>
+                <p className="font-bold">This device only — others will still see the placeholder</p>
                 <p>
-                  The Appwrite <code>settings</code> collection doesn't exist, so the image can't be
-                  shared. It still works here and survives reloads.
+                  The Appwrite Storage bucket <code>{APPWRITE_SETTINGS_BUCKET_ID}</code> isn't
+                  reachable, so the image can't be shared. It still works in this browser and
+                  survives reloads, but incognito, your phone, and colleagues won't see it.
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  To share it across devices, create a collection with ID <code>settings</code> in
-                  database <code>{"{your database}"}</code> with two string attributes:{" "}
-                  <code>key</code> (64) and <code>value</code> (200000), and give it create/read/update
-                  permissions for Any. Then save again.
+                  To fix: Appwrite console → Storage → Create bucket. Set the Bucket ID to exactly{" "}
+                  <code>{APPWRITE_SETTINGS_BUCKET_ID}</code>, turn File security <strong>off</strong>,
+                  and grant <code>Any</code> create, read, update and delete. Then save again.
                 </p>
               </AlertDescription>
             </Alert>
           )}
           {shared === true && (
             <p className="text-xs text-[var(--pp-text-positive)]">
-              Connected to the Appwrite settings collection — saves are shared across devices.
+              Connected to Appwrite Storage — saves are shared across every device and browser.
             </p>
           )}
 
@@ -330,9 +330,9 @@ export function AboutImageManager() {
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="text-sm">
-                  That's a large payload for a settings row. It will probably still save, but if
-                  Appwrite rejects it, widen the <code>value</code> attribute on the{" "}
-                  <code>settings</code> collection.
+                  Larger than expected for a 900×600 JPEG — usually a very noisy or heavily textured
+                  source. It will still save (the bucket has no practical size limit at this scale),
+                  it just makes the About dialog a little slower to open.
                 </AlertDescription>
               </Alert>
             )}
