@@ -86,6 +86,9 @@ import {
   writeCachedAssets,
   clearCachedAssets,
   isPersistentCacheAvailable,
+  localSettingGet,
+  localSettingSet,
+  localSettingDelete,
   type CacheMeta,
 } from './assetStore';
 
@@ -763,19 +766,25 @@ export async function getAdminPassword(): Promise<string> {
 }
 
 /**
- * Two access levels, distinguished purely by which password you type.
+ * Two accepted passwords, one access level.
  *
- *   superuser -> joy1212  : everything, including the hidden About Image menu
- *   admin     -> gili1212 : everything else
+ *   joy1212  and  gili1212  both unlock the full Superuser menu.
  *
- * Same caveat as above, doubled: this is a client-side bundle, so BOTH passwords
- * are readable by anyone who opens devtools. "Hidden" here means "not in the way
- * of normal use", not "protected".
+ * There is deliberately no role distinction: they're two keys to the same door,
+ * so nobody has to remember which one grants what. Both are overridable via the
+ * settings collection.
+ *
+ * Same caveat as above: this is a client-side bundle, so both passwords are
+ * readable by anyone who opens devtools. It keeps casual users out; it is not
+ * access control.
  */
-export type AdminRole = 'superuser' | 'admin';
-
 const DEFAULT_SUPERUSER_PASSWORD = 'joy1212';
 const SUPERUSER_PASSWORD_DOC_ID = 'superuser_password';
+
+// Memoised for the page session. Without this every unlock attempt re-hit
+// Appwrite for both passwords — and when the settings collection is absent that
+// meant two guaranteed 404s in the console per attempt.
+let cachedPasswords: string[] | null = null;
 
 export async function getSuperuserPassword(): Promise<string> {
   try {
@@ -786,35 +795,55 @@ export async function getSuperuserPassword(): Promise<string> {
   }
 }
 
-/**
- * Resolve a typed password to a role, or null if it matches neither.
- * Superuser is checked first so that if the two are ever set to the same string,
- * the higher privilege wins rather than silently downgrading.
- */
-export async function resolveAdminRole(input: string): Promise<AdminRole | null> {
-  const [superuserPw, adminPw] = await Promise.all([getSuperuserPassword(), getAdminPassword()]);
-  if (input === superuserPw) return 'superuser';
-  if (input === adminPw) return 'admin';
-  return null;
+/** True if the typed password matches either accepted value. */
+export async function verifyAdminPassword(input: string): Promise<boolean> {
+  if (!input) return false; // never let an empty field match an empty stored value
+  if (!cachedPasswords) {
+    const [a, b] = await Promise.all([getSuperuserPassword(), getAdminPassword()]);
+    cachedPasswords = [a, b].filter(Boolean);
+  }
+  return cachedPasswords.includes(input);
 }
 
-// --- About-dialog image (hidden Superuser feature) ---
+/** Called after a password change so the next unlock re-reads from Appwrite. */
+export function invalidatePasswordCache() {
+  cachedPasswords = null;
+}
+
+// --- About-dialog image (Superuser feature) ---
 //
-// Stored as a data URL in the settings collection so every device sees the same
-// image. The uploader downscales and JPEG-encodes before saving specifically to
-// keep this well under Appwrite's string-attribute limit — see AboutImageManager.
+// Appwrite-first, with a local fallback.
+//
+// The "settings" collection is optional in a GILI deployment — it may simply not
+// exist, in which case every read/write against it 404s. Rather than making this
+// feature unusable until someone creates the collection by hand, writes fall
+// back to IndexedDB. The trade-off is real and surfaced in the UI: a local save
+// is per-device, so colleagues won't see the image until the collection exists.
 const ABOUT_IMAGE_DOC_ID = 'about_image';
+const ABOUT_IMAGE_LOCAL_KEY = 'about_image';
+
+/** Where a saved value ended up, so the UI can be honest about scope. */
+export type SettingScope = 'appwrite' | 'local';
+
+function isMissingCollection(error: unknown): boolean {
+  const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  const code = (error as any)?.code;
+  return code === 404 || msg.includes('could not be found') || msg.includes('not found');
+}
 
 export async function getAboutImage(): Promise<string | null> {
   try {
     const doc = await databases.getDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, ABOUT_IMAGE_DOC_ID);
-    return (doc as any).value || null;
+    const value = (doc as any).value;
+    if (value) return value;
   } catch {
-    return null;
+    // Row or collection missing — fall through to the local copy.
   }
+  return localSettingGet<string>(ABOUT_IMAGE_LOCAL_KEY);
 }
 
-export async function setAboutImage(dataUrl: string): Promise<ApiResponse<null>> {
+export async function setAboutImage(dataUrl: string): Promise<ApiResponse<null> & { scope?: SettingScope }> {
+  // 1) Try Appwrite so the image is shared across devices.
   try {
     try {
       await databases.updateDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, ABOUT_IMAGE_DOC_ID, {
@@ -827,25 +856,45 @@ export async function setAboutImage(dataUrl: string): Promise<ApiResponse<null>>
         value: dataUrl,
       });
     }
-    return { success: true, message: 'About image saved' };
+    // Mirror locally too, so the About dialog can render instantly next time.
+    await localSettingSet(ABOUT_IMAGE_LOCAL_KEY, dataUrl);
+    return { success: true, message: 'Saved to Appwrite — visible on every device.', scope: 'appwrite' };
   } catch (error) {
-    // Most likely cause: the settings collection's `value` attribute is too
-    // small for a data URL. Surface it plainly instead of a generic failure.
+    // 2) Appwrite refused. Save locally so the feature still works, and say why.
+    const savedLocally = await localSettingSet(ABOUT_IMAGE_LOCAL_KEY, dataUrl);
+    if (!savedLocally) {
+      return { success: false, error: `Couldn't save to Appwrite or locally: ${errorMessage(error)}` };
+    }
     return {
-      success: false,
-      error:
-        `${errorMessage(error)} — if this mentions a length/size limit, widen the ` +
-        `"value" attribute on the Appwrite "settings" collection (needs ~200,000 characters).`,
+      success: true,
+      scope: 'local',
+      message: isMissingCollection(error)
+        ? 'Saved on this device only — the Appwrite "settings" collection does not exist yet.'
+        : `Saved on this device only — Appwrite rejected it: ${errorMessage(error)}`,
     };
   }
 }
 
 export async function clearAboutImage(): Promise<ApiResponse<null>> {
+  let appwriteError: unknown = null;
   try {
     await databases.deleteDocument(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, ABOUT_IMAGE_DOC_ID);
-    return { success: true, message: 'Reverted to the placeholder' };
   } catch (error) {
-    return { success: false, error: errorMessage(error) };
+    appwriteError = error;
+  }
+  await localSettingDelete(ABOUT_IMAGE_LOCAL_KEY);
+  // Clearing the local copy is what the user actually sees, so this succeeds
+  // even when there was no Appwrite row to delete.
+  return { success: true, message: appwriteError ? 'Reverted to the placeholder (local only).' : 'Reverted to the placeholder.' };
+}
+
+/** Does the Appwrite settings collection actually exist and accept writes? */
+export async function checkSettingsCollection(): Promise<boolean> {
+  try {
+    await databases.listDocuments(APPWRITE_DATABASE_ID, APPWRITE_SETTINGS_COLLECTION_ID, [Query.limit(1)]);
+    return true;
+  } catch {
+    return false;
   }
 }
 

@@ -38,8 +38,6 @@ interface SharedSidebarProps {
   // items (Upload, Manage, Analytics, etc.) instead of the asset-type list.
   mode?: "dashboard" | "admin";
   activeAdminTab?: AdminTab;
-  /** "superuser" unlocks the hidden About Image item. */
-  adminRole?: "superuser" | "admin";
   onAdminTabChange?: (tab: AdminTab) => void;
 }
 
@@ -57,7 +55,6 @@ export function SharedSidebar({
   selectedCategory,
   mode = "dashboard",
   activeAdminTab,
-  adminRole = "admin",
   onAdminTabChange
 }: SharedSidebarProps) {
   const { open } = useSidebar();
@@ -82,6 +79,7 @@ export function SharedSidebar({
     { key: "manage", title: "Manage Asset", icon: Settings },
     { key: "analytics", title: "Analytics", icon: BarChart3 },
     { key: "export", title: "Export CSV", icon: Download },
+    { key: "about-image", title: "About Image", icon: Image },
   ];
 
   const adminDangerItems: SidebarNavItem[] = [
@@ -92,11 +90,6 @@ export function SharedSidebar({
     { key: "settings", title: "Settings", icon: KeyRound },
   ];
 
-  // Superuser-only. Empty for the admin role, so the group renders nothing and
-  // the menu looks exactly as it did before.
-  const superuserItems: SidebarNavItem[] = adminRole === "superuser"
-    ? [{ key: "about-image", title: "About Image", icon: Image }]
-    : [];
 
   const isItemActive = (item: SidebarNavItem) =>
     isAdminMode ? activeAdminTab === item.key : selectedCategory === item.title;
@@ -231,7 +224,6 @@ export function SharedSidebar({
             {renderMenuGroup("Admin Menu", adminItems)}
             {renderMenuGroup("Danger Zone", adminDangerItems)}
             {renderMenuGroup(null, adminSettingsItems)}
-            {superuserItems.length > 0 && renderMenuGroup("Superuser Only", superuserItems)}
           </>
         ) : (
           renderMenuGroup("Asset Types", dashboardItems)

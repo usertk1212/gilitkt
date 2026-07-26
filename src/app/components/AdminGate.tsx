@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { resolveAdminRole, type AdminRole } from "../utils/appwriteApi";
+import { verifyAdminPassword } from "../utils/appwriteApi";
 import { useUploadJob } from "../context/UploadJobContext";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -9,8 +9,7 @@ import { Zap, X, ArrowLeft, AlertTriangle } from "./icons";
 import { toast } from "sonner";
 
 interface AdminGateProps {
-  /** Receives the resolved role so the menu can hide superuser-only items. */
-  children: ReactNode | ((role: AdminRole) => ReactNode);
+  children: ReactNode;
   /** Called when the user backs out without unlocking (X button or Esc). */
   onCancel?: () => void;
 }
@@ -20,7 +19,6 @@ interface AdminGateProps {
 // features — not real security, since the whole app is client-side JS anyone
 // can inspect.
 const SESSION_KEY = "gili_admin_unlocked";
-const SESSION_ROLE_KEY = "gili_admin_role";
 const SESSION_EXPIRES_KEY = "gili_admin_expires_at";
 
 /** Idle time before the Superuser session locks itself. */
@@ -38,9 +36,6 @@ export function AdminGate({ children, onCancel }: AdminGateProps) {
     const expiresAt = Number(sessionStorage.getItem(SESSION_EXPIRES_KEY) || 0);
     return Date.now() < expiresAt;
   });
-  const [role, setRole] = useState<AdminRole>(
-    () => (sessionStorage.getItem(SESSION_ROLE_KEY) as AdminRole) || "admin"
-  );
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
@@ -60,7 +55,6 @@ export function AdminGate({ children, onCancel }: AdminGateProps) {
   const lock = useCallback(() => {
     sessionStorage.removeItem(SESSION_KEY);
     sessionStorage.removeItem(SESSION_EXPIRES_KEY);
-    sessionStorage.removeItem(SESSION_ROLE_KEY);
     setUnlocked(false);
     setInput("");
     setSecondsLeft(null);
@@ -114,11 +108,9 @@ export function AdminGate({ children, onCancel }: AdminGateProps) {
     setChecking(true);
     setError("");
     try {
-      const resolved = await resolveAdminRole(input);
-      if (resolved) {
+      const ok = await verifyAdminPassword(input);
+      if (ok) {
         sessionStorage.setItem(SESSION_KEY, "true");
-        sessionStorage.setItem(SESSION_ROLE_KEY, resolved);
-        setRole(resolved);
         extendSession();
         setUnlocked(true);
         setExpiredNotice(false);
@@ -148,7 +140,7 @@ export function AdminGate({ children, onCancel }: AdminGateProps) {
             </Alert>
           </div>
         )}
-        {typeof children === "function" ? children(role) : children}
+        {children}
       </>
     );
   }

@@ -193,7 +193,7 @@ function AssetCardImpl({
 
   const tags = extractTags(asset);
 
-  // No more truncation - show all tags with horizontal scroll
+  // Tags render on one clipped line — see the tag row below.
 
   const ProjectDropdown = () => (
     <DropdownMenu open={isDropdownOpen} onOpenChange={handleDropdownOpenChange}>
@@ -261,7 +261,7 @@ function AssetCardImpl({
                   <h4 className="truncate text-lg font-medium text-foreground">
                     {asset.asset_name}
                   </h4>
-                  <p className="text-sm mt-1 text-muted-foreground overflow-x-auto whitespace-nowrap scrollbar-thin">
+                  <p className="mt-1 truncate text-sm text-muted-foreground" title={asset.nama_file}>
                     {asset.nama_file}
                   </p>
 
@@ -292,7 +292,7 @@ function AssetCardImpl({
                   </div>
 
                   {tags.length > 0 && (
-                    <div className="mt-3 overflow-x-auto scrollbar-thin">
+                    <div className="mt-3 overflow-hidden">
                       <div className="flex items-start gap-2 min-w-max">
                         {tags.map((tag, index) => (
                           <Badge
@@ -455,14 +455,19 @@ function AssetCardImpl({
         {/* Content - responsive padding */}
         <div className={isSmallCard ? "p-2" : isMediumCard ? "p-3" : "p-4"}>
           {/* Title - responsive font size */}
-          <h4 className={`font-medium text-foreground mb-1 overflow-x-auto whitespace-nowrap scrollbar-thin ${
+          {/* truncate, not overflow-x-auto. A per-card horizontal scrollbar is
+              noise at 50 cards a page, and it hides content behind a gesture
+              nobody discovers. Full value stays available via title + the
+              detail panel. */}
+          <h4 className={`mb-1 truncate font-medium text-foreground ${
             isSmallCard ? 'text-sm' : 'text-base'
           }`} title={asset.asset_name}>
             {asset.asset_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
           </h4>
 
-          {/* Filename - responsive font size with horizontal scroll */}
-          <p className={`text-muted-foreground overflow-x-auto whitespace-nowrap scrollbar-thin ${
+          {/* Filename — truncated. Hover shows the full name; the detail panel
+              wraps it across up to 3 lines when you actually need to read it. */}
+          <p className={`truncate text-muted-foreground ${
             isSmallCard ? 'text-xs mb-2' : 'text-sm mb-3'
           }`} title={asset.nama_file}>
             {asset.nama_file}
@@ -517,12 +522,11 @@ function AssetCardImpl({
 
           {/* Tags - horizontal scroll, show all tags */}
           {tags.length > 0 && (
-            <div className={`overflow-x-auto scrollbar-thin ${
-              isSmallCard ? 'mb-1' : 'mb-2'
-            }`}>
-              <div className={`flex ${
+            <div className={isSmallCard ? 'mb-1' : 'mb-2'}>
+              {/* Wraps to a single line and clips, rather than scrolling. */}
+              <div className={`flex flex-nowrap overflow-hidden ${
                 isSmallCard ? 'gap-1' : 'gap-1.5'
-              } min-w-max`}>
+              }`}>
                 {tags.map((tag, index) => (
                   <Badge
                     key={index}

@@ -5,4 +5,4 @@
  * (1.0.15 -> 1.0.16 -> 1.0.17 ...). Keep this in sync with the version in
  * package.json and the delivered zip filename.
  */
-export const APP_VERSION = "1.0.33";
+export const APP_VERSION = "1.0.35";

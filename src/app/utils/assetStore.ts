@@ -132,6 +132,25 @@ export async function clearCachedAssets(): Promise<void> {
   }
 }
 
+/**
+ * Generic local key-value, same IndexedDB store.
+ *
+ * Used as a fallback for settings that would normally live in the Appwrite
+ * "settings" collection. If that collection doesn't exist (or is unwritable),
+ * the feature still works — just per-device instead of shared.
+ */
+export async function localSettingGet<T>(key: string): Promise<T | null> {
+  return idbGet<T>(`setting:${key}`);
+}
+
+export async function localSettingSet(key: string, value: unknown): Promise<boolean> {
+  return idbSet(`setting:${key}`, value);
+}
+
+export async function localSettingDelete(key: string): Promise<void> {
+  return idbDelete(`setting:${key}`);
+}
+
 /** True when IndexedDB is usable — surfaced in the UI so a silent fallback isn't invisible. */
 export async function isPersistentCacheAvailable(): Promise<boolean> {
   return (await openDb()) !== null;

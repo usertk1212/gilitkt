@@ -74,7 +74,6 @@ function AppShell() {
   if (currentView === "asset-menu") {
     return (
       <AdminGate onCancel={handleNavigateToDashboard}>
-        {(role) => (
         <SidebarProvider>
           <div className="min-h-screen flex w-full bg-background">
             {/* Sidebar — shows the Admin submenu instead of the asset-type list */}
@@ -91,7 +90,6 @@ function AppShell() {
               mode="admin"
               activeAdminTab={activeTab}
               onAdminTabChange={handleTabChange}
-              adminRole={role}
             />
 
             {/* Main Content */}
@@ -162,21 +160,15 @@ function AppShell() {
                       <AdminSettings />
                     </TabsContent>
 
-                    {/* Superuser-only. Also guarded here, not just in the menu —
-                        otherwise the tab would still be reachable by anyone who
-                        set activeTab another way. */}
-                    {role === "superuser" && (
-                      <TabsContent value="about-image" className="h-full m-0 overflow-y-auto">
-                        <AboutImageManager />
-                      </TabsContent>
-                    )}
+                    <TabsContent value="about-image" className="h-full m-0 overflow-y-auto">
+                      <AboutImageManager />
+                    </TabsContent>
                   </div>
                 </Tabs>
               </div>
             </div>
           </div>
         </SidebarProvider>
-        )}
       </AdminGate>
     );
   }

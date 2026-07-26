@@ -3,7 +3,7 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Image as ImageIcon, Upload, ZoomIn, ZoomOut, RefreshCw, Check, AlertCircle, Trash2 } from "./icons";
-import { getAboutImage, setAboutImage, clearAboutImage } from "../utils/appwriteApi";
+import { getAboutImage, setAboutImage, clearAboutImage, checkSettingsCollection } from "../utils/appwriteApi";
 import { toast } from "sonner";
 
 /** Output size. 3:2, and small enough that the encoded data URL stays modest. */
@@ -37,6 +37,9 @@ export function AboutImageManager() {
   const [saving, setSaving] = useState(false);
   const [current, setCurrent] = useState<string | null>(null);
   const [loadingCurrent, setLoadingCurrent] = useState(true);
+  // null while probing. false = the Appwrite "settings" collection is missing,
+  // so saves land on this device only.
+  const [shared, setShared] = useState<boolean | null>(null);
 
   const frameRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -45,6 +48,7 @@ export function AboutImageManager() {
     getAboutImage()
       .then(setCurrent)
       .finally(() => setLoadingCurrent(false));
+    checkSettingsCollection().then(setShared);
   }, []);
 
   // Revoke the object URL when it's replaced, or the browser leaks the blob.
@@ -142,9 +146,10 @@ export function AboutImageManager() {
       setCurrent(dataUrl);
       setSrcUrl(null);
       setImgEl(null);
-      toast.success("About image saved", {
-        description: `${Math.round(dataUrl.length / 1024)} KB stored. Open the About dialog to check it.`,
-      });
+      toast.success(
+        res.scope === "local" ? "Saved on this device" : "About image saved",
+        { description: `${Math.round(dataUrl.length / 1024)} KB. ${res.message ?? ""}` }
+      );
     } catch (e) {
       toast.error("Couldn't save", { description: e instanceof Error ? e.message : "Unknown error" });
     } finally {
@@ -180,6 +185,32 @@ export function AboutImageManager() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Storage scope. Saying this up front beats letting someone upload an
+              image, tell a colleague, and discover it only exists on their laptop. */}
+          {shared === false && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="space-y-1 text-sm">
+                <p className="font-bold">Saving to this device only</p>
+                <p>
+                  The Appwrite <code>settings</code> collection doesn't exist, so the image can't be
+                  shared. It still works here and survives reloads.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  To share it across devices, create a collection with ID <code>settings</code> in
+                  database <code>{"{your database}"}</code> with two string attributes:{" "}
+                  <code>key</code> (64) and <code>value</code> (200000), and give it create/read/update
+                  permissions for Any. Then save again.
+                </p>
+              </AlertDescription>
+            </Alert>
+          )}
+          {shared === true && (
+            <p className="text-xs text-[var(--pp-text-positive)]">
+              Connected to the Appwrite settings collection — saves are shared across devices.
+            </p>
+          )}
+
           {/* Current saved image */}
           <div>
             <p className="mb-2 text-sm font-bold">Currently saved</p>
