@@ -594,7 +594,7 @@ export function CsvViewer() {
                   className="w-24 h-9"
                 />
                 <Button variant="outline" size="sm" onClick={handleJumpToPage}>
-                  Ke Page
+                  Go
                 </Button>
               </div>
             </CardContent>

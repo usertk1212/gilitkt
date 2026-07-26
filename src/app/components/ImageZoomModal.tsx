@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, ZoomIn, ZoomOut, RefreshCw } from "./icons";
 import { Button } from "./ui/button";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
@@ -98,7 +99,16 @@ export function ImageZoomModal({ src, alt, caption, isOpen, onClose }: ImageZoom
     setIsDragging(false);
   };
 
-  return (
+  // Portalled to <body> deliberately.
+  //
+  // position:fixed resolves against the nearest ancestor with a transform,
+  // filter or will-change — not the viewport. This modal used to render inside
+  // AssetCard, whose <Card> carries `transition-all` and whose image uses
+  // `group-hover:scale-105`, so the overlay got trapped inside the card's
+  // subtree: it covered only the grid area, left the sidebar undimmed, and let a
+  // 600%-scaled image spill outside its stage. A portal takes it out of that
+  // subtree entirely.
+  return createPortal(
     <div
       className="fixed inset-0 z-[60] flex flex-col bg-black/90 animate-in fade-in duration-150"
       onClick={onClose}
@@ -164,7 +174,7 @@ export function ImageZoomModal({ src, alt, caption, isOpen, onClose }: ImageZoom
 
       {/* Stage */}
       <div
-        className="flex flex-1 items-center justify-center overflow-hidden p-4"
+        className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4"
         onWheel={onWheel}
         onClick={(e) => e.stopPropagation()}
       >
@@ -190,6 +200,7 @@ export function ImageZoomModal({ src, alt, caption, isOpen, onClose }: ImageZoom
       <p className="pb-3 text-center text-xs text-white/40">
         Scroll or pinch to zoom · drag to pan · double-click for 2x · Esc to close
       </p>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import * as React from "react";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "./ui/sidebar";
 import { Breadcrumb, BreadcrumbEllipsis, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "./ui/breadcrumb";
-import { Search, Plus, Grid, List, Image, Palette, Sparkles, Layers, Upload, Folder, RefreshCw, Database, AlertCircle, Download, X, FolderOpen, ArrowLeft, Home, ChevronRight, SlidersHorizontal, Settings, Sort, Zap } from "./icons";
+import { Search, Plus, Grid, List, Image, Palette, Sparkles, Layers, Upload, Folder, RefreshCw, Database, AlertCircle, Download, X, FolderOpen, ArrowLeft, Home, ChevronRight, SlidersHorizontal, Settings, Sort, Zap, Package, ChevronLeft } from "./icons";
 import { GiliLogo } from "./GiliLogo";
 import { AboutModal } from "./AboutModal";
 import { Slider } from "./ui/slider";
@@ -51,6 +51,13 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
   const [error, setError] = useState<string | null>(null);
   const [dataSource, setDataSource] = useState<string>('loading');
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  // Mirrored from AssetGrid so the sticky header can show a compact pager.
+  // AssetGrid remains the single source of truth for pagination.
+  const [pageState, setPageState] = useState<{
+    page: number;
+    totalPages: number;
+    goToPage: (p: number) => void;
+  } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
   // Brief "done!" confirmation shown right after the initial load finishes,
@@ -295,14 +302,20 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
   // Generate breadcrumb items based on current state
   const getBreadcrumbItems = () => {
     const items = [];
-    
-    // Dashboard home
+
+    // "All Assets" IS the root, so it renders as a single "Home" crumb rather
+    // than "Dashboard > All Assets" — the old version implied All Assets was a
+    // child of the dashboard when it's the same screen.
+    const atRoot = currentView === "category" && selectedCategory === "All Assets";
+
     items.push({
-      label: "Dashboard",
+      label: "Home",
       icon: Home,
-      onClick: handleBackToDashboard,
-      isActive: false
+      onClick: atRoot ? null : handleBackToDashboard,
+      isActive: atRoot
     });
+
+    if (atRoot) return items;
 
     // Current view
     if (currentView === "projects") {
@@ -331,6 +344,8 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
         "Spot Illus": Palette,
         "Micro Illustration": Sparkles,
         "Icons": Layers,
+        "Supergraphic": Image,
+        "Other": Package,
         "Projects": FolderOpen
       };
 
@@ -389,8 +404,14 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
         />
 
         <SidebarInset>
-          {/* Header with Search and Controls */}
-          <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          {/* Header with Search and Controls.
+              sticky so the breadcrumb, count, sort and page controls stay
+              reachable while you scroll a 50-card page — that's the cheap half
+              of the "don't scroll so deep" fix, since this row exists anyway.
+              NOTE: backdrop-filter creates a containing block for descendant
+              fixed elements, which is exactly why the overlays are portalled to
+              <body>. Don't un-portal them. */}
+          <div className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             {/* Mobile brand row.
                 On mobile the sidebar is an off-canvas sheet, so the GILI
                 wordmark is invisible until you open it — nothing tells you which
@@ -534,6 +555,39 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
                     {getAssetCount()}
                   </Badge>
 
+                  {/* Compact pager, desktop only.
+                      Costs no extra vertical space because this row already
+                      exists — that's why it beats a sticky bottom bar here. On
+                      mobile there's no room, so the grid renders a sticky bottom
+                      pager instead. */}
+                  {pageState && pageState.totalPages > 1 && (
+                    <div className="hidden items-center gap-1 lg:flex">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 w-9 p-0"
+                        onClick={() => pageState.goToPage(pageState.page - 1)}
+                        disabled={pageState.page <= 1}
+                        title="Previous page"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="min-w-[62px] text-center text-sm tabular-nums text-muted-foreground">
+                        {pageState.page} / {pageState.totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 w-9 p-0"
+                        onClick={() => pageState.goToPage(pageState.page + 1)}
+                        disabled={pageState.page >= pageState.totalPages}
+                        title="Next page"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+
                   {(currentView === "category" || currentView === "project-detail") && (
                     <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
                       <SelectTrigger className="h-8 w-auto gap-1.5 text-xs lg:h-9 lg:gap-2 lg:text-sm">
@@ -596,6 +650,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
                     sortBy={sortBy}
                     loading={loading}
                     justFinishedLoading={justFinishedLoading}
+                  onPageStateChange={setPageState}
                     assets={getFilteredAssets()}
                     selectedAsset={selectedAsset}
                     onSelectAsset={handleSelectAsset}

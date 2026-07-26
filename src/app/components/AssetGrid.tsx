@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { AssetCard } from "./AssetCard";
 import { filterAssetsByCategory, searchAssets, Asset } from "../utils/appwriteApi";
 import { type Project } from "./ProjectManager";
@@ -10,7 +10,10 @@ import { Loader2, CheckCircle2, ChevronLeft, ChevronRight, ChevronsLeft, Chevron
 
 export type SortOption = "recent" | "alphabetical" | "type";
 
-const PAGE_SIZE = 100;
+// 50, not 100. At 100 the grid ran ~6300px tall at default density — seven
+// screens of scrolling before the pager. 50 halves that, and with jump-to-page
+// the extra page count costs nothing.
+const PAGE_SIZE = 50;
 
 interface AssetGridProps {
   category: string;
@@ -30,6 +33,13 @@ interface AssetGridProps {
   sortBy?: SortOption;
   loading?: boolean; // Still fetching from the database — show a loading state instead of "No assets"
   justFinishedLoading?: boolean; // Brief "done!" checkmark right after loading completes
+  /** Lets the sticky header render a compact pager without re-deriving any of
+   *  the pagination maths. Single source of truth stays here in AssetGrid. */
+  onPageStateChange?: (state: {
+    page: number;
+    totalPages: number;
+    goToPage: (p: number) => void;
+  }) => void;
 }
 
 export function AssetGrid({
@@ -54,6 +64,7 @@ export function AssetGrid({
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [jumpToPageInput, setJumpToPageInput] = useState("");
+  const gridTopRef = useRef<HTMLDivElement>(null);
 
   // Filter + sort assets based on category, search query, and sort option.
   // Memoized so this (potentially thousands-of-rows) computation only reruns
@@ -107,7 +118,13 @@ export function AssetGrid({
   );
 
   const goToAssetPage = (target: number) => {
-    setPage(Math.max(1, Math.min(totalAssetPages, target)));
+    const next = Math.max(1, Math.min(totalAssetPages, target));
+    if (next === safePage) return;
+    setPage(next);
+    // Scroll the grid back into view. Previously this only set the page number,
+    // so clicking Next from the bottom pager left you parked at the bottom —
+    // you'd land on the LAST row of the new page and never see the top of it.
+    gridTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const handleJumpToAssetPage = () => {
@@ -117,6 +134,14 @@ export function AssetGrid({
     }
     setJumpToPageInput("");
   };
+
+  // Publish page state to the parent. goToAssetPage is stable enough here; the
+  // effect re-runs whenever page or total changes, which is exactly when the
+  // header pager needs updating.
+  useEffect(() => {
+    onPageStateChange?.({ page: safePage, totalPages: totalAssetPages, goToPage: goToAssetPage });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [safePage, totalAssetPages]);
 
   const toggleFavorite = (nama_file: string) => {
     setFavorites(prev => {
@@ -394,6 +419,10 @@ export function AssetGrid({
   // category (thousands of assets) doesn't mount every card at once.
   return (
     <div className="space-y-4">
+      {/* Scroll target for goToAssetPage(). scroll-mt clears the sticky header
+          so the first row isn't hidden underneath it after a page change. */}
+      <div ref={gridTopRef} className="scroll-mt-44 lg:scroll-mt-40" />
+
       <div className={
         (viewMode === "grid"
           ? getGridClasses()
@@ -421,66 +450,80 @@ export function AssetGrid({
       </div>
 
       {totalAssetPages > 1 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => goToAssetPage(1)}
-              disabled={safePage <= 1}
-              title="First page"
-            >
-              <ChevronsLeft className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => goToAssetPage(safePage - 1)}
-              disabled={safePage <= 1}
-            >
-              <ChevronLeft className="w-4 h-4 mr-1" />
-              Previous
-            </Button>
+        <>
+          {/* Full pager, desktop only. Sits at the natural end of the page and
+              holds the power controls (First/Last, jump-to-page). Not sticky —
+              the sticky header already carries a compact pager on desktop, so a
+              bottom bar would be a third copy eating permanent height. */}
+          <div className="hidden flex-wrap items-center justify-between gap-3 border-t pt-2 lg:flex">
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => goToAssetPage(1)} disabled={safePage <= 1} title="First page">
+                <ChevronsLeft className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => goToAssetPage(safePage - 1)} disabled={safePage <= 1}>
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                Previous
+              </Button>
+            </div>
+
+            <span className="text-sm text-muted-foreground">
+              Page {safePage} of {totalAssetPages} ({filteredAssets.length} assets)
+            </span>
+
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => goToAssetPage(safePage + 1)} disabled={safePage >= totalAssetPages}>
+                Next
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => goToAssetPage(totalAssetPages)} disabled={safePage >= totalAssetPages} title="Last page">
+                <ChevronsRight className="w-4 h-4" />
+              </Button>
+              <Input
+                type="number"
+                min={1}
+                max={totalAssetPages}
+                placeholder={`1-${totalAssetPages}`}
+                value={jumpToPageInput}
+                onChange={(e) => setJumpToPageInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleJumpToAssetPage()}
+                className="w-20 h-9"
+              />
+              <Button variant="outline" size="sm" onClick={handleJumpToAssetPage}>
+                Go
+              </Button>
+            </div>
           </div>
 
-          <span className="text-sm text-muted-foreground">
-            Page {safePage} / {totalAssetPages} ({filteredAssets.length} asset)
-          </span>
+          {/* Sticky pager, mobile only.
+              Mobile is where deep scrolling hurts most AND where the header has
+              no room for page controls, so it earns its ~52px here. Desktop
+              gets the header pager instead and pays nothing. */}
+          <div className="sticky bottom-0 z-20 -mx-4 flex items-center justify-between gap-2 border-t bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:hidden">
+            <Button variant="outline" size="sm" onClick={() => goToAssetPage(safePage - 1)} disabled={safePage <= 1} className="shrink-0">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => goToAssetPage(safePage + 1)}
-              disabled={safePage >= totalAssetPages}
-            >
-              Next
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => goToAssetPage(totalAssetPages)}
-              disabled={safePage >= totalAssetPages}
-              title="Last page"
-            >
-              <ChevronsRight className="w-4 h-4" />
-            </Button>
-            <Input
-              type="number"
-              min={1}
-              max={totalAssetPages}
-              placeholder={`1-${totalAssetPages}`}
-              value={jumpToPageInput}
-              onChange={(e) => setJumpToPageInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleJumpToAssetPage()}
-              className="w-20 h-9"
-            />
-            <Button variant="outline" size="sm" onClick={handleJumpToAssetPage}>
-              Ke Page
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Input
+                type="number"
+                min={1}
+                max={totalAssetPages}
+                placeholder={String(safePage)}
+                value={jumpToPageInput}
+                onChange={(e) => setJumpToPageInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleJumpToAssetPage()}
+                className="h-8 w-14 text-center"
+              />
+              <span className="whitespace-nowrap text-xs text-muted-foreground">
+                / {totalAssetPages}
+              </span>
+            </div>
+
+            <Button variant="outline" size="sm" onClick={() => goToAssetPage(safePage + 1)} disabled={safePage >= totalAssetPages} className="shrink-0">
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

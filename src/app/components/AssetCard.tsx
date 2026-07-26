@@ -1,5 +1,4 @@
 import { useState, memo } from "react";
-import { ImageZoomModal } from "./ImageZoomModal";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -55,7 +54,6 @@ function AssetCardImpl({
   gridColumns = 4, // Default to 4 columns
 }: AssetCardProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const [isZoomOpen, setIsZoomOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -332,7 +330,7 @@ function AssetCardImpl({
                       <DropdownMenuItem
                         onClick={(e) => {
                           e.stopPropagation();
-                          setIsZoomOpen(true);
+                          onSelect?.(asset);
                         }}
                       ><Eye className="w-4 h-4 mr-2" />Preview</DropdownMenuItem>
                       <DropdownMenuItem onClick={handleDownload}>
@@ -416,14 +414,17 @@ function AssetCardImpl({
             <div className={`absolute inset-0 bg-black/40 items-center justify-center gap-2 transition-opacity duration-200 hidden lg:flex ${
               isHovered ? "opacity-100" : "opacity-0"
             }`}>
+              {/* Preview opens the detail panel, exactly like clicking the card.
+                  Zoom then lives inside that panel, so there's a single path
+                  (card -> detail -> zoom) instead of two competing ones. */}
               <Button
                 size="sm"
                 className="text-xs px-3 py-1.5 bg-white/90 text-gray-900 hover:bg-white"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setIsZoomOpen(true);
+                  onSelect?.(asset);
                 }}
-                title="Preview & zoom"
+                title="Open details"
               >
                 <Eye className="w-3 h-3 mr-1" />
                 {!isMediumCard && <span>Preview</span>}
@@ -553,13 +554,7 @@ function AssetCardImpl({
         onUpdateProjects={onUpdateProjects || (() => {})}
       />
 
-      <ImageZoomModal
-        src={asset.url_lightroom}
-        alt={asset.asset_name}
-        caption={asset.nama_file || asset.asset_name}
-        isOpen={isZoomOpen}
-        onClose={() => setIsZoomOpen(false)}
-      />
+
     </Card>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Copy, Check, Plus, Link, ZoomIn, ArrowRight } from "./icons";
 import { ImageZoomModal } from "./ImageZoomModal";
 import { Button } from "./ui/button";
@@ -108,7 +109,9 @@ export function AssetDetailPanel({
     }
   };
 
-  return (
+  // Portalled for the same reason as ImageZoomModal: a transformed ancestor
+  // would otherwise become the containing block for this fixed overlay.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex justify-end bg-black/50"
       onClick={onClose}
@@ -285,6 +288,7 @@ export function AssetDetailPanel({
         isOpen={isZoomOpen}
         onClose={() => setIsZoomOpen(false)}
       />
-    </div>
+    </div>,
+    document.body
   );
 }
