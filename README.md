@@ -22,7 +22,6 @@ Asset management dashboard for organizing illustration assets.
 - About dialog, opened from the version label in the sidebar footer
 
 ### Superuser
-*(formerly "Admin")*
 - Password-protected Superuser panel *(client-side only)*
 - **Session auto-locks after 15 minutes idle**, with a 60-second warning; any click or keypress extends it
 - **Sessions never expire mid-import** — a running job holds the session open
