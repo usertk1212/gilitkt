@@ -1,6 +1,5 @@
 # GILI
-
-Asset management dashboard for organizing illustration assets.
+Graphical Illustration Library
 
 **Version:** 1.0.23
 
