@@ -57,6 +57,31 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error occurred';
 }
 
+/**
+ * Is this the "you've used your monthly database reads" wall?
+ *
+ * Worth detecting specifically, because it presents identically to being offline
+ * — a failed request and an empty library — while the cause and the fix are
+ * completely different. "Connection Error" sent someone hunting for a network
+ * problem that didn't exist.
+ */
+export function isReadQuotaError(error: unknown): boolean {
+  const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  return (
+    msg.includes('reads limit') ||
+    msg.includes('read limit') ||
+    (msg.includes('billing cycle') && msg.includes('exceeded')) ||
+    msg.includes('budget cap')
+  );
+}
+
+/** What to tell the user when the read quota is the problem. */
+export const READ_QUOTA_MESSAGE =
+  "Appwrite's monthly database-read allowance is used up, so the library can't be fetched. " +
+  'Anyone who has opened GILI before still sees their cached copy. ' +
+  'To fix it for everyone without waiting for the quota to reset, open Superuser → Backup & Restore ' +
+  "on a browser that has the library loaded and press “Publish from this browser's cache”.";
+
 // Look up the underlying Appwrite document by our logical key (nama_file),
 // since Appwrite's own document id is a separate, auto-generated value.
 async function findDocumentByFilename(nama_file: string): Promise<any | null> {
@@ -67,11 +92,10 @@ async function findDocumentByFilename(nama_file: string): Promise<any | null> {
   return res.documents[0] || null;
 }
 
-// Initialize the asset management system.
-// With Appwrite, the Database/Collection/Attributes are created once up front
-// in the Appwrite console (or via CLI), so there's no schema migration to run
-// here at app start. Kept as a no-op health-style call so existing call sites
-// (App startup, useAssetData hook) don't need to change.
+// Connectivity check. NOT called on load any more, and it must not be: it runs
+// listDocuments, which Appwrite bills as a read, so calling it before every load
+// charged one read per visitor per page view — invisible, pointless, and it
+// contradicted the whole zero-read design. Kept only for explicit diagnostics.
 export async function initializeAssetSystem(): Promise<ApiResponse<any>> {
   console.log('🚀 Checking asset management system...');
   try {
@@ -204,6 +228,52 @@ async function republishLibrary(mutate: (assets: Asset[]) => Asset[]): Promise<v
   } catch {
     invalidateAssetsCache();
   }
+}
+
+/**
+ * Publish the snapshot from THIS browser's cache, without reading the database.
+ *
+ * This exists because of a genuine chicken-and-egg: the snapshot is what stops
+ * viewers reading the database, but publishing it from the database costs one read
+ * per row — so the moment you actually need it (reads exhausted, everyone locked
+ * out) is the moment you can't create it.
+ *
+ * A browser that already loaded the library has all of it in IndexedDB. Publishing
+ * from there costs zero database reads and immediately unblocks every other
+ * browser, including incognito and other people's machines, because they'll read
+ * the Storage file instead.
+ *
+ * The caveat, stated plainly: this publishes what THIS browser last saw. If the
+ * database changed since, the snapshot will be that stale. Use
+ * rebuildSnapshotFromDatabase() once reads are available again if you want
+ * certainty.
+ */
+export async function publishSnapshotFromCache(): Promise<
+  ApiResponse<null> & { assetCount?: number; syncedAt?: number }
+> {
+  const cached = await readCachedAssets<Asset>();
+  if (!cached || cached.data.length === 0) {
+    return {
+      success: false,
+      error:
+        "This browser has no cached copy of the library, so there's nothing to publish. Open GILI in a browser that has loaded the assets before, and publish from there.",
+    };
+  }
+
+  const published = await publishSnapshot(cached.data);
+  if (!published.success) {
+    return { success: false, error: published.error };
+  }
+
+  const info = await getSnapshotInfo();
+  await writeCachedAssets(cached.data, { ...cached.meta, snapshotVersion: info?.version, syncedAt: Date.now() });
+
+  return {
+    success: true,
+    assetCount: cached.data.length,
+    syncedAt: cached.meta.syncedAt,
+    message: `Published ${cached.data.length.toLocaleString('en-US')} assets from this browser's cache, using zero database reads. Everyone else can now load GILI.`,
+  };
 }
 
 /**
@@ -371,6 +441,12 @@ export async function getAllAssets(options?: {
     if (cached) {
       setSyncState('offline-cache', cached.meta);
       return { success: true, data: cached.data, count: cached.data.length, source: 'cache-fallback' };
+    }
+    // No cache and no snapshot. If the cause is the read quota, say so — this
+    // otherwise renders as a generic connection error, which points at the
+    // network instead of at the actual problem and its actual fix.
+    if (isReadQuotaError(error)) {
+      return { success: false, error: READ_QUOTA_MESSAGE };
     }
     return { success: false, error: errorMessage(error) };
   }

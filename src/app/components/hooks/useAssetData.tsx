@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getAllAssets, initializeAssetSystem, getAssetCounts, exportAssetsToCSV, Asset } from '../../utils/appwriteApi';
+import { getAllAssets, getAssetCounts, exportAssetsToCSV, Asset } from '../../utils/appwriteApi';
 import { toast } from "sonner";
 
 export function useAssetData() {
@@ -21,14 +21,17 @@ export function useAssetData() {
       }
       setError(null);
 
-      console.log('🚀 Loading assets from the Appwrite database...');
+      console.log('🚀 Loading assets…');
 
-      // Initialize system first
-      await initializeAssetSystem();
+      // initializeAssetSystem() used to be awaited here. It's a health check that
+      // runs listDocuments and whose result was then discarded — so it cost one
+      // database read for every visitor on every load, silently, and made the
+      // "viewers cost zero reads" design untrue by exactly one read per load.
+      // getAllAssets reports its own failures, so nothing was gained by asking
+      // first. Removed.
 
-      // Get all assets
       const response = await getAllAssets({ forceRefresh });
-      
+
       if (!response.success) {
         throw new Error(response.error || 'Failed to load assets');
       }

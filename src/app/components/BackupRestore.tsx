@@ -12,7 +12,7 @@ import {
   downloadBackupAssetsCsv,
   type GiliBackup,
 } from "../utils/backup";
-import { exportAssetsToCSV, rebuildSnapshotFromDatabase } from "../utils/appwriteApi";
+import { exportAssetsToCSV, rebuildSnapshotFromDatabase, publishSnapshotFromCache } from "../utils/appwriteApi";
 import { getReadBudget, FREE_PLAN_MONTHLY_READS } from "../utils/readBudget";
 import { getSnapshotInfo } from "../utils/librarySnapshot";
 import { APP_VERSION } from "../version";
@@ -27,7 +27,7 @@ import { toast } from "sonner";
  * connection.
  */
 export function BackupRestore() {
-  const [busy, setBusy] = useState<null | "backup" | "csv" | "restore" | "rebuild">(null);
+  const [busy, setBusy] = useState<null | "backup" | "csv" | "restore" | "rebuild" | "fromCache">(null);
   const [loaded, setLoaded] = useState<{ backup: GiliBackup; warnings: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [budget, setBudget] = useState<{ rows: number; calls: number; percentOfFree: number } | null>(null);
@@ -91,6 +91,19 @@ export function BackupRestore() {
     toast.success("Projects restored", {
       description: `${res.projects} projects written. Reload to see them.`,
     });
+  };
+
+  const handlePublishFromCache = async () => {
+    setBusy("fromCache");
+    setError(null);
+    const res = await publishSnapshotFromCache();
+    setBusy(null);
+    refreshStatus();
+    if (res.success) {
+      toast.success("Snapshot published", { description: res.message });
+    } else {
+      setError(res.error || "Could not publish from cache.");
+    }
   };
 
   const handleRebuild = async () => {
@@ -284,6 +297,26 @@ export function BackupRestore() {
             </Alert>
           )}
 
+          {/* The free path first, deliberately.
+              When the read quota is exhausted, "publish from database" cannot
+              work — it needs the reads you've run out of. This browser's cache
+              already holds the library, so publishing from it costs nothing and
+              unblocks everyone else immediately. */}
+          <Button onClick={handlePublishFromCache} disabled={busy !== null} className="w-full">
+            {busy === "fromCache" ? (
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Upload className="mr-2 h-4 w-4" />
+            )}
+            Publish from this browser's cache — 0 database reads
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Publishes whatever this browser last loaded. Use this when the read quota is exhausted:
+            it's the only way to get other people and incognito windows working again without waiting
+            for the quota to reset. It can be slightly stale if the database changed since this
+            browser last synced.
+          </p>
+
           <Button variant="outline" onClick={handleRebuild} disabled={busy !== null} className="w-full">
             {busy === "rebuild" ? (
               <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
@@ -293,9 +326,10 @@ export function BackupRestore() {
             {snapshot === null ? "Publish snapshot from database" : "Rebuild snapshot from database"}
           </Button>
           <p className="text-xs text-muted-foreground">
-            This is the one expensive operation: it reads every row, so it costs one database read
-            per asset. Imports keep the snapshot current on their own for free — use this after
-            editing rows directly in the Appwrite console, or if the counts ever look wrong.
+            The authoritative version, and the one expensive operation: it reads every row, so it
+            costs one database read per asset and will fail outright while the quota is exhausted.
+            Imports keep the snapshot current on their own for free — use this after editing rows
+            directly in the Appwrite console, or if the counts ever look wrong.
           </p>
         </CardContent>
       </Card>

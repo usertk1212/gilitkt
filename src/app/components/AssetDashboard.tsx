@@ -17,7 +17,7 @@ import { AssetDetailPanel } from "./AssetDetailPanel";
 import { ProjectManager, type Project } from "./ProjectManager";
 import { AssetProjectModal } from "./AssetProjectModal";
 import { SharedSidebar } from "./SharedSidebar";
-import { getAllAssets, initializeAssetSystem, getAssetCounts, exportAssetsToCSV, Asset } from "../utils/appwriteApi";
+import { getAllAssets, getAssetCounts, exportAssetsToCSV, Asset } from "../utils/appwriteApi";
 import { toast } from "sonner";
 
 interface AssetDashboardProps {
@@ -73,12 +73,13 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
       }
       setError(null);
 
-      console.log('🚀 Loading assets from the Appwrite database...');
+      console.log('🚀 Loading assets…');
 
-      // Initialize system first
-      await initializeAssetSystem();
+      // initializeAssetSystem() was awaited here and its result discarded. It runs
+      // listDocuments, so it charged one database read to every visitor on every
+      // load of the dashboard — the most-visited screen in the app — for no
+      // benefit. getAllAssets already reports its own failures.
 
-      // Get all assets
       const response = await getAllAssets({ forceRefresh });
       
       if (!response.success) {
