@@ -4,7 +4,6 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Asset, getAllAssets, getAssetCounts } from '../utils/appwriteApi';
-import { getUsageStats, type UsageStats } from '../utils/usageTracking';
 import { AlertTriangle, Layers, Package, Palette, RefreshCw, Image as ImageIcon, Sparkles } from "./icons";
 
 interface AnalyticsProps {
@@ -116,7 +115,6 @@ export function computeAnalytics(assets: Asset[]) {
 
 export function Analytics({ onNavigateBack }: AnalyticsProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [usage, setUsage] = useState<UsageStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -124,10 +122,7 @@ export function Analytics({ onNavigateBack }: AnalyticsProps) {
     try {
       setIsLoading(true);
       setError(null);
-      // Usage is loaded alongside, and never allowed to fail the whole screen —
-      // it's a nice-to-have next to the asset numbers, not a dependency.
-      const [response, usageStats] = await Promise.all([getAllAssets(), getUsageStats()]);
-      setUsage(usageStats);
+      const response = await getAllAssets();
       if (!response.success) {
         setError(response.error || 'Could not load assets.');
         setAssets([]);
@@ -239,83 +234,6 @@ export function Analytics({ onNavigateBack }: AnalyticsProps) {
             </AlertDescription>
           </Alert>
         )}
-
-        {/* Usage */}
-        <div>
-          <div className="mb-4 flex items-baseline justify-between gap-3">
-            <h2 className="text-xl font-bold text-foreground">Usage</h2>
-            <span className="text-xs text-muted-foreground">
-              Counts browsers, not people — see the note below
-            </span>
-          </div>
-
-          {usage?.available ? (
-            <>
-              <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                <Card>
-                  <CardContent className="p-5">
-                    <p className="mb-1 text-sm text-muted-foreground">Active last 7 days</p>
-                    <p className="text-3xl font-bold text-foreground">
-                      {formatNumber(usage.activeLast7)}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-5">
-                    <p className="mb-1 text-sm text-muted-foreground">Active last 30 days</p>
-                    <p className="text-3xl font-bold text-foreground">
-                      {formatNumber(usage.activeLast30)}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-5">
-                    <p className="mb-1 text-sm text-muted-foreground">All-time devices</p>
-                    <p className="text-3xl font-bold text-foreground">
-                      {formatNumber(usage.totalDevices)}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {formatNumber(usage.desktopDevices)} desktop ·{' '}
-                      {formatNumber(usage.mobileDevices)} mobile
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-5">
-                    <p className="mb-1 text-sm text-muted-foreground">Total sessions</p>
-                    <p className="text-3xl font-bold text-foreground">
-                      {formatNumber(usage.totalVisits)}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {usage.lastSeen
-                        ? `Last opened ${new Date(usage.lastSeen).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
-                        : '—'}
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Each browser gets a random ID stored on the device. No IP address, no user-agent, no
-                personal data. One person on a laptop and a phone counts twice, and clearing browser
-                data starts a new ID — so treat this as a floor and a trend, not a headcount.
-              </p>
-            </>
-          ) : (
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription className="space-y-1 text-sm">
-                <p className="font-bold">Usage tracking isn't set up yet</p>
-                <p className="text-muted-foreground">
-                  Create a collection with ID <code>usage</code> in the same database, with
-                  attributes <code>device_id</code> (String 64), <code>first_seen</code> (String 32),{' '}
-                  <code>last_seen</code> (String 32), <code>visits</code> (Integer) and{' '}
-                  <code>platform</code> (String 16), and grant <code>Any</code> create, read and
-                  update. Counting starts on the next visit.
-                </p>
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
 
         {/* Categories */}
         <div>

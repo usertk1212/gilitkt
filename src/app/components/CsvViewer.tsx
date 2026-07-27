@@ -352,7 +352,7 @@ custom_graphic.png,https://example.com/image4.jpg,Supergraphic`;
     if (s === "replaced")
       return (
         <Badge
-          className="border-transparent bg-[var(--pp-bg-blue-low)] text-[var(--pp-text-informative)] text-xs"
+          className="border-transparent bg-[var(--pp-bg-blue-low)] text-[var(--pp-text-active)] text-xs"
           title="Filename already in the database, but the link changed — the asset was re-uploaded to Lightroom."
         >
           Replaced
@@ -818,7 +818,7 @@ custom_graphic.png,https://example.com/image4.jpg,Supergraphic`;
                   Replace the <strong>Lightroom link</strong> when a filename already exists but the
                   CSV has a different URL — i.e. the asset was re-uploaded after a redesign.
                   {existingIndex && replacedRowNos.length > 0 && (
-                    <span className="text-[var(--pp-text-informative)]">
+                    <span className="text-[var(--pp-text-active)]">
                       {" "}
                       {replacedRowNos.length} row{replacedRowNos.length === 1 ? "" : "s"} in this file
                       {replacedRowNos.length === 1 ? " looks" : " look"} like re-uploads.

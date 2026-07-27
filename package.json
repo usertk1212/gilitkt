@@ -1,7 +1,7 @@
 {
   "name": "@figma/my-make-file",
   "private": true,
-  "version": "1.0.44",
+  "version": "1.0.46",
   "type": "module",
   "scripts": {
     "build": "vite build",

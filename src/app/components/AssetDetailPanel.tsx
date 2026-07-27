@@ -300,7 +300,7 @@ export function AssetDetailPanel({
                       variant="secondary"
                       className={`text-xs px-2 py-1 rounded cursor-pointer hover:opacity-80 transition-opacity ${
                         isTagOn(tag)
-                          ? 'border-transparent bg-[var(--pp-bg-blue-high)] text-white'
+                          ? 'border border-[var(--pp-chip-selected-fg)] bg-[var(--pp-chip-selected-bg)] text-[var(--pp-chip-selected-fg)]'
                           : getTypeColors(tag)
                       }`}
                       onClick={(e) => {

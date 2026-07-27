@@ -204,8 +204,11 @@ function AssetCardImpl({
   const isTagOn = (tag: string) => activeTags.includes(tag.toLowerCase());
   const tagClasses = (tag: string) =>
     isTagOn(tag)
-      ? 'bg-[var(--pp-bg-blue-high)] text-white ring-1 ring-inset ring-[var(--pp-bg-blue-high)] hover:opacity-90'
-      : 'bg-muted text-muted-foreground hover:bg-accent';
+      // Soft fill (B100) with a 1px B400 outline and B400 text. Reads as
+      // "switched on" without the weight of a solid blue block, which competed
+      // with the copy button for attention on a card that's mostly artwork.
+      ? 'bg-[var(--pp-chip-selected-bg)] text-[var(--pp-chip-selected-fg)] border border-[var(--pp-chip-selected-fg)] hover:opacity-80'
+      : 'bg-muted text-muted-foreground border border-transparent hover:bg-accent';
   const tagTitle = (tag: string) => (isTagOn(tag) ? `Remove the "${tag}" filter` : `Filter by "${tag}"`);
 
   // Tags render on one clipped line — see the tag row below.
@@ -297,7 +300,7 @@ function AssetCardImpl({
                           e.stopPropagation();
                           handleCopyClick(asset.url_lightroom);
                         }}
-                        className="shrink-0 h-8 w-8 p-0 bg-primary hover:opacity-90 text-white rounded-md"
+                        className="shrink-0 h-8 w-8 p-0 bg-[var(--pp-bg-blue-high)] hover:opacity-90 text-white rounded-md"
                         style={isCopied ? { background: 'var(--pp-bg-green-high)' } : {}}
                         title="Copy link"
                       >
@@ -520,7 +523,7 @@ function AssetCardImpl({
                   e.stopPropagation();
                   handleCopyClick(asset.url_lightroom);
                 }}
-                className={`shrink-0 p-0 bg-primary hover:opacity-90 text-white ${
+                className={`shrink-0 p-0 bg-[var(--pp-bg-blue-high)] hover:opacity-90 text-white ${
                   isSmallCard ? 'h-6 w-6 rounded-sm' : 'h-8 w-8 rounded-md'
                 }`}
                 style={isCopied ? { background: 'var(--pp-bg-green-high)' } : {}}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AssetDashboard } from "./components/AssetDashboard";
 import { AssetManagement } from "./components/AssetManagement";
 import { ManageAsset } from "./components/ManageAsset";
@@ -9,6 +9,7 @@ import { CsvViewer } from "./components/CsvViewer";
 import { HardResetDatabase } from "./components/HardResetDatabase";
 import { AboutImageManager } from "./components/AboutImageManager";
 import { BackupRestore } from "./components/BackupRestore";
+import { ManualInput } from "./components/ManualInput";
 import { SharedSidebar, type AdminTab } from "./components/SharedSidebar";
 import { Tabs, TabsContent } from "./components/ui/tabs";
 import { SidebarProvider, SidebarTrigger } from "./components/ui/sidebar";
@@ -17,7 +18,6 @@ import { useAssetData } from "./components/hooks/useAssetData";
 import { UploadJobProvider } from "./context/UploadJobContext";
 import { UploadJobWidget } from "./components/UploadJobWidget";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { recordVisit } from "./utils/usageTracking";
 
 type ViewType = "dashboard" | "asset-menu";
 
@@ -30,6 +30,7 @@ function AppShell() {
     manage: "Manage Asset",
     analytics: "Analytics",
     "csv-viewer": "Upload CSV",
+    "manual-input": "Manual Input",
     backup: "Backup & Restore",
     "hard-reset": "Hard Reset Database",
     settings: "Settings",
@@ -110,6 +111,10 @@ function AppShell() {
                       <CsvViewer />
                     </TabsContent>
 
+                    <TabsContent value="manual-input" className="h-full m-0 overflow-y-auto">
+                      <ManualInput />
+                    </TabsContent>
+
                     <TabsContent value="backup" className="h-full m-0 overflow-y-auto">
                       <BackupRestore />
                     </TabsContent>
@@ -153,13 +158,6 @@ function AppShell() {
  * reachable from every screen, not just the Upload CSV screen.
  */
 export default function App() {
-  // Count this browser once per session. Fire-and-forget on purpose: a slow or
-  // failing write must not hold up the first paint, and a missing `usage`
-  // collection should be a no-op rather than an error.
-  useEffect(() => {
-    void recordVisit();
-  }, []);
-
   return (
     <ErrorBoundary>
       <UploadJobProvider>

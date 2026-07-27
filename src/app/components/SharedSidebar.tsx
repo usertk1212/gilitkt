@@ -9,12 +9,12 @@ import { cn } from './ui/utils';
 import { APP_VERSION } from '../version';
 import { AboutModal } from './AboutModal';
 import { SyncStatusLine } from './SyncStatusLine';
-import { ArrowLeft, BarChart3, Database, Download, Folder, FolderOpen, Image, KeyRound, Layers, Moon, Package, Palette, Settings, Sparkles, Sun, Trash2, Upload, Zap } from "./icons";
+import { ArrowLeft, BarChart3, Database, Download, Folder, Plus, FolderOpen, Image, KeyRound, Layers, Moon, Package, Palette, Settings, Sparkles, Sun, Trash2, Upload, Zap } from "./icons";
 
 // "upload" (the old Upload Asset screen) was removed: it duplicated the CSV
 // import that Upload CSV already does, and having two doors to the same job
 // meant guessing which one was current. Its CSV template moved into CsvViewer.
-export type AdminTab = "manage" | "analytics" | "csv-viewer" | "backup" | "hard-reset" | "settings" | "about-image";
+export type AdminTab = "csv-viewer" | "manual-input" | "manage" | "analytics" | "backup" | "hard-reset" | "settings" | "about-image";
 
 interface SidebarNavItem {
   key: string;
@@ -78,6 +78,7 @@ export function SharedSidebar({
 
   const adminItems: SidebarNavItem[] = [
     { key: "csv-viewer", title: "Upload CSV", icon: Upload },
+    { key: "manual-input", title: "Manual Input", icon: Plus },
     { key: "manage", title: "Manage Asset", icon: Settings },
     { key: "analytics", title: "Analytics", icon: BarChart3 },
     { key: "backup", title: "Backup & Restore", icon: Download },

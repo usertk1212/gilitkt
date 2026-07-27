@@ -173,6 +173,14 @@
   --pp-bg-disabled:      var(--pp-n200);
   --pp-bg-blue-high:     var(--pp-b400);
   --pp-bg-blue-low:      var(--pp-b100);
+
+  /* Selected-chip pair.
+     Light: exactly the specified #E7F2FF fill with #007CFF text and outline.
+     These are separate tokens rather than reusing bg-blue-high/low directly
+     because those flip to B500-on-B900 in dark mode, which measures 3.19:1 —
+     below the 4.5:1 AA threshold and genuinely hard to read. */
+  --pp-chip-selected-bg:     var(--pp-b100);  /* #E7F2FF */
+  --pp-chip-selected-fg:     var(--pp-b400);  /* #007CFF */
   --pp-bg-green-high:    var(--pp-g600);
   --pp-bg-green-low:     var(--pp-g100);
   --pp-bg-red-high:      var(--pp-r500);
@@ -249,6 +257,11 @@
   --pp-bg-disabled:      var(--pp-nd200);
   --pp-bg-blue-high:     var(--pp-b500);
   --pp-bg-blue-low:      var(--pp-b900);
+
+  /* Dark: keep the dark navy fill, but lift the text/outline to B300 — 7.33:1
+     against B900, versus 3.19:1 if the light pairing were carried over. */
+  --pp-chip-selected-bg:     var(--pp-b900);
+  --pp-chip-selected-fg:     var(--pp-b300);  /* #5BAAFF */
   --pp-bg-green-high:    var(--pp-g700);
   --pp-bg-green-low:     var(--pp-g900);
   --pp-bg-red-high:      var(--pp-r400);

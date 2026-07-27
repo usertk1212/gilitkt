@@ -5,6 +5,13 @@ import * as SliderPrimitive from "@radix-ui/react-slider";
 
 import { cn } from "./utils";
 
+/**
+ * The filled track and thumb use --pp-bg-blue-high (B400, #007CFF) rather than
+ * --primary, which is B500 (#0064D2). Two very similar blues sitting next to each
+ * other read as a mistake, so the slider matches the copy buttons and selected
+ * chips instead of the button blue.
+ */
+
 function Slider({
   className,
   defaultValue,
@@ -45,7 +52,7 @@ function Slider({
         <SliderPrimitive.Range
           data-slot="slider-range"
           className={cn(
-            "bg-primary absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full",
+            "bg-[var(--pp-bg-blue-high)] absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full",
           )}
         />
       </SliderPrimitive.Track>
@@ -53,7 +60,7 @@ function Slider({
         <SliderPrimitive.Thumb
           data-slot="slider-thumb"
           key={index}
-          className="border-primary bg-background ring-ring/50 block size-4 shrink-0 rounded-full border shadow-sm transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
+          className="border-[var(--pp-bg-blue-high)] bg-background ring-ring/50 block size-4 shrink-0 rounded-full border shadow-sm transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
         />
       ))}
     </SliderPrimitive.Root>
