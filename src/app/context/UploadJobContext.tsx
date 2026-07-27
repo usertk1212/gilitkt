@@ -19,7 +19,10 @@ export interface UploadJob {
   done: number;
   total: number;
   created: number;
+  /** Existing rows whose `type` was updated. */
   updated: number;
+  /** Existing rows whose Lightroom link was replaced (asset re-uploaded). */
+  replaced: number;
   errors: string[];
   message: string;
 }
@@ -29,7 +32,7 @@ interface UploadJobContextValue extends UploadJob {
   isActive: boolean;
   start: (
     assets: Omit<Asset, "created_at" | "updated_at">[],
-    opts: { label: string; updateExistingType?: boolean }
+    opts: { label: string; updateExistingType?: boolean; updateExistingLink?: boolean }
   ) => Promise<void>;
   pause: () => void;
   resume: () => void;
@@ -44,6 +47,7 @@ const EMPTY: UploadJob = {
   total: 0,
   created: 0,
   updated: 0,
+  replaced: 0,
   errors: [],
   message: "",
 };
@@ -75,7 +79,7 @@ export function UploadJobProvider({ children }: { children: ReactNode }) {
   const start = useCallback(
     async (
       assets: Omit<Asset, "created_at" | "updated_at">[],
-      opts: { label: string; updateExistingType?: boolean }
+      opts: { label: string; updateExistingType?: boolean; updateExistingLink?: boolean }
     ) => {
       if (runningRef.current) {
         toast.error("An import is already running", {
@@ -101,6 +105,7 @@ export function UploadJobProvider({ children }: { children: ReactNode }) {
           (done, total) => setJob((j) => ({ ...j, done, total })),
           {
             updateExistingType: opts.updateExistingType,
+            updateExistingLink: opts.updateExistingLink,
             control: {
               isPaused: () => pausedRef.current,
               isCancelled: () => cancelledRef.current,
@@ -117,6 +122,7 @@ export function UploadJobProvider({ children }: { children: ReactNode }) {
 
         const created = res.data?.length || 0;
         const updated = res.updatedCount || 0;
+        const replaced = res.replacedCount || 0;
 
         if (cancelledRef.current) {
           setJob((j) => ({
@@ -124,8 +130,12 @@ export function UploadJobProvider({ children }: { children: ReactNode }) {
             status: "cancelled",
             created,
             updated,
+            replaced,
             errors: res.errors || [],
-            message: `Stopped after ${j.done} of ${j.total} rows. ${created} created, ${updated} updated — those are saved.`,
+            message:
+              `Stopped after ${j.done} of ${j.total} rows. ${created} created, ${updated} type-updated` +
+              (replaced > 0 ? `, ${replaced} link-replaced` : "") +
+              ` — those are saved.`,
           }));
           toast.info("Import stopped", {
             description: `${created} assets were still saved.`,
@@ -143,16 +153,18 @@ export function UploadJobProvider({ children }: { children: ReactNode }) {
             status: "done",
             created,
             updated,
+            replaced,
             errors: res.errors || [],
-            message:
-              `${created} new assets created` +
-              (opts.updateExistingType
-                ? `, ${updated} existing assets had their type updated`
-                : `, the rest already existed and were skipped`) +
-              ".",
+            // Prefer the summary bulkCreateAssets built — it has the exact
+            // counts, including replacements, and doesn't have to guess from the
+            // options which categories are non-zero.
+            message: res.message || `${created} new assets created.`,
           }));
           toast.success("Import finished", {
-            description: `${created} new assets created.`,
+            description:
+              replaced > 0
+                ? `${created} created, ${replaced} re-uploaded asset${replaced === 1 ? "" : "s"} relinked.`
+                : `${created} new assets created.`,
           });
         }
       } catch (error) {

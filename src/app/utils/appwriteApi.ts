@@ -29,6 +29,10 @@ export interface ApiResponse<T> {
   message?: string;
   count?: number;
   updatedCount?: number;
+  /** Rows whose url_lightroom was overwritten because the asset was re-uploaded. */
+  replacedCount?: number;
+  /** Rows that matched an existing asset and needed no write. */
+  unchangedCount?: number;
   source?: string;
   errors?: string[];
 }
@@ -346,10 +350,18 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * import anything. Same pagination as getAllAssets(), but only keeps filenames
  * so a 5k-row library stays cheap to hold in memory.
  */
-export async function getExistingFilenames(
+/**
+ * filename → stored url_lightroom, for the CSV checker.
+ *
+ * Returns the link as well as the name so the pre-import review can distinguish
+ * three cases rather than two: brand new, an unchanged duplicate, and a genuine
+ * re-upload where the filename matches but Lightroom issued a new URL. Without
+ * the link you can only tell "new" from "exists", which hides replacements.
+ */
+export async function getExistingAssetIndex(
   onProgress?: (fetched: number) => void
-): Promise<ApiResponse<Set<string>>> {
-  const filenames = new Set<string>();
+): Promise<ApiResponse<Map<string, string>>> {
+  const index = new Map<string, string>();
   try {
     let cursor: string | undefined;
     while (true) {
@@ -357,16 +369,16 @@ export async function getExistingFilenames(
       if (cursor) queries.push(Query.cursorAfter(cursor));
       const res = await databases.listDocuments(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, queries);
       res.documents.forEach((doc: any) => {
-        if (doc.nama_file) filenames.add(doc.nama_file);
+        if (doc.nama_file) index.set(doc.nama_file, doc.url_lightroom ?? '');
       });
-      onProgress?.(filenames.size);
+      onProgress?.(index.size);
       if (res.documents.length < 100) break;
       cursor = res.documents[res.documents.length - 1].$id;
       await sleep(50);
     }
-    return { success: true, data: filenames, count: filenames.size };
+    return { success: true, data: index, count: index.size };
   } catch (error) {
-    return { success: false, error: `Failed to read existing filenames: ${errorMessage(error)}` };
+    return { success: false, error: `Failed to read existing assets: ${errorMessage(error)}` };
   }
 }
 
@@ -380,6 +392,20 @@ export async function bulkCreateAssets(
     // left alone. Off by default so re-running an import is always a no-op
     // for rows that already exist, unless you explicitly opt in.
     updateExistingType?: boolean;
+    /**
+     * When a row's filename already exists but the CSV carries a DIFFERENT
+     * url_lightroom, overwrite the stored link.
+     *
+     * Lightroom mints a fresh URL on every upload, including re-uploads of the
+     * same asset after a redesign. Matching on `nama_file` is what makes that
+     * detectable — but before this existed, the link on an existing row was never
+     * touched, so a redesigned asset kept pointing at the retired file forever.
+     *
+     * Defaults to TRUE, unlike updateExistingType: a changed link means the
+     * underlying file changed, not just metadata, and silently keeping a dead
+     * link is worse than a surprise update. Set false to review before applying.
+     */
+    updateExistingLink?: boolean;
     /**
      * Lets the caller pause / resume / cancel a long import without losing the
      * rows already written. Checked once per row, so a paused import stops at a
@@ -399,17 +425,20 @@ export async function bulkCreateAssets(
   const seenFilenames = new Set<string>();
   const total = assets.length;
 
-  // Fetch every existing nama_file → $id once, paginating like getAllAssets() does.
-  // Keeping the $id (not just the filename) lets us update-in-place when
-  // updateExistingType is on, without an extra lookup per row.
-  const existingByFilename = new Map<string, string>();
+  // Fetch every existing nama_file → { id, url_lightroom } once, paginating like
+  // getAllAssets() does. The $id lets us update in place without a per-row
+  // lookup; the stored url_lightroom is what makes it possible to tell a genuine
+  // re-upload (link changed) from an unchanged duplicate row.
+  const existingByFilename = new Map<string, { id: string; url_lightroom: string }>();
   try {
     let cursor: string | undefined;
     while (true) {
       const queries = [Query.limit(100)];
       if (cursor) queries.push(Query.cursorAfter(cursor));
       const res = await databases.listDocuments(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, queries);
-      res.documents.forEach((doc: any) => existingByFilename.set(doc.nama_file, doc.$id));
+      res.documents.forEach((doc: any) =>
+        existingByFilename.set(doc.nama_file, { id: doc.$id, url_lightroom: doc.url_lightroom })
+      );
       if (res.documents.length < 100) break;
       cursor = res.documents[res.documents.length - 1].$id;
       await sleep(50);
@@ -420,8 +449,11 @@ export async function bulkCreateAssets(
   console.log(`📋 Found ${existingByFilename.size} assets already in the database.`);
 
   const DELAY_MS = 80; // pace requests to stay under Appwrite Cloud's rate limit
+  const updateLinks = options?.updateExistingLink !== false; // default on
   let processed = 0;
-  let updatedCount = 0;
+  let updatedCount = 0;   // type-only updates
+  let replacedCount = 0;  // url_lightroom overwritten (asset re-uploaded)
+  let unchangedCount = 0; // matched an existing row and nothing needed doing
   onProgress?.(0, total);
 
   let cancelled = false;
@@ -460,20 +492,52 @@ export async function bulkCreateAssets(
     }
     seenFilenames.add(filename);
 
-    const existingId = existingByFilename.get(filename);
-    if (existingId) {
-      if (options?.updateExistingType) {
+    const existing = existingByFilename.get(filename);
+    if (existing) {
+      // A different link for the same filename means the asset was re-uploaded
+      // to Lightroom (redesigned, re-exported), because Lightroom issues a new
+      // URL every time. Same link means this row is just a duplicate.
+      const linkChanged =
+        !!asset.url_lightroom && asset.url_lightroom !== existing.url_lightroom;
+      const shouldReplaceLink = updateLinks && linkChanged;
+      const shouldUpdateType = !!options?.updateExistingType;
+
+      if (shouldReplaceLink || shouldUpdateType) {
+        // One request carrying whichever fields apply, rather than two.
+        const patch: Record<string, string> = {};
+        if (shouldReplaceLink) patch.url_lightroom = asset.url_lightroom;
+        if (shouldUpdateType) patch.type = asset.type;
+
         try {
-          await databases.updateDocument(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, existingId, {
-            type: asset.type,
-          });
-          updatedCount++;
+          await databases.updateDocument(
+            APPWRITE_DATABASE_ID,
+            APPWRITE_ASSETS_COLLECTION_ID,
+            existing.id,
+            patch
+          );
+          // Counted separately: a replaced link is a different event from a
+          // metadata tweak, and conflating them would hide re-uploads in the
+          // summary. A row that got both is counted as a replacement, since
+          // that's the more significant change.
+          if (shouldReplaceLink) {
+            replacedCount++;
+            // Keep the map current so a later duplicate row in the same CSV
+            // isn't counted as a second replacement.
+            existingByFilename.set(filename, { id: existing.id, url_lightroom: asset.url_lightroom });
+          } else {
+            updatedCount++;
+          }
         } catch (error) {
-          errors.push(`Failed to update type for: ${filename} — ${errorMessage(error)}`);
+          errors.push(
+            `Failed to update ${shouldReplaceLink ? 'link' : 'type'} for: ${filename} — ${errorMessage(error)}`
+          );
         }
         await sleep(DELAY_MS);
+      } else {
+        unchangedCount++;
       }
-      // Already exists and either updated above or left untouched — no create needed.
+
+      // Already exists — updated above or deliberately left alone. No create.
       processed++;
       onProgress?.(processed, total);
       continue;
@@ -500,21 +564,38 @@ export async function bulkCreateAssets(
 
   // A cancelled run is still a success for everything it managed to write —
   // reporting it as a failure would imply nothing landed, which is wrong.
-  if (!cancelled && created.length === 0 && updatedCount === 0 && existingByFilename.size === 0) {
+  if (
+    !cancelled &&
+    created.length === 0 &&
+    updatedCount === 0 &&
+    replacedCount === 0 &&
+    unchangedCount === 0
+  ) {
     return { success: false, error: 'No valid assets found in the provided data', errors };
   }
 
-  if (created.length > 0 || updatedCount > 0) {
+  if (created.length > 0 || updatedCount > 0 || replacedCount > 0) {
     invalidateAssetsCache();
   }
 
-  const skippedUnchanged = existingByFilename.size - updatedCount;
-  const messageParts = [`${created.length} new asset${created.length === 1 ? '' : 's'} created`];
-  if (options?.updateExistingType) {
-    messageParts.push(`${updatedCount} existing asset${updatedCount === 1 ? '' : 's'} had their type updated`);
+  const plural = (n: number) => (n === 1 ? '' : 's');
+  const messageParts = [`${created.length} new asset${plural(created.length)} created`];
+  if (updatedCount > 0) {
+    messageParts.push(`${updatedCount} existing asset${plural(updatedCount)} had their type updated`);
   }
-  if (skippedUnchanged > 0) {
-    messageParts.push(`${skippedUnchanged} already existed and were left unchanged`);
+  if (replacedCount > 0) {
+    messageParts.push(
+      `${replacedCount} asset${plural(replacedCount)} had their link replaced (re-uploaded in Lightroom)`
+    );
+  }
+  if (unchangedCount > 0) {
+    // Counted from rows actually present in this CSV.
+    //
+    // This used to be `existingByFilename.size - updatedCount`, i.e. the size of
+    // the WHOLE database minus updates — so importing 10 new rows into a library
+    // of 4,486 reported "4,486 already existed and were left unchanged". Wrong
+    // by three orders of magnitude, and it made the summary untrustworthy.
+    messageParts.push(`${unchangedCount} already existed and ${unchangedCount === 1 ? 'was' : 'were'} left unchanged`);
   }
 
   return {
@@ -522,6 +603,8 @@ export async function bulkCreateAssets(
     data: created,
     count: created.length,
     updatedCount,
+    replacedCount,
+    unchangedCount,
     errors: errors.length > 0 ? errors : undefined,
     message: messageParts.join(', '),
   };

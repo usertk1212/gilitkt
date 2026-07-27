@@ -108,7 +108,17 @@ export function SharedSidebar({
   // 1.0.23 added 'cache' / 'appwrite' / 'cache-offline' / 'cache-fallback' and
   // this list wasn't updated, so a perfectly healthy cache hit fell through to
   // the default branch and displayed a red "Offline" — alarming, and wrong.
-  const getDatabaseStatus = () => {
+  // stateLabel/shortLabel are optional overrides for the Active/Inactive wording.
+  // Declared here so branches that don't set them still type-check.
+  interface DatabaseStatus {
+    text: string;
+    color: string;
+    isActive: boolean;
+    stateLabel?: string;
+    shortLabel?: string;
+  }
+
+  const getDatabaseStatus = (): DatabaseStatus => {
     switch (dataSource) {
       case 'database':
       case 'kv_store':
@@ -128,12 +138,18 @@ export function SharedSidebar({
           isActive: true
         };
       // Genuinely couldn't reach Appwrite; showing the last known copy.
+      //
+      // "Inactive" was misleading here: the app is working, it's just reading
+      // local data. Only this branch overrides the label — every other case keeps
+      // the plain Active/Inactive wording.
       case 'cache-offline':
       case 'cache-fallback':
         return {
           text: 'Cached copy',
           color: 'bg-yellow-500',
-          isActive: false
+          isActive: false,
+          stateLabel: 'Local',
+          shortLabel: 'Local'
         };
       case 'loading':
         return {
@@ -293,7 +309,7 @@ export function SharedSidebar({
                 <div className="flex items-center gap-1">
                   <div className={`w-1.5 h-1.5 rounded-full ${dbStatus.color} transition-colors duration-200`} />
                   <span className="text-xs text-muted-foreground">
-                    {dbStatus.isActive ? 'Active' : 'Inactive'}
+                    {dbStatus.stateLabel ?? (dbStatus.isActive ? 'Active' : 'Inactive')}
                   </span>
                 </div>
               </>
@@ -302,7 +318,7 @@ export function SharedSidebar({
                 <Database className="w-5 h-5 text-muted-foreground" />
                 <div className={`w-2 h-2 rounded-full ${dbStatus.color} transition-colors duration-200`} />
                 <span className="text-xs text-muted-foreground font-medium text-center leading-tight">
-                  {dbStatus.isActive ? 'On' : 'Off'}
+                  {dbStatus.shortLabel ?? (dbStatus.isActive ? 'On' : 'Off')}
                 </span>
               </>
             )}

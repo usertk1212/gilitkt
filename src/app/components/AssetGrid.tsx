@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { AssetCard } from "./AssetCard";
 import { filterAssetsByCategory, searchAssets, Asset } from "../utils/appwriteApi";
 import { type Project } from "./ProjectManager";
@@ -403,7 +404,17 @@ export function AssetGrid({
   // Regular grid view for non-project categories — paginated so a huge
   // category (thousands of assets) doesn't mount every card at once.
   return (
-    <div className="space-y-4">
+    // The mobile pager is fixed to the viewport, so it contributes no height to
+    // the flow. Without this reserved space the final row of cards sits behind
+    // it. Only applies when the pager actually renders (>1 page) and only below
+    // lg, where the pager exists at all.
+    <div
+      className={`space-y-4 ${
+        totalAssetPages > 1
+          ? "pb-[calc(60px+env(safe-area-inset-bottom))] lg:pb-0"
+          : ""
+      }`}
+    >
       {/* Scroll target for goToAssetPage(). scroll-mt clears the sticky header
           so the first row isn't hidden underneath it after a page change. */}
       <div ref={gridTopRef} className="scroll-mt-44 lg:scroll-mt-40" />
@@ -479,11 +490,29 @@ export function AssetGrid({
             </div>
           </div>
 
-          {/* Sticky pager, mobile only.
+          {/* Fixed pager, mobile only.
               Mobile is where deep scrolling hurts most AND where the header has
               no room for page controls, so it earns its ~52px here. Desktop
-              gets the header pager instead and pays nothing. */}
-          <div className="sticky bottom-0 z-20 -mx-4 flex items-center justify-between gap-2 border-t bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:hidden">
+              gets the header pager instead and pays nothing.
+
+              FIXED, not sticky. `sticky bottom-0` on an element sitting at the
+              end of the document flow only begins sticking once the user has
+              scrolled far enough for it to enter the viewport — which meant on
+              load, or on any viewport tall enough to show the whole grid, the
+              pager simply wasn't there. Fixed positioning makes it present
+              regardless of scroll position or device height.
+
+              The trade-off is that it no longer occupies space in the flow, so
+              the wrapper above reserves the equivalent height — otherwise the
+              last row of cards sits underneath it.
+
+              Portalled to <body> for the same reason the zoom modal and detail
+              panel are: any ancestor with transform/filter/backdrop-filter would
+              become the containing block and `bottom-0` would resolve against
+              that box instead of the viewport. It unmounts with this component,
+              so it can't leak into other views. */}
+          {createPortal(
+          <div className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between gap-2 border-t bg-background/95 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:hidden">
             <Button variant="outline" size="sm" onClick={() => goToAssetPage(safePage - 1)} disabled={safePage <= 1} className="shrink-0">
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -507,7 +536,9 @@ export function AssetGrid({
             <Button variant="outline" size="sm" onClick={() => goToAssetPage(safePage + 1)} disabled={safePage >= totalAssetPages} className="shrink-0">
               <ChevronRight className="h-4 w-4" />
             </Button>
-          </div>
+          </div>,
+          document.body
+          )}
         </>
       )}
     </div>

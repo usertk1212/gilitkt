@@ -13,16 +13,20 @@ import {
   ChevronsLeft, ChevronsRight, Eye, ArrowUp, ArrowDown, Search, Copy, RefreshCw,
 } from "./icons";
 import { parseCSV, ParsedAsset } from "../utils/csvParser";
-import { getExistingFilenames } from "../utils/appwriteApi";
+import { getExistingAssetIndex } from "../utils/appwriteApi";
 import { useUploadJob } from "../context/UploadJobContext";
 import { copyWithFeedback } from "../utils/clipboard";
 import { toast } from "sonner";
 
 const VIEW_PAGE_SIZE = 100;
 
-type RowStatus = "new" | "existing" | "unknown";
+// "replaced" = filename already in the database, but the CSV carries a different
+// url_lightroom, i.e. the asset was re-uploaded to Lightroom. Distinguishing it
+// from an untouched duplicate is the whole point: without it, a redesigned asset
+// is indistinguishable from a row that needs nothing.
+type RowStatus = "new" | "replaced" | "existing" | "unknown";
 type SelectionMode = "new" | "manual" | "range";
-type StatusFilter = "all" | "new" | "existing";
+type StatusFilter = "all" | "new" | "replaced" | "existing";
 
 /**
  * Collapse a sorted list of row numbers into readable ranges.
@@ -59,8 +63,10 @@ export function CsvViewer() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   // --- Database checker ---
-  // null = not checked yet. A Set (even an empty one) = we have a real answer.
-  const [existingFilenames, setExistingFilenames] = useState<Set<string> | null>(null);
+  // null = not checked yet. A Map (even an empty one) = we have a real answer.
+  // Maps nama_file -> the url_lightroom currently stored, so a row can be graded
+  // as new / replaced / unchanged rather than just present-or-absent.
+  const [existingIndex, setExistingIndex] = useState<Map<string, string> | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [checkedCount, setCheckedCount] = useState(0);
 
@@ -74,37 +80,55 @@ export function CsvViewer() {
   const [toRowInput, setToRowInput] = useState("");
 
   const [updateExistingType, setUpdateExistingType] = useState(false);
+  // On by default, unlike type: a changed link means the underlying file changed,
+  // so keeping the old (retired) URL is a bug, not a conservative default.
+  const [updateExistingLink, setUpdateExistingLink] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const total = parsedAssets.length;
 
   const rowStatus = (rowNo: number): RowStatus => {
-    if (!existingFilenames) return "unknown";
-    const name = parsedAssets[rowNo - 1]?.nama_file?.trim();
+    if (!existingIndex) return "unknown";
+    const row = parsedAssets[rowNo - 1];
+    const name = row?.nama_file?.trim();
     if (!name) return "unknown";
-    return existingFilenames.has(name) ? "existing" : "new";
+    if (!existingIndex.has(name)) return "new";
+    const storedUrl = existingIndex.get(name) ?? "";
+    const incomingUrl = row?.url_lightroom?.trim() ?? "";
+    // Lightroom issues a fresh URL per upload, so a changed link means the file
+    // itself was replaced. An identical link means nothing to do.
+    return incomingUrl && incomingUrl !== storedUrl ? "replaced" : "existing";
   };
 
   const newRowNos = useMemo(() => {
-    if (!existingFilenames) return [];
+    if (!existingIndex) return [];
     const out: number[] = [];
-    parsedAssets.forEach((row, i) => {
-      const name = row.nama_file?.trim();
-      if (name && !existingFilenames.has(name)) out.push(i + 1);
+    parsedAssets.forEach((_row, i) => {
+      if (rowStatus(i + 1) === "new") out.push(i + 1);
     });
     return out;
-  }, [parsedAssets, existingFilenames]);
+  }, [parsedAssets, existingIndex]);
 
-  const existingRowNos = useMemo(() => {
-    if (!existingFilenames) return [];
+  /** Filename matches but the link changed — a re-upload. */
+  const replacedRowNos = useMemo(() => {
+    if (!existingIndex) return [];
     const out: number[] = [];
-    parsedAssets.forEach((row, i) => {
-      const name = row.nama_file?.trim();
-      if (name && existingFilenames.has(name)) out.push(i + 1);
+    parsedAssets.forEach((_row, i) => {
+      if (rowStatus(i + 1) === "replaced") out.push(i + 1);
     });
     return out;
-  }, [parsedAssets, existingFilenames]);
+  }, [parsedAssets, existingIndex]);
+
+  /** Matches an existing row with the same link — nothing to do. */
+  const existingRowNos = useMemo(() => {
+    if (!existingIndex) return [];
+    const out: number[] = [];
+    parsedAssets.forEach((_row, i) => {
+      if (rowStatus(i + 1) === "existing") out.push(i + 1);
+    });
+    return out;
+  }, [parsedAssets, existingIndex]);
 
   // Rows tagged with their permanent CSV row number BEFORE sorting/filtering, so
   // the displayed number always matches what gets imported.
@@ -115,12 +139,11 @@ export function CsvViewer() {
 
   const visibleRows = useMemo(() => {
     let rows = numberedRows;
-    if (existingFilenames && statusFilter !== "all") {
-      const wanted = statusFilter === "new" ? "new" : "existing";
-      rows = rows.filter(({ rowNo }) => rowStatus(rowNo) === wanted);
+    if (existingIndex && statusFilter !== "all") {
+      rows = rows.filter(({ rowNo }) => rowStatus(rowNo) === statusFilter);
     }
     return sortDir === "asc" ? rows : [...rows].reverse();
-  }, [numberedRows, sortDir, statusFilter, existingFilenames]);
+  }, [numberedRows, sortDir, statusFilter, existingIndex]);
 
   const totalViewPages = Math.max(1, Math.ceil(visibleRows.length / VIEW_PAGE_SIZE));
   const safeViewPage = Math.min(viewPage, totalViewPages);
@@ -159,7 +182,7 @@ export function CsvViewer() {
     setToRowInput(assets.length > 0 ? String(Math.min(assets.length, VIEW_PAGE_SIZE)) : "");
     // A new file invalidates any previous check — stale statuses would be worse
     // than no statuses.
-    setExistingFilenames(null);
+    setExistingIndex(null);
     setManualSelected(new Set());
     setStatusFilter("all");
     setSelectionMode("range");
@@ -174,9 +197,9 @@ export function CsvViewer() {
     setIsChecking(true);
     setCheckedCount(0);
     try {
-      const res = await getExistingFilenames((n) => setCheckedCount(n));
+      const res = await getExistingAssetIndex((n) => setCheckedCount(n));
       if (!res.success || !res.data) throw new Error(res.error || "Couldn't read the database");
-      setExistingFilenames(res.data);
+      setExistingIndex(res.data);
       setViewPage(1);
 
       const newCount = parsedAssets.filter((r) => {
@@ -290,10 +313,11 @@ export function CsvViewer() {
     await job.start(slice, {
       label: `${selectedFile?.name || "CSV"} — ${selectedCount} rows`,
       updateExistingType,
+      updateExistingLink,
     });
 
     // The database just changed, so the cached check is stale.
-    setExistingFilenames(null);
+    setExistingIndex(null);
     setManualSelected(new Set());
   };
 
@@ -303,12 +327,21 @@ export function CsvViewer() {
     if (s === "new")
       return (
         <Badge className="border-transparent bg-[var(--pp-bg-green-low)] text-[var(--pp-text-positive)] text-xs">
-          Baru
+          New
+        </Badge>
+      );
+    if (s === "replaced")
+      return (
+        <Badge
+          className="border-transparent bg-[var(--pp-bg-blue-low)] text-[var(--pp-text-informative)] text-xs"
+          title="Filename already in the database, but the link changed — the asset was re-uploaded to Lightroom."
+        >
+          Replaced
         </Badge>
       );
     return (
       <Badge variant="secondary" className="text-xs text-muted-foreground">
-        Sudah ada
+        Unchanged
       </Badge>
     );
   };
@@ -383,12 +416,12 @@ export function CsvViewer() {
                 <RefreshCw className={`w-4 h-4 mr-2 ${isChecking ? "animate-spin" : ""}`} />
                 {isChecking
                   ? `Checking… (${checkedCount} assets read)`
-                  : existingFilenames
+                  : existingIndex
                   ? "Check Again"
                   : "Check Now"}
               </Button>
 
-              {existingFilenames && (
+              {existingIndex && (
                 <div className="space-y-3">
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="rounded-lg bg-muted p-3">
@@ -425,7 +458,7 @@ export function CsvViewer() {
                   )}
 
                   <p className="text-xs text-muted-foreground">
-                    The database holds {existingFilenames.size} assets in total. This check resets automatically after an import, or when you open a different file, so you never act on a stale status.
+                    The database holds {existingIndex.size} assets in total. This check resets automatically after an import, or when you open a different file, so you never act on a stale status.
                   </p>
                 </div>
               )}
@@ -452,9 +485,9 @@ export function CsvViewer() {
                   {sortDir === "asc" ? "Row 1 first" : "Last row first"}
                 </Button>
 
-                {existingFilenames && (
+                {existingIndex && (
                   <div className="flex items-center gap-1">
-                    {(["all", "new", "existing"] as StatusFilter[]).map((f) => (
+                    {(["all", "new", "replaced", "existing"] as StatusFilter[]).map((f) => (
                       <Button
                         key={f}
                         variant={statusFilter === f ? "default" : "outline"}
@@ -464,7 +497,13 @@ export function CsvViewer() {
                           setViewPage(1);
                         }}
                       >
-                        {f === "all" ? "All" : f === "new" ? `New (${newRowNos.length})` : `Already in DB (${existingRowNos.length})`}
+                        {f === "all"
+                          ? "All"
+                          : f === "new"
+                            ? `New (${newRowNos.length})`
+                            : f === "replaced"
+                              ? `Replaced (${replacedRowNos.length})`
+                              : `Unchanged (${existingRowNos.length})`}
                       </Button>
                     ))}
                   </div>
@@ -619,7 +658,7 @@ export function CsvViewer() {
                     { key: "range", label: "Row range", hint: "From row X to row Y" },
                   ] as { key: SelectionMode; label: string; hint: string }[]
                 ).map((m) => {
-                  const disabled = m.key === "new" && !existingFilenames;
+                  const disabled = m.key === "new" && !existingIndex;
                   return (
                     <button
                       key={m.key}
@@ -669,7 +708,7 @@ export function CsvViewer() {
               {selectionMode === "manual" && (
                 <p className="text-sm text-muted-foreground">
                   Tick rows in the table above. Currently selected: <strong>{manualSelected.size}</strong> rows.
-                  {existingFilenames && newRowNos.length > 0 && (
+                  {existingIndex && newRowNos.length > 0 && (
                     <>
                       {" "}
                       <button
@@ -691,17 +730,48 @@ export function CsvViewer() {
                     {selectionMode === "range" && rangeValid && ` (baris ${clampedFrom}-${clampedTo})`}
                     {selectionMode === "new" && ` — baris ${formatRowRanges(newRowNos, 8)}`}
                     .
-                    {existingFilenames && selectionMode !== "new" && (
+                    {existingIndex && selectionMode !== "new" && (
                       <span className="text-muted-foreground">
                         {" "}
-                        Of those,{" "}
-                        {selectedRowNos.filter((n) => rowStatus(n) === "new").length} are genuinely new.
+                        Of those, {selectedRowNos.filter((n) => rowStatus(n) === "new").length} are
+                        genuinely new
+                        {(() => {
+                          const replacing = selectedRowNos.filter((n) => rowStatus(n) === "replaced").length;
+                          return replacing > 0
+                            ? ` and ${replacing} ${replacing === 1 ? "is a re-upload" : "are re-uploads"} with a new link`
+                            : "";
+                        })()}
+                        .
                       </span>
                     )}
                   </>
                 ) : (
                   <span className="text-muted-foreground">No rows selected yet.</span>
                 )}
+              </div>
+
+              <div className="flex items-start gap-2 p-3 bg-muted rounded-lg">
+                <Checkbox
+                  id="csv-viewer-update-existing-link"
+                  checked={updateExistingLink}
+                  onCheckedChange={(checked) => setUpdateExistingLink(checked === true)}
+                  className="mt-0.5"
+                />
+                <Label htmlFor="csv-viewer-update-existing-link" className="text-sm font-normal leading-snug cursor-pointer">
+                  Replace the <strong>Lightroom link</strong> when a filename already exists but the
+                  CSV has a different URL — i.e. the asset was re-uploaded after a redesign.
+                  {existingIndex && replacedRowNos.length > 0 && (
+                    <span className="text-[var(--pp-text-informative)]">
+                      {" "}
+                      {replacedRowNos.length} row{replacedRowNos.length === 1 ? "" : "s"} in this file
+                      {replacedRowNos.length === 1 ? " looks" : " look"} like re-uploads.
+                    </span>
+                  )}
+                  <span className="block mt-1 text-xs text-muted-foreground">
+                    On by default: Lightroom mints a new URL on every upload, so a changed link means
+                    the file itself changed. Turn it off to leave existing links alone.
+                  </span>
+                </Label>
               </div>
 
               <div className="flex items-start gap-2 p-3 bg-muted rounded-lg">
@@ -713,8 +783,8 @@ export function CsvViewer() {
                 />
                 <Label htmlFor="csv-viewer-update-existing-type" className="text-sm font-normal leading-snug cursor-pointer">
                   Update the <strong>type</strong> of assets whose filename already exists in the
-                  database (asset_name and URL stay as they are — only type is updated). Leave
-                  this off and existing assets are left untouched.
+                  database (asset_name stays as it is). Leave this off and the type of existing
+                  assets is left untouched.
                 </Label>
               </div>
 

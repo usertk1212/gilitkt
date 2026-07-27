@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useIsMobile } from "./ui/use-mobile";
 import { X, Copy, Check, Plus, Link, ZoomIn, ArrowRight } from "./icons";
 import { ImageZoomModal } from "./ImageZoomModal";
 import { Button } from "./ui/button";
@@ -28,6 +29,51 @@ export function AssetDetailPanel({
 }: AssetDetailPanelProps) {
   const [isCopied, setIsCopied] = useState(false);
   const [isZoomOpen, setIsZoomOpen] = useState(false);
+  const isMobile = useIsMobile();
+
+  // Swipe-down-to-dismiss, mobile only.
+  //
+  // The gesture is bound to the drag handle and header strip rather than the
+  // whole sheet, so it can never fight the scrolling content below it — the
+  // usual failure mode of "drag anywhere" sheets is that flicking through tags
+  // dismisses the panel instead of scrolling.
+  const [dragY, setDragY] = useState(0);
+  const dragStartY = useRef<number | null>(null);
+  /** Past this many pixels the sheet closes; below it, it springs back. */
+  const DISMISS_THRESHOLD_PX = 110;
+
+  // A window resize across the breakpoint mid-drag would otherwise leave a
+  // stale translateY on the desktop panel.
+  useEffect(() => {
+    if (!isMobile) {
+      setDragY(0);
+      dragStartY.current = null;
+    }
+  }, [isMobile]);
+
+  const handleDragStart = (e: React.PointerEvent) => {
+    if (!isMobile) return;
+    dragStartY.current = e.clientY;
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+
+  const handleDragMove = (e: React.PointerEvent) => {
+    if (dragStartY.current === null) return;
+    // Downward only. Allowing negative values would let the sheet be dragged
+    // off the top of the screen.
+    setDragY(Math.max(0, e.clientY - dragStartY.current));
+  };
+
+  const handleDragEnd = () => {
+    if (dragStartY.current === null) return;
+    dragStartY.current = null;
+    if (dragY > DISMISS_THRESHOLD_PX) {
+      onClose();
+      setDragY(0);
+    } else {
+      setDragY(0);
+    }
+  };
 
   // Lock the page behind the panel.
   //
@@ -113,17 +159,47 @@ export function AssetDetailPanel({
   // would otherwise become the containing block for this fixed overlay.
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/50"
+      /* Mobile: sheet anchored to the bottom edge, full width.
+         Desktop (840px+): unchanged right-side panel. */
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 lg:items-stretch lg:justify-end"
       onClick={onClose}
     >
       <div
-        /* h-dvh over h-full: mobile browsers resize the viewport as the address
-           bar hides/reveals, and h-full re-measures against it, so the panel
-           kept growing and shrinking. The slide-in animation is desktop-only —
-           on a full-width mobile sheet it read as the panel drifting. */
-        className="asset-detail-panel h-dvh w-full max-w-[340px] overflow-y-auto overscroll-contain bg-card shadow-xl lg:h-full lg:w-[340px] lg:animate-in lg:slide-in-from-right-0 lg:duration-300"
+        /* Mobile bottom sheet — 85dvh so a strip of backdrop stays visible and
+           it reads as a sheet over the grid rather than a new page. dvh over vh
+           because mobile browsers resize the viewport as the address bar
+           hides/reveals, and vh doesn't re-measure.
+
+           Desktop keeps the full-height 340px right panel and its slide-in. The
+           mobile slide-up is separate: a slide-in-from-right on a full-width
+           sheet read as the panel drifting sideways.
+
+           flex-col here, with the scroll moved to the content wrapper below, so
+           the drag handle stays put instead of scrolling away with the content. */
+        className="asset-detail-panel flex h-[85dvh] w-full flex-col overflow-hidden rounded-t-[16px] bg-card shadow-xl animate-in slide-in-from-bottom duration-300 lg:h-full lg:w-[340px] lg:max-w-[340px] lg:rounded-none lg:slide-in-from-bottom-0 lg:slide-in-from-right-0 lg:duration-300"
+        style={
+          dragY > 0
+            ? { transform: `translateY(${dragY}px)`, transition: "none" }
+            : undefined
+        }
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Drag handle, mobile only. Doubles as the swipe target. */}
+        <div
+          className="flex shrink-0 cursor-grab touch-none justify-center py-2 active:cursor-grabbing lg:hidden"
+          onPointerDown={handleDragStart}
+          onPointerMove={handleDragMove}
+          onPointerUp={handleDragEnd}
+          onPointerCancel={handleDragEnd}
+          role="button"
+          tabIndex={-1}
+          aria-label="Drag down to close"
+        >
+          <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+        </div>
+
+        {/* Everything below scrolls; the handle above does not. */}
+        <div className="flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
         {/* Header with Asset Details */}
         <div className="p-4 lg:p-6 border-b">
           <div className="flex items-center justify-between mb-4">
@@ -278,6 +354,7 @@ export function AssetDetailPanel({
             <Plus className="w-4 h-4 mr-2" />
             Add to Project
           </Button>
+        </div>
         </div>
       </div>
 

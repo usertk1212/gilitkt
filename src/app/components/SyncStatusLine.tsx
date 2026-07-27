@@ -44,9 +44,16 @@ export function SyncStatusLine({ open }: { open: boolean }) {
       }
     : state.status === "offline-cache"
     ? {
-        label: "Offline · showing cached",
-        tone: "text-[var(--pp-text-alert)]",
-        title: "Couldn't reach Appwrite. Showing the last synced copy.",
+        // Not an error: unreachable Appwrite is exactly the case the cache exists
+        // for, and the app is working. The alert tone is reserved for `no-cache`
+        // above, which is a real problem — assets get re-downloaded every visit.
+        // The timestamp is the part that matters here, since it tells you how
+        // stale what you're looking at might be.
+        label: state.meta
+          ? `Showing cached copy · synced ${relativeTime(state.meta.syncedAt)}`
+          : "Showing cached copy",
+        tone: "text-muted-foreground",
+        title: "Couldn't reach Appwrite, so the last synced copy is being shown.",
       }
     : state.status === "synced"
     ? {
