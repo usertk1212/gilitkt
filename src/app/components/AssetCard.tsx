@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { copyWithFeedback } from "../utils/clipboard";
 import { ProjectDropdownContent } from "./ProjectDropdownContent";
 import { ManageProjectDialog } from "./ManageProjectDialog";
-import { extractTags } from "./helpers/assetHelpers";
+import { extractTags, tagChipClasses, tagChipTitle } from "./helpers/assetHelpers";
 import { getAssetTypeLabel } from "./constants/projectConstants";
 import { Check, Copy, Download, Edit, Eye, FolderPlus, MoreHorizontal, Plus, Share, Trash2 } from "./icons";
 
@@ -202,14 +202,10 @@ function AssetCardImpl({
 
   /** An active chip has to be unmistakable — it's changing what you're looking at. */
   const isTagOn = (tag: string) => activeTags.includes(tag.toLowerCase());
-  const tagClasses = (tag: string) =>
-    isTagOn(tag)
-      // Soft fill (B100) with a 1px B400 outline and B400 text. Reads as
-      // "switched on" without the weight of a solid blue block, which competed
-      // with the copy button for attention on a card that's mostly artwork.
-      ? 'bg-[var(--pp-chip-selected-bg)] text-[var(--pp-chip-selected-fg)] border border-[var(--pp-chip-selected-fg)] hover:opacity-80'
-      : 'bg-muted text-muted-foreground border border-transparent hover:bg-accent';
-  const tagTitle = (tag: string) => (isTagOn(tag) ? `Remove the "${tag}" filter` : `Filter by "${tag}"`);
+  // Shared with the detail panel so the same tag can't look like two different
+  // components depending on where you see it.
+  const tagClasses = (tag: string) => tagChipClasses(isTagOn(tag));
+  const tagTitle = (tag: string) => tagChipTitle(tag, isTagOn(tag));
 
   // Tags render on one clipped line — see the tag row below.
 
@@ -316,7 +312,7 @@ function AssetCardImpl({
                           <Badge
                             key={index}
                             variant="secondary"
-                            className={`text-xs px-2 py-1 rounded-full cursor-pointer transition-colors flex-shrink-0 ${tagClasses(tag)}`}
+                            className={`text-xs px-2 py-1 flex-shrink-0 ${tagClasses(tag)}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               onTagClick?.(tag);
@@ -549,7 +545,7 @@ function AssetCardImpl({
                   <Badge
                     key={index}
                     variant="secondary"
-                    className={`rounded-full cursor-pointer transition-colors flex-shrink-0 ${tagClasses(tag)} ${
+                    className={`flex-shrink-0 ${tagClasses(tag)} ${
                       isSmallCard ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-1'
                     }`}
                     onClick={(e) => {

@@ -10,7 +10,7 @@ import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { type Asset } from "../utils/appwriteApi";
 import { toast } from "sonner";
 import { copyWithFeedback } from "../utils/clipboard";
-import { extractTags } from "./helpers/assetHelpers";
+import { extractTags, tagChipClasses, tagChipTitle } from "./helpers/assetHelpers";
 
 interface AssetDetailPanelProps {
   asset: Asset;
@@ -146,18 +146,6 @@ export function AssetDetailPanel({
   // find the file, a fabricated one is worse than useless.
   const displayName = asset.nama_file || asset.asset_name || 'untitled';
 
-  const getTypeColors = (type: string) => {
-    switch (type?.toLowerCase()) {
-      case 'instant':
-        return 'bg-blue-50 text-blue-700 border-blue-200';
-      case 'upgrade':
-        return 'bg-purple-50 text-purple-700 border-purple-200';
-      case 'gold':
-        return 'bg-yellow-50 text-yellow-700 border-yellow-200';
-      default:
-        return 'bg-muted text-muted-foreground border-border';
-    }
-  };
 
   // Portalled for the same reason as ImageZoomModal: a transformed ancestor
   // would otherwise become the containing block for this fixed overlay.
@@ -298,16 +286,12 @@ export function AssetDetailPanel({
                     <Badge
                       key={index}
                       variant="secondary"
-                      className={`text-xs px-2 py-1 rounded cursor-pointer hover:opacity-80 transition-opacity ${
-                        isTagOn(tag)
-                          ? 'border border-[var(--pp-chip-selected-fg)] bg-[var(--pp-chip-selected-bg)] text-[var(--pp-chip-selected-fg)]'
-                          : getTypeColors(tag)
-                      }`}
+                      className={`text-xs px-2 py-1 ${tagChipClasses(isTagOn(tag))}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         onTagClick?.(tag);
                       }}
-                      title={isTagOn(tag) ? `Remove the "${tag}" filter` : `Filter by "${tag}"`}
+                      title={tagChipTitle(tag, isTagOn(tag))}
                     >
                       {tag}
                     </Badge>
