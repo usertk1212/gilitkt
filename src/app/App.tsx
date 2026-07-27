@@ -18,6 +18,7 @@ import { useAssetData } from "./components/hooks/useAssetData";
 import { UploadJobProvider } from "./context/UploadJobContext";
 import { UploadJobWidget } from "./components/UploadJobWidget";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { Toaster } from "./components/ui/sonner";
 
 type ViewType = "dashboard" | "asset-menu";
 
@@ -163,6 +164,9 @@ export default function App() {
       <UploadJobProvider>
         <AppShell />
         <UploadJobWidget />
+        {/* Mounted once, at the root. Without this every toast() call in the app
+            is a no-op — which is what it had been. */}
+        <Toaster />
       </UploadJobProvider>
     </ErrorBoundary>
   );
