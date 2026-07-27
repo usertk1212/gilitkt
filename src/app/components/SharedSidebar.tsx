@@ -9,9 +9,12 @@ import { cn } from './ui/utils';
 import { APP_VERSION } from '../version';
 import { AboutModal } from './AboutModal';
 import { SyncStatusLine } from './SyncStatusLine';
-import { ArrowLeft, BarChart3, Database, Download, Eye, Folder, FolderOpen, Image, KeyRound, Layers, Moon, Package, Palette, Settings, Sparkles, Sun, Trash2, Upload, Zap } from "./icons";
+import { ArrowLeft, BarChart3, Database, Download, Folder, FolderOpen, Image, KeyRound, Layers, Moon, Package, Palette, Settings, Sparkles, Sun, Trash2, Upload, Zap } from "./icons";
 
-export type AdminTab = "upload" | "manage" | "analytics" | "csv-viewer" | "export" | "hard-reset" | "settings" | "about-image";
+// "upload" (the old Upload Asset screen) was removed: it duplicated the CSV
+// import that Upload CSV already does, and having two doors to the same job
+// meant guessing which one was current. Its CSV template moved into CsvViewer.
+export type AdminTab = "manage" | "analytics" | "csv-viewer" | "export" | "hard-reset" | "settings" | "about-image";
 
 interface SidebarNavItem {
   key: string;
@@ -35,7 +38,7 @@ interface SharedSidebarProps {
   // Which item is currently highlighted, in either mode
   selectedCategory?: string;
   // Admin-mode navigation — when mode="admin", the sidebar shows Admin submenu
-  // items (Upload, Manage, Analytics, etc.) instead of the asset-type list.
+  // items (Upload CSV, Manage, Analytics, etc.) instead of the asset-type list.
   mode?: "dashboard" | "admin";
   activeAdminTab?: AdminTab;
   onAdminTabChange?: (tab: AdminTab) => void;
@@ -74,8 +77,7 @@ export function SharedSidebar({
   ];
 
   const adminItems: SidebarNavItem[] = [
-    { key: "upload", title: "Upload Asset", icon: Upload },
-    { key: "csv-viewer", title: "CSV Viewer", icon: Eye },
+    { key: "csv-viewer", title: "Upload CSV", icon: Upload },
     { key: "manage", title: "Manage Asset", icon: Settings },
     { key: "analytics", title: "Analytics", icon: BarChart3 },
     { key: "export", title: "Export CSV", icon: Download },

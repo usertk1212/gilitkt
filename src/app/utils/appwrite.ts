@@ -13,6 +13,22 @@ export const APPWRITE_DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID as
 // removes one env var you'd otherwise have to set correctly in Vercel.
 // If you ever recreate the table with a different ID, update this value.
 export const APPWRITE_ASSETS_COLLECTION_ID = 'assets';
+
+// Anonymous usage counting — one row per browser. See utils/usageTracking.ts for
+// what is and isn't stored (no IP, no user-agent, no personal data).
+//
+// Create it once in the Appwrite console → Databases → your database:
+//   Collection ID  usage
+//   Attributes     device_id  String 64
+//                  first_seen String 32
+//                  last_seen  String 32
+//                  visits     Integer
+//                  platform   String 16
+//   Permissions    Any → Create, Read, Update
+//
+// Until it exists, visit recording silently does nothing and the Analytics screen
+// says so instead of erroring.
+export const APPWRITE_USAGE_COLLECTION_ID = 'usage';
 // Storage bucket holding app settings: the About-dialog image and the Superuser
 // credential. Named "gili-settings" in the console; this is its generated ID.
 //

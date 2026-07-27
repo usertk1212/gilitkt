@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AssetDashboard } from "./components/AssetDashboard";
 import { AssetManagement } from "./components/AssetManagement";
-import { UploadAsset } from "./components/UploadAsset";
 import { ManageAsset } from "./components/ManageAsset";
 import { Analytics } from "./components/Analytics";
 import { AdminGate } from "./components/AdminGate";
@@ -18,19 +17,19 @@ import { useAssetData } from "./components/hooks/useAssetData";
 import { UploadJobProvider } from "./context/UploadJobContext";
 import { UploadJobWidget } from "./components/UploadJobWidget";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { recordVisit } from "./utils/usageTracking";
 
 type ViewType = "dashboard" | "asset-menu";
 
 function AppShell() {
   const [currentView, setCurrentView] = useState<ViewType>("dashboard");
   const [dashboardKey, setDashboardKey] = useState(0);
-  const [activeTab, setActiveTab] = useState<AdminTab>("upload");
+  const [activeTab, setActiveTab] = useState<AdminTab>("csv-viewer");
 
   const adminTabTitles: Record<AdminTab, string> = {
-    upload: "Upload Asset",
     manage: "Manage Asset",
     analytics: "Analytics",
-    "csv-viewer": "CSV Viewer",
+    "csv-viewer": "Upload CSV",
     export: "Export CSV",
     "hard-reset": "Hard Reset Database",
     settings: "Settings",
@@ -68,7 +67,7 @@ function AppShell() {
     console.log(`Category clicked: ${category}`);
   };
 
-  // Admin Menu (Upload / Manage / Analytics / CSV Viewer / Export / Hard Reset / Settings)
+  // Admin Menu (Upload CSV / Manage / Analytics / Export / Hard Reset / Settings)
   // — gated behind a password. Navigation now lives entirely in the sidebar
   // instead of a duplicated top tab bar.
   if (currentView === "asset-menu") {
@@ -108,10 +107,6 @@ function AppShell() {
               <div className="flex-1 flex flex-col overflow-hidden">
                 <Tabs value={activeTab} className="h-full flex flex-col">
                   <div className="flex-1 overflow-hidden overflow-y-auto">
-                    <TabsContent value="upload" className="h-full m-0 overflow-hidden">
-                      <UploadAsset onNavigateBack={() => setActiveTab("upload")} />
-                    </TabsContent>
-
                     <TabsContent value="manage" className="h-full m-0 overflow-hidden">
                       <ManageAsset onNavigateBack={() => setActiveTab("manage")} />
                     </TabsContent>
@@ -188,9 +183,16 @@ function AppShell() {
  * and the import would have to restart from row 0.
  *
  * UploadJobWidget is rendered here too so import progress and pause/resume are
- * reachable from every screen, not just the CSV Viewer.
+ * reachable from every screen, not just the Upload CSV screen.
  */
 export default function App() {
+  // Count this browser once per session. Fire-and-forget on purpose: a slow or
+  // failing write must not hold up the first paint, and a missing `usage`
+  // collection should be a no-op rather than an error.
+  useEffect(() => {
+    void recordVisit();
+  }, []);
+
   return (
     <ErrorBoundary>
       <UploadJobProvider>

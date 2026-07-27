@@ -9,7 +9,7 @@ import { Label } from "./ui/label";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "./ui/table";
 import {
-  FileText, Upload, CheckCircle, AlertCircle, Database, ChevronLeft, ChevronRight,
+  FileText, Upload, Download, CheckCircle, AlertCircle, Database, ChevronLeft, ChevronRight,
   ChevronsLeft, ChevronsRight, Eye, ArrowUp, ArrowDown, Search, Copy, RefreshCw,
 } from "./icons";
 import { parseCSV, ParsedAsset } from "../utils/csvParser";
@@ -87,6 +87,25 @@ export function CsvViewer() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const total = parsedAssets.length;
+
+  /** Blank CSV in the exact shape the parser expects. */
+  const downloadTemplate = () => {
+    const template = `nama_file,url_lightroom,category
+tds_si_example_illustration.png,https://example.com/image1.jpg,Spot
+tds_mi_sample_icon.png,https://example.com/image2.jpg,Micro
+tds_ic_menu_icon.png,https://example.com/image3.jpg,Icon
+custom_graphic.png,https://example.com/image4.jpg,Supergraphic`;
+
+    const blob = new Blob([template], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "asset_upload_template.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
 
   const rowStatus = (rowNo: number): RowStatus => {
     if (!existingIndex) return "unknown";
@@ -352,11 +371,12 @@ export function CsvViewer() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Eye className="w-5 h-5" />
-            CSV Viewer & Import
+            <Upload className="w-5 h-5" />
+            Upload CSV
           </CardTitle>
           <CardDescription>
-            Open a CSV from your computer to review it, check which rows aren't in the database yet, then pick what to import.
+            Open a CSV from your computer to review it, check which rows aren't in the database yet,
+            then pick what to import.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -381,6 +401,43 @@ export function CsvViewer() {
             onChange={handleFileInputChange}
             className="hidden"
           />
+
+          {/* Template + format reference.
+              Moved here from the old "Upload Asset" screen when that menu was
+              removed — it was the only place you could get the template, so
+              deleting the menu without this would have removed a feature. Folded
+              into a <details> so it doesn't push the actual work down the page. */}
+          <details className="mt-4 rounded-[8px] bg-muted/50 p-3">
+            <summary className="cursor-pointer text-sm font-medium">
+              Need the template, or the column reference?
+            </summary>
+            <div className="mt-3 space-y-3">
+              <Button onClick={downloadTemplate} variant="outline" size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                Download CSV template
+              </Button>
+              <div className="rounded-[8px] border bg-background p-2 font-mono text-xs">
+                nama_file,url_lightroom,category
+                <br />
+                tds_si_example.png,https://…,Spot
+                <br />
+                tds_mi_icon.png,https://…,Micro
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>
+                  <strong className="text-foreground">Columns:</strong>{" "}
+                  <code>nama_file</code> (or filename, asset_library_name) and{" "}
+                  <code>url_lightroom</code> (or lightroom, url, link) are required.{" "}
+                  <code>category</code> (or type) is optional.
+                </p>
+                <p>
+                  <strong className="text-foreground">Valid categories:</strong> Spot, Micro, Icon,
+                  Supergraphic, Other, General. Leave it blank and the type is detected from the
+                  filename prefix instead.
+                </p>
+              </div>
+            </div>
+          </details>
         </CardContent>
       </Card>
 
