@@ -8,11 +8,11 @@ import { AdminSettings } from "./components/AdminSettings";
 import { CsvViewer } from "./components/CsvViewer";
 import { HardResetDatabase } from "./components/HardResetDatabase";
 import { AboutImageManager } from "./components/AboutImageManager";
+import { BackupRestore } from "./components/BackupRestore";
 import { SharedSidebar, type AdminTab } from "./components/SharedSidebar";
-import { Button } from "./components/ui/button";
 import { Tabs, TabsContent } from "./components/ui/tabs";
 import { SidebarProvider, SidebarTrigger } from "./components/ui/sidebar";
-import { Menu, Download, RefreshCw } from "./components/icons";
+import { Menu } from "./components/icons";
 import { useAssetData } from "./components/hooks/useAssetData";
 import { UploadJobProvider } from "./context/UploadJobContext";
 import { UploadJobWidget } from "./components/UploadJobWidget";
@@ -30,23 +30,14 @@ function AppShell() {
     manage: "Manage Asset",
     analytics: "Analytics",
     "csv-viewer": "Upload CSV",
-    export: "Export CSV",
+    backup: "Backup & Restore",
     "hard-reset": "Hard Reset Database",
     settings: "Settings",
     "about-image": "About Image",
   };
 
   // Asset data for sidebar (only used in asset-menu view)
-  const { 
-    assets, 
-    assetCounts, 
-    loading, 
-    error, 
-    dataSource, 
-    isExporting, 
-    handleRefresh, 
-    handleExportCSV 
-  } = useAssetData();
+  const { assets, assetCounts, loading, error, dataSource, handleRefresh } = useAssetData();
 
   const handleNavigateToDashboard = () => {
     setCurrentView("dashboard");
@@ -67,7 +58,7 @@ function AppShell() {
     console.log(`Category clicked: ${category}`);
   };
 
-  // Admin Menu (Upload CSV / Manage / Analytics / Export / Hard Reset / Settings)
+  // Admin Menu (Upload CSV / Manage / Analytics / Backup / Hard Reset / Settings)
   // — gated behind a password. Navigation now lives entirely in the sidebar
   // instead of a duplicated top tab bar.
   if (currentView === "asset-menu") {
@@ -119,32 +110,8 @@ function AppShell() {
                       <CsvViewer />
                     </TabsContent>
 
-                    <TabsContent value="export" className="h-full m-0">
-                      <div className="flex-1 p-6 max-w-md mx-auto space-y-4">
-                        <div className="rounded-lg border bg-card p-6 space-y-4">
-                          <div>
-                            <h2 className="text-lg font-semibold flex items-center gap-2">
-                              <Download className="w-5 h-5" />
-                              Export CSV
-                            </h2>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Download every asset currently in the database as a CSV file.
-                            </p>
-                          </div>
-                          <Button
-                            onClick={handleExportCSV}
-                            disabled={isExporting || assets.length === 0}
-                            className="w-full"
-                          >
-                            {isExporting ? (
-                              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                            ) : (
-                              <Download className="w-4 h-4 mr-2" />
-                            )}
-                            {assets.length === 0 ? "No assets to export" : `Export ${assets.length} assets`}
-                          </Button>
-                        </div>
-                      </div>
+                    <TabsContent value="backup" className="h-full m-0 overflow-y-auto">
+                      <BackupRestore />
                     </TabsContent>
 
                     <TabsContent value="hard-reset" className="h-full m-0 overflow-hidden">

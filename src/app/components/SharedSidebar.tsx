@@ -14,7 +14,7 @@ import { ArrowLeft, BarChart3, Database, Download, Folder, FolderOpen, Image, Ke
 // "upload" (the old Upload Asset screen) was removed: it duplicated the CSV
 // import that Upload CSV already does, and having two doors to the same job
 // meant guessing which one was current. Its CSV template moved into CsvViewer.
-export type AdminTab = "manage" | "analytics" | "csv-viewer" | "export" | "hard-reset" | "settings" | "about-image";
+export type AdminTab = "manage" | "analytics" | "csv-viewer" | "backup" | "hard-reset" | "settings" | "about-image";
 
 interface SidebarNavItem {
   key: string;
@@ -80,7 +80,7 @@ export function SharedSidebar({
     { key: "csv-viewer", title: "Upload CSV", icon: Upload },
     { key: "manage", title: "Manage Asset", icon: Settings },
     { key: "analytics", title: "Analytics", icon: BarChart3 },
-    { key: "export", title: "Export CSV", icon: Download },
+    { key: "backup", title: "Backup & Restore", icon: Download },
     { key: "about-image", title: "About Image", icon: Image },
   ];
 

@@ -45,6 +45,9 @@ export const APPWRITE_SETTINGS_BUCKET_ID = '6a664fbd002089a25aa0';
 // instead of piling up orphans.
 export const ABOUT_IMAGE_FILE_ID = 'about_image';
 export const SUPERUSER_CREDENTIAL_FILE_ID = 'superuser_auth';
+// The published library. Viewers read this instead of the database, which is what
+// keeps database reads flat as the number of users grows. See librarySnapshot.ts.
+export const LIBRARY_SNAPSHOT_FILE_ID = 'library_snapshot';
 
 const client = new Client()
   .setEndpoint(APPWRITE_ENDPOINT)

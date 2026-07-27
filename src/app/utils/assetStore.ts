@@ -30,6 +30,15 @@ export interface CacheMeta {
   total: number;
   latestUpdatedAt: string;
   syncedAt: number;
+  /**
+   * $updatedAt of the Storage snapshot this cache came from.
+   *
+   * When present, freshness is decided by comparing this against the snapshot
+   * file's current $updatedAt — a Storage metadata call, which costs zero
+   * database reads. Absent means the cache was filled by scanning the database
+   * directly (the fallback path).
+   */
+  snapshotVersion?: string;
 }
 
 let dbPromise: Promise<IDBDatabase | null> | null = null;

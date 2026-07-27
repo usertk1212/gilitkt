@@ -95,6 +95,8 @@ export async function initializeAssetSystem(): Promise<ApiResponse<any>> {
 // cheap question — "how many documents, and when was the newest one touched?" —
 // and only re-downloads when the answer differs from what the cache recorded.
 // Unchanged libraries cost a single small request instead of forty-five.
+import { countReads } from './readBudget';
+import { getSnapshotInfo, downloadSnapshot, publishSnapshot } from './librarySnapshot';
 import {
   readCachedAssets,
   writeCachedAssets,
@@ -142,6 +144,7 @@ export async function fetchServerFingerprint(): Promise<{ total: number; latestU
       Query.orderDesc('$updatedAt'),
       Query.limit(1),
     ]);
+    void countReads(res.documents.length);
     return {
       total: res.total,
       latestUpdatedAt: (res.documents[0] as any)?.$updatedAt || '',
@@ -158,8 +161,95 @@ export function invalidateAssetsCache() {
   setSyncState('no-cache', null);
 }
 
+/**
+ * Republish the library after a write, applying the change locally.
+ *
+ * Invalidating the cache instead — which is what every write path used to do —
+ * forces the next load to scan the whole collection: 4,486 reads for a one-field
+ * edit, multiplied by every device that opens the app afterwards. Since we know
+ * exactly what changed, we can transform the published list and re-publish it for
+ * zero database reads.
+ *
+ * `mutate` receives the current library and returns the new one. Returning the
+ * same array unchanged is fine.
+ */
+async function republishLibrary(mutate: (assets: Asset[]) => Asset[]): Promise<void> {
+  try {
+    const current = await getAllAssets();
+    if (!current.success || !current.data) {
+      invalidateAssetsCache();
+      return;
+    }
+    const next = mutate(current.data);
+    const published = await publishSnapshot(next);
+    if (!published.success) {
+      // Correctness beats cost: if we can't publish, make sure nobody serves a
+      // stale copy, even though the next load will be expensive.
+      invalidateAssetsCache();
+      return;
+    }
+    const info = await getSnapshotInfo();
+    await writeCachedAssets(next, {
+      total: next.length,
+      latestUpdatedAt: new Date().toISOString(),
+      syncedAt: Date.now(),
+      snapshotVersion: info?.version,
+    });
+    setSyncState('synced', {
+      total: next.length,
+      latestUpdatedAt: new Date().toISOString(),
+      syncedAt: Date.now(),
+      snapshotVersion: info?.version,
+    });
+  } catch {
+    invalidateAssetsCache();
+  }
+}
+
+/**
+ * Rebuild the published snapshot from the database, authoritatively.
+ *
+ * Costs one read per row — the expensive path, on purpose. Everything else keeps
+ * the snapshot up to date by applying known changes locally, which is exact but
+ * assumes nothing wrote behind our back. This is the button you press when you
+ * want to stop assuming: after editing rows directly in the Appwrite console, or
+ * if the counts ever look wrong.
+ */
+export async function rebuildSnapshotFromDatabase(
+  onProgress?: (fetched: number) => void
+): Promise<ApiResponse<null> & { rowsRead?: number }> {
+  try {
+    const assets = await fetchAllFromAppwrite(onProgress);
+    const published = await publishSnapshot(assets);
+    if (!published.success) return { success: false, error: published.error };
+
+    const info = await getSnapshotInfo();
+    await writeCachedAssets(assets, {
+      total: assets.length,
+      latestUpdatedAt: new Date().toISOString(),
+      syncedAt: Date.now(),
+      snapshotVersion: info?.version,
+    });
+    return {
+      success: true,
+      rowsRead: assets.length,
+      message: `Published ${assets.length} assets. That cost ${assets.length.toLocaleString('en-US')} database reads.`,
+    };
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+}
+
 export { isPersistentCacheAvailable };
 
+/**
+ * Scan every row in the collection. THE expensive operation in this app.
+ *
+ * At 4,486 assets this costs 4,486 database reads — about 0.9% of the free tier's
+ * monthly allowance — because Appwrite bills per row, not per request. Anything
+ * calling this should be able to justify why the published snapshot or the local
+ * cache wouldn't do.
+ */
 async function fetchAllFromAppwrite(onProgress?: (fetched: number) => void): Promise<Asset[]> {
   const assets: Asset[] = [];
   let cursor: string | undefined;
@@ -168,6 +258,7 @@ async function fetchAllFromAppwrite(onProgress?: (fetched: number) => void): Pro
     if (cursor) queries.push(Query.cursorAfter(cursor));
     const res = await databases.listDocuments(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, queries);
     res.documents.forEach((doc: any) => assets.push(toAsset(doc)));
+    void countReads(res.documents.length);
     onProgress?.(assets.length);
     if (res.documents.length < 100) break;
     cursor = res.documents[res.documents.length - 1].$id;
@@ -176,24 +267,63 @@ async function fetchAllFromAppwrite(onProgress?: (fetched: number) => void): Pro
 }
 
 /**
- * Get all assets, cache-first.
+ * Get all assets.
  *
- * Flow:
- *   1. Read the cache (fast, local, async — doesn't block paint).
- *   2. Ask the server for its fingerprint (ONE request).
- *   3. Fingerprints match -> return the cache, download nothing.
- *      They differ, or there's no cache -> full fetch, then re-cache.
- *   4. Server unreachable but cache present -> serve the cache rather than
- *      failing. Being slightly stale beats showing an empty library.
+ * Resolution order, cheapest first:
  *
- * `forceRefresh` (the manual Refresh button) skips straight to the full fetch.
+ *   1. Local cache validated against the published snapshot's version.
+ *      Cost: ZERO database reads (a Storage metadata call).
+ *   2. Download the published snapshot.
+ *      Cost: ZERO database reads (Storage bandwidth).
+ *   3. Local cache validated against the database fingerprint.
+ *      Cost: 1 read. Only used when no snapshot has been published.
+ *   4. Full scan of the collection.
+ *      Cost: one read per row. The last resort.
+ *
+ * Steps 1 and 2 are why this app can be opened to a team without the read budget
+ * scaling with the number of viewers. Before the snapshot existed, every import
+ * invalidated every cached copy and each viewer paid for a full re-scan.
+ *
+ * `forceRefresh` skips the caches but still prefers the snapshot, since a stale
+ * snapshot is the publisher's problem to fix, not something to burn 4,486 reads
+ * working around.
  */
 export async function getAllAssets(options?: {
   forceRefresh?: boolean;
   onProgress?: (fetched: number) => void;
+  /** Bypass the snapshot and read the database. For the superuser before a write. */
+  fromDatabase?: boolean;
 }): Promise<ApiResponse<Asset[]>> {
   const cached = options?.forceRefresh ? null : await readCachedAssets<Asset>();
 
+  // --- Snapshot path: no database involvement whatsoever ---
+  if (!options?.fromDatabase) {
+    const info = await getSnapshotInfo();
+    if (info) {
+      if (cached?.meta.snapshotVersion && cached.meta.snapshotVersion === info.version) {
+        console.log(`📦 Snapshot unchanged — serving ${cached.data.length} cached assets (0 database reads).`);
+        setSyncState('cache-hit', cached.meta);
+        return { success: true, data: cached.data, count: cached.data.length, source: 'cache' };
+      }
+
+      const snapshot = await downloadSnapshot<Asset>();
+      if (snapshot) {
+        const meta: CacheMeta = {
+          total: snapshot.total,
+          latestUpdatedAt: snapshot.publishedAt,
+          syncedAt: Date.now(),
+          snapshotVersion: info.version,
+        };
+        await writeCachedAssets(snapshot.assets, meta);
+        setSyncState('synced', meta);
+        console.log(`📥 Downloaded snapshot: ${snapshot.assets.length} assets (0 database reads).`);
+        return { success: true, data: snapshot.assets, count: snapshot.assets.length, source: 'appwrite' };
+      }
+      // Snapshot metadata existed but the body didn't parse — fall through.
+    }
+  }
+
+  // --- Database path: only when there's no usable snapshot ---
   if (cached) {
     const fingerprint = await fetchServerFingerprint();
 
@@ -209,7 +339,7 @@ export async function getAllAssets(options?: {
       fingerprint.latestUpdatedAt === cached.meta.latestUpdatedAt;
 
     if (unchanged) {
-      console.log(`📦 Nothing changed — serving ${cached.data.length} cached assets (1 request).`);
+      console.log(`📦 Nothing changed — serving ${cached.data.length} cached assets (1 read).`);
       setSyncState('cache-hit', cached.meta);
       return { success: true, data: cached.data, count: cached.data.length, source: 'cache' };
     }
@@ -278,8 +408,9 @@ export async function createAsset(asset: Omit<Asset, 'created_at' | 'updated_at'
       type: asset.type,
     });
 
-    invalidateAssetsCache();
-    return { success: true, data: toAsset(doc), message: 'Asset created successfully' };
+    const createdAsset = toAsset(doc);
+    await republishLibrary((assets) => [...assets, createdAsset]);
+    return { success: true, data: createdAsset, message: 'Asset created successfully' };
   } catch (error) {
     console.error('🚨 Failed to create asset:', error);
     return { success: false, error: errorMessage(error) };
@@ -302,8 +433,11 @@ export async function updateAsset(nama_file: string, asset: Omit<Asset, 'nama_fi
       type: asset.type,
     });
 
-    invalidateAssetsCache();
-    return { success: true, data: toAsset(doc), message: 'Asset updated successfully' };
+    const updatedAsset = toAsset(doc);
+    await republishLibrary((assets) =>
+      assets.map((a) => (a.id === updatedAsset.id ? updatedAsset : a))
+    );
+    return { success: true, data: updatedAsset, message: 'Asset updated successfully' };
   } catch (error) {
     console.error('🚨 Failed to update asset:', error);
     return { success: false, error: errorMessage(error) };
@@ -320,7 +454,8 @@ export async function deleteAsset(nama_file: string): Promise<ApiResponse<Asset>
     }
 
     await databases.deleteDocument(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, existing.$id);
-    invalidateAssetsCache();
+    const removedId = existing.$id;
+    await republishLibrary((assets) => assets.filter((a) => a.id !== removedId));
     return { success: true, data: toAsset(existing), message: 'Asset deleted successfully' };
   } catch (error) {
     console.error('🚨 Failed to delete asset:', error);
@@ -361,25 +496,21 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export async function getExistingAssetIndex(
   onProgress?: (fetched: number) => void
 ): Promise<ApiResponse<Map<string, string>>> {
-  const index = new Map<string, string>();
-  try {
-    let cursor: string | undefined;
-    while (true) {
-      const queries = [Query.limit(100)];
-      if (cursor) queries.push(Query.cursorAfter(cursor));
-      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, queries);
-      res.documents.forEach((doc: any) => {
-        if (doc.nama_file) index.set(doc.nama_file, doc.url_lightroom ?? '');
-      });
-      onProgress?.(index.size);
-      if (res.documents.length < 100) break;
-      cursor = res.documents[res.documents.length - 1].$id;
-      await sleep(50);
-    }
-    return { success: true, data: index, count: index.size };
-  } catch (error) {
-    return { success: false, error: `Failed to read existing assets: ${errorMessage(error)}` };
+  // Goes through getAllAssets rather than scanning the collection directly.
+  //
+  // This used to paginate all 4,486 rows every time you pressed "check", costing
+  // 4,486 database reads — and then the import immediately did the same scan
+  // again. Both now resolve from the published snapshot for zero reads.
+  const res = await getAllAssets();
+  if (!res.success || !res.data) {
+    return { success: false, error: res.error || 'Failed to read existing assets' };
   }
+  const index = new Map<string, string>();
+  res.data.forEach((a) => {
+    if (a.nama_file) index.set(a.nama_file, a.url_lightroom ?? '');
+  });
+  onProgress?.(index.size);
+  return { success: true, data: index, count: index.size };
 }
 
 export async function bulkCreateAssets(
@@ -429,27 +560,31 @@ export async function bulkCreateAssets(
   // getAllAssets() does. The $id lets us update in place without a per-row
   // lookup; the stored url_lightroom is what makes it possible to tell a genuine
   // re-upload (link changed) from an unchanged duplicate row.
+  // This used to paginate the whole collection here, independently of the CSV
+  // checker which had just done exactly the same scan seconds earlier. At 4,486
+  // rows that was ~9,000 database reads per import — 1.8% of the monthly free
+  // allowance spent before writing a single row, twice over, for no reason.
+  //
+  // Now it goes through getAllAssets(), which resolves from the published
+  // snapshot or the local cache for zero database reads.
   const existingByFilename = new Map<string, { id: string; url_lightroom: string }>();
-  try {
-    let cursor: string | undefined;
-    while (true) {
-      const queries = [Query.limit(100)];
-      if (cursor) queries.push(Query.cursorAfter(cursor));
-      const res = await databases.listDocuments(APPWRITE_DATABASE_ID, APPWRITE_ASSETS_COLLECTION_ID, queries);
-      res.documents.forEach((doc: any) =>
-        existingByFilename.set(doc.nama_file, { id: doc.$id, url_lightroom: doc.url_lightroom })
-      );
-      if (res.documents.length < 100) break;
-      cursor = res.documents[res.documents.length - 1].$id;
-      await sleep(50);
-    }
-  } catch (error) {
-    return { success: false, error: `Failed to check existing assets before import: ${errorMessage(error)}` };
+  const before = await getAllAssets();
+  if (!before.success || !before.data) {
+    return { success: false, error: `Failed to check existing assets before import: ${before.error ?? 'unknown error'}` };
   }
-  console.log(`📋 Found ${existingByFilename.size} assets already in the database.`);
+  const existingAssets = before.data;
+  existingAssets.forEach((a) => existingByFilename.set(a.nama_file, { id: a.id, url_lightroom: a.url_lightroom }));
+  console.log(`📋 Found ${existingByFilename.size} assets already in the library (source: ${before.source}).`);
 
   const DELAY_MS = 80; // pace requests to stay under Appwrite Cloud's rate limit
   const updateLinks = options?.updateExistingLink !== false; // default on
+  /**
+   * Patches applied to existing rows, so the new snapshot can be assembled
+   * locally instead of re-scanning the database afterwards. Every write here is
+   * one we performed and know the outcome of, so replaying them over the
+   * pre-import list reproduces the post-import state exactly.
+   */
+  const patches = new Map<string, Partial<Asset>>();
   let processed = 0;
   let updatedCount = 0;   // type-only updates
   let replacedCount = 0;  // url_lightroom overwritten (asset re-uploaded)
@@ -519,6 +654,7 @@ export async function bulkCreateAssets(
           // metadata tweak, and conflating them would hide re-uploads in the
           // summary. A row that got both is counted as a replacement, since
           // that's the more significant change.
+          patches.set(existing.id, { ...(patches.get(existing.id) ?? {}), ...patch });
           if (shouldReplaceLink) {
             replacedCount++;
             // Keep the map current so a later duplicate row in the same CSV
@@ -575,7 +711,36 @@ export async function bulkCreateAssets(
   }
 
   if (created.length > 0 || updatedCount > 0 || replacedCount > 0) {
-    invalidateAssetsCache();
+    // Republish the library so every other device picks up the change without any
+    // of them scanning the database.
+    //
+    // The new list is assembled from what we started with plus the writes we just
+    // made, rather than re-reading the collection — that would cost another 4,486
+    // reads and undo the point of the exercise. It's exact as long as nobody else
+    // wrote concurrently, which for a single-superuser tool is the normal case.
+    // "Rebuild from database" in Settings exists for when you want certainty.
+    const nextLibrary = existingAssets
+      .map((a) => (patches.has(a.id) ? { ...a, ...patches.get(a.id) } : a))
+      .concat(created);
+
+    const published = await publishSnapshot(nextLibrary);
+    if (published.success) {
+      console.log(`📤 Published snapshot: ${nextLibrary.length} assets, ${Math.round((published.sizeBytes ?? 0) / 1024)} KB.`);
+      // Seed this device's cache from the same list, so the publisher doesn't
+      // immediately re-download what it just uploaded.
+      const info = await getSnapshotInfo();
+      await writeCachedAssets(nextLibrary, {
+        total: nextLibrary.length,
+        latestUpdatedAt: new Date().toISOString(),
+        syncedAt: Date.now(),
+        snapshotVersion: info?.version,
+      });
+    } else {
+      // Couldn't publish: fall back to invalidating, so the next load re-reads
+      // from the database and is at least correct, if expensive.
+      console.warn('Snapshot publish failed, falling back to cache invalidation:', published.error);
+      invalidateAssetsCache();
+    }
   }
 
   const plural = (n: number) => (n === 1 ? '' : 's');
@@ -648,7 +813,16 @@ export async function deleteAllAssets(
       await sleep(80); // pace requests to stay under Appwrite Cloud's rate limit
     }
 
-    invalidateAssetsCache();
+    // Everything's gone, so publish an empty library rather than invalidating and
+    // making the next load scan a collection we just emptied.
+    await publishSnapshot<Asset>([]);
+    await writeCachedAssets<Asset>([], {
+      total: 0,
+      latestUpdatedAt: new Date().toISOString(),
+      syncedAt: Date.now(),
+      snapshotVersion: (await getSnapshotInfo())?.version,
+    });
+    setSyncState('synced', { total: 0, latestUpdatedAt: '', syncedAt: Date.now() });
 
     if (errors.length > 0 && done - errors.length === 0 && total > 0) {
       return { success: false, error: `Failed to delete any assets. ${errors[0]}`, errors };
