@@ -1,23 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!DOCTYPE html>
-  <html lang="en">
-    <head>
-      
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>GILI</title>
-      <link rel="icon" type="image/png" href="/favicon.png" />
-      <meta name="description" content="This web application enhances user experience by providing a fully accessible interface, ensuring seamless navigation for all users, including those using screen readers." />
-      <meta name="robots" content="noindex, nofollow" />
-      <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }</style>
-      
-    </head>
+    <title>GILI — Graphical Illustration Library</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta
+      name="description"
+      content="tiket.com's illustration and icon library. Browse, search and grab the asset you need."
+    />
+    <meta name="robots" content="noindex, nofollow" />
 
-    <body>
-      
-      <div id="root"></div>
-      <script type="module" src="/src/main.tsx"></script>
-      
-    </body>
-  </html>
-  
+    <!-- Link previews. __SITE_URL__ is filled in at build time; see the
+         open-graph-urls plugin in vite.config.ts for how the URL is resolved. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="GILI" />
+    <meta property="og:title" content="GILI — Graphical Illustration Library" />
+    <meta
+      property="og:description"
+      content="tiket.com's illustration and icon library. Browse, search and grab the asset you need."
+    />
+    <meta property="og:url" content="__SITE_URL__" />
+    <meta property="og:image" content="__SITE_URL__/og-image.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Illustrated beach scene with a camper van, palm trees and the tiket.com mascot" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="GILI — Graphical Illustration Library" />
+    <meta
+      name="twitter:description"
+      content="tiket.com's illustration and icon library. Browse, search and grab the asset you need."
+    />
+    <meta name="twitter:image" content="__SITE_URL__/og-image.jpg" />
+
+    <meta name="theme-color" content="#0064D2" />
+
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      #root {
+        height: 100%;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
