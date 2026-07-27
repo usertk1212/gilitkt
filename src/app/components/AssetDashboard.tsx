@@ -18,6 +18,7 @@ import { ProjectManager, type Project } from "./ProjectManager";
 import { AssetProjectModal } from "./AssetProjectModal";
 import { SharedSidebar } from "./SharedSidebar";
 import { getAllAssets, getAssetCounts, exportAssetsToCSV, Asset } from "../utils/appwriteApi";
+import { toggleTagInQuery, activeTags } from "../utils/search";
 import { toast } from "sonner";
 
 interface AssetDashboardProps {
@@ -223,11 +224,27 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
     setSelectedAsset(null);
   };
 
+  /**
+   * Toggle a tag chip.
+   *
+   * This used to REPLACE the whole query with the tag, so only one chip could ever
+   * be in effect, clicking a second one silently discarded the first, and nothing
+   * showed which was active. Now it adds or removes a `#tag` token and leaves
+   * anything typed alone, so chips accumulate and the search box stays the single
+   * source of truth for what's being filtered.
+   *
+   * Applied immediately rather than through the debounce: a click is a discrete
+   * action, and waiting 250ms to light the chip up feels broken.
+   */
   const handleTagClick = (tag: string) => {
-    // Discrete action (not typing) — apply immediately, don't wait for the debounce.
-    setSearchQuery(tag);
-    setDebouncedSearchQuery(tag);
+    const next = toggleTagInQuery(searchQuery, tag);
+    setSearchQuery(next);
+    setDebouncedSearchQuery(next);
   };
+
+  // Derived from the query, never stored separately — so the chips and the search
+  // box cannot disagree, including when the query is edited by hand.
+  const currentActiveTags = activeTags(debouncedSearchQuery);
 
   const handleClearSearch = () => {
     setSearchQuery("");
@@ -435,7 +452,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
                 <div className="relative flex-1">
                   <Search className="absolute left-3 lg:left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 lg:w-5 h-4 lg:h-5" />
                   <Input
-                    placeholder="Search all assets, projects, and collections..."
+                    placeholder="Search assets — try &quot;train blue&quot;"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10 lg:pl-12 pr-10 lg:pr-12 h-10 lg:h-12 text-sm lg:text-base bg-card border border-border focus:ring-2 focus:ring-primary/20 rounded-xl"
@@ -617,6 +634,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
                     selectedAsset={selectedAsset}
                     onSelectAsset={handleSelectAsset}
                     onTagClick={handleTagClick}
+                    activeTags={currentActiveTags}
                     onAssetOrganize={handleAssetOrganize}
                     projects={projects}
                     onUpdateProjects={handleUpdateProjects}
@@ -641,6 +659,7 @@ export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardPr
           isOpen={!!selectedAsset}
           onClose={handleCloseDetailPanel}
           onTagClick={handleTagClick}
+          activeTags={currentActiveTags}
           onAssetOrganize={handleAssetOrganize}
         />
 

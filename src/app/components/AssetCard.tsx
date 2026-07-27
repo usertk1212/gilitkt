@@ -28,6 +28,12 @@ interface AssetCardProps {
   onToggleFavorite: (nama_file: string) => void;
   onSelect?: (asset: Asset) => void;
   onTagClick?: (tag: string) => void;
+  /**
+   * Tags currently switched on, lowercased. Chips in this list render as active.
+   * Passed down rather than derived here so every chip in the app agrees with the
+   * search box, which is the single source of truth for what's being filtered.
+   */
+  activeTags?: string[];
   onAssetOrganize?: (asset: Asset) => void;
   projects?: Project[];
   onUpdateProjects?: (projects: Project[]) => void;
@@ -45,6 +51,7 @@ function AssetCardImpl({
   onToggleFavorite,
   onSelect,
   onTagClick,
+  activeTags = [],
   onAssetOrganize,
   projects = [],
   onUpdateProjects,
@@ -193,6 +200,14 @@ function AssetCardImpl({
 
   const tags = extractTags(asset);
 
+  /** An active chip has to be unmistakable — it's changing what you're looking at. */
+  const isTagOn = (tag: string) => activeTags.includes(tag.toLowerCase());
+  const tagClasses = (tag: string) =>
+    isTagOn(tag)
+      ? 'bg-[var(--pp-bg-blue-high)] text-white ring-1 ring-inset ring-[var(--pp-bg-blue-high)] hover:opacity-90'
+      : 'bg-muted text-muted-foreground hover:bg-accent';
+  const tagTitle = (tag: string) => (isTagOn(tag) ? `Remove the "${tag}" filter` : `Filter by "${tag}"`);
+
   // Tags render on one clipped line — see the tag row below.
 
   const ProjectDropdown = () => (
@@ -298,12 +313,12 @@ function AssetCardImpl({
                           <Badge
                             key={index}
                             variant="secondary"
-                            className="bg-muted text-muted-foreground text-xs px-2 py-1 rounded-full cursor-pointer hover:bg-accent transition-colors flex-shrink-0"
+                            className={`text-xs px-2 py-1 rounded-full cursor-pointer transition-colors flex-shrink-0 ${tagClasses(tag)}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               onTagClick?.(tag);
                             }}
-                            title={`Filter by "${tag}"`}
+                            title={tagTitle(tag)}
                           >
                             {tag}
                           </Badge>
@@ -531,14 +546,14 @@ function AssetCardImpl({
                   <Badge
                     key={index}
                     variant="secondary"
-                    className={`bg-muted text-muted-foreground rounded-full cursor-pointer hover:bg-accent transition-colors flex-shrink-0 ${
+                    className={`rounded-full cursor-pointer transition-colors flex-shrink-0 ${tagClasses(tag)} ${
                       isSmallCard ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-1'
                     }`}
                     onClick={(e) => {
                       e.stopPropagation();
                       onTagClick?.(tag);
                     }}
-                    title={`Filter by "${tag}"`}
+                    title={tagTitle(tag)}
                   >
                     {tag}
                   </Badge>

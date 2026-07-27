@@ -39,6 +39,7 @@ import {
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Asset, getAllAssets, updateAsset, deleteAsset } from '../utils/appwriteApi';
 import { extractTags } from './helpers/assetHelpers';
+import { searchAssetList } from '../utils/search';
 import { getAssetTypeLabel } from './constants/projectConstants';
 import { toast } from "sonner";
 import { AlertCircle, CheckCircle, Download, Edit, Filter, Grid3X3, List, Loader2, MoreHorizontal, Search, Trash2 } from "./icons";
@@ -118,15 +119,14 @@ export function ManageAsset({ onNavigateBack }: ManageAssetProps) {
   const filterAssets = () => {
     let filtered = [...assets];
 
-    // Filter by search query
+    // Filter by search query.
+    //
+    // Uses the same engine as the dashboard rather than a second hand-rolled
+    // matcher. This screen had its own copy of the old whole-query substring test,
+    // so "train blue" failed here too — and a divergent second implementation is
+    // how the two screens would have drifted apart again.
     if (searchQuery) {
-      filtered = filtered.filter(asset =>
-        (asset.asset_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (asset.nama_file || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-        extractTags(asset).some(tag =>
-          tag.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      );
+      filtered = searchAssetList(filtered, searchQuery);
     }
 
     // Filter by type

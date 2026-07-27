@@ -17,6 +17,8 @@ interface AssetDetailPanelProps {
   isOpen: boolean;
   onClose: () => void;
   onTagClick?: (tag: string) => void;
+  /** Tags currently switched on, lowercased — kept in step with the search box. */
+  activeTags?: string[];
   onAssetOrganize?: (asset: Asset) => void;
 }
 
@@ -25,6 +27,7 @@ export function AssetDetailPanel({
   isOpen,
   onClose,
   onTagClick,
+  activeTags = [],
   onAssetOrganize
 }: AssetDetailPanelProps) {
   const [isCopied, setIsCopied] = useState(false);
@@ -130,6 +133,7 @@ export function AssetDetailPanel({
   };
 
   const tags = extractTags(asset);
+  const isTagOn = (tag: string) => activeTags.includes(tag.toLowerCase());
 
   // Show the REAL filename from the database.
   //
@@ -294,12 +298,16 @@ export function AssetDetailPanel({
                     <Badge
                       key={index}
                       variant="secondary"
-                      className={`text-xs px-2 py-1 rounded cursor-pointer hover:opacity-80 transition-opacity ${getTypeColors(tag)}`}
+                      className={`text-xs px-2 py-1 rounded cursor-pointer hover:opacity-80 transition-opacity ${
+                        isTagOn(tag)
+                          ? 'border-transparent bg-[var(--pp-bg-blue-high)] text-white'
+                          : getTypeColors(tag)
+                      }`}
                       onClick={(e) => {
                         e.stopPropagation();
                         onTagClick?.(tag);
                       }}
-                      title={`Filter by "${tag}"`}
+                      title={isTagOn(tag) ? `Remove the "${tag}" filter` : `Filter by "${tag}"`}
                     >
                       {tag}
                     </Badge>

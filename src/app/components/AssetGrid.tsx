@@ -24,6 +24,8 @@ interface AssetGridProps {
   selectedAsset?: Asset | null;
   onSelectAsset?: (asset: Asset) => void;
   onTagClick?: (tag: string) => void;
+  /** Lowercased tags currently switched on, forwarded to every card. */
+  activeTags?: string[];
   onAssetOrganize?: (asset: Asset) => void;
   projects?: Project[];
   onUpdateProjects?: (projects: Project[]) => void;
@@ -44,6 +46,7 @@ export function AssetGrid({
   selectedAsset,
   onSelectAsset,
   onTagClick,
+  activeTags = [],
   onAssetOrganize,
   projects = [],
   onUpdateProjects,
@@ -379,6 +382,7 @@ export function AssetGrid({
                     onToggleFavorite={toggleFavorite}
                     onSelect={onSelectAsset}
                     onTagClick={onTagClick}
+            activeTags={activeTags}
                     onAssetOrganize={onAssetOrganize}
                     projects={projects}
                     onUpdateProjects={onUpdateProjects}
@@ -434,6 +438,7 @@ export function AssetGrid({
             onToggleFavorite={toggleFavorite}
             onSelect={onSelectAsset}
             onTagClick={onTagClick}
+            activeTags={activeTags}
             onAssetOrganize={onAssetOrganize}
             projects={projects}
             onUpdateProjects={onUpdateProjects}

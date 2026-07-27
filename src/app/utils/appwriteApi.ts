@@ -121,6 +121,7 @@ export async function initializeAssetSystem(): Promise<ApiResponse<any>> {
 // Unchanged libraries cost a single small request instead of forty-five.
 import { countReads } from './readBudget';
 import { getSnapshotInfo, downloadSnapshot, publishSnapshot } from './librarySnapshot';
+import { searchAssetList } from './search';
 import {
   readCachedAssets,
   writeCachedAssets,
@@ -965,17 +966,15 @@ export async function healthCheck(): Promise<ApiResponse<any>> {
 }
 
 // Search assets (client-side filtering for now)
+/**
+ * Search the library. See utils/search.ts for the semantics.
+ *
+ * This used to substring-match the whole query against each field, which meant
+ * "train blue" never found `tds_ic_train_blue` — the underscore broke it. Every
+ * multi-word search failed against this library's own naming convention.
+ */
 export function searchAssets(assets: Asset[], query: string): Asset[] {
-  if (!query.trim()) return assets;
-  
-  const lowercaseQuery = query.toLowerCase();
-  // Guard each field against undefined (e.g. rows added manually in the Appwrite
-  // console without every field filled in) so search never crashes the app.
-  return assets.filter(asset =>
-    (asset.asset_name || "").toLowerCase().includes(lowercaseQuery) ||
-    (asset.nama_file || "").toLowerCase().includes(lowercaseQuery) ||
-    (asset.type || "").toLowerCase().includes(lowercaseQuery)
-  );
+  return searchAssetList(assets, query);
 }
 
 // Filter assets by category (client-side filtering)
