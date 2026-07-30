@@ -494,6 +494,54 @@ export async function createAsset(asset: Omit<Asset, 'created_at' | 'updated_at'
   }
 }
 
+/**
+ * Update an asset by its document id. Costs ZERO database reads.
+ *
+ * `updateAsset` below takes a filename and has to look the document up first,
+ * which is a read — so a one-word rename fails outright while the monthly read
+ * quota is exhausted, and costs a read the rest of the time.
+ *
+ * Every asset in the published snapshot already carries its `id`, so any screen
+ * showing an asset can update it without asking Appwrite who it is. Prefer this.
+ *
+ * Only the fields you pass are touched; omitted ones are left alone, so renaming
+ * can't accidentally blank a link.
+ */
+export async function updateAssetById(
+  id: string,
+  patch: Partial<Pick<Asset, 'asset_name' | 'url_lightroom' | 'type'>>
+): Promise<ApiResponse<Asset>> {
+  if (!id) return { success: false, error: 'No asset id supplied.' };
+
+  const fields: Record<string, string> = {};
+  if (patch.asset_name !== undefined) fields.asset_name = patch.asset_name;
+  if (patch.url_lightroom !== undefined) fields.url_lightroom = patch.url_lightroom;
+  if (patch.type !== undefined) fields.type = patch.type;
+  if (Object.keys(fields).length === 0) {
+    return { success: false, error: 'Nothing to update.' };
+  }
+
+  try {
+    const doc = await databases.updateDocument(
+      APPWRITE_DATABASE_ID,
+      APPWRITE_ASSETS_COLLECTION_ID,
+      id,
+      fields
+    );
+    const updated = toAsset(doc);
+    // Republish so every other device sees the new name without reading the
+    // database. Also what makes a rename show up under "Most Recent".
+    await republishLibrary((assets) => assets.map((a) => (a.id === updated.id ? updated : a)));
+    return { success: true, data: updated, message: 'Asset updated' };
+  } catch (error) {
+    console.error('🚨 Failed to update asset by id:', error);
+    return {
+      success: false,
+      error: isReadQuotaError(error) ? READ_QUOTA_MESSAGE : errorMessage(error),
+    };
+  }
+}
+
 // Update asset by filename (CRUD - UPDATE)
 export async function updateAsset(nama_file: string, asset: Omit<Asset, 'nama_file' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Asset>> {
   console.log('📝 Updating asset by filename:', nama_file);
@@ -721,7 +769,7 @@ export async function bulkCreateAssets(
         if (shouldUpdateType) patch.type = asset.type;
 
         try {
-          await databases.updateDocument(
+          const doc: any = await databases.updateDocument(
             APPWRITE_DATABASE_ID,
             APPWRITE_ASSETS_COLLECTION_ID,
             existing.id,
@@ -731,7 +779,19 @@ export async function bulkCreateAssets(
           // metadata tweak, and conflating them would hide re-uploads in the
           // summary. A row that got both is counted as a replacement, since
           // that's the more significant change.
-          patches.set(existing.id, { ...(patches.get(existing.id) ?? {}), ...patch });
+          //
+          // updated_at is carried through from the RESPONSE, not omitted and not
+          // guessed from the local clock. Appwrite bumps $updatedAt server-side,
+          // but the snapshot is rebuilt from the pre-import list plus these
+          // patches — so leaving it out meant a relinked asset kept its old
+          // timestamp in the published copy. "Most Recent" could then never
+          // surface a re-upload, however the sort was written, until someone ran
+          // an authoritative rebuild.
+          patches.set(existing.id, {
+            ...(patches.get(existing.id) ?? {}),
+            ...patch,
+            updated_at: doc?.$updatedAt || new Date().toISOString(),
+          });
           if (shouldReplaceLink) {
             replacedCount++;
             // Keep the map current so a later duplicate row in the same CSV

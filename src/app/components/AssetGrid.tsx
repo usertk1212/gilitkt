@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { AssetCard } from "./AssetCard";
 import { filterAssetsByCategory, searchAssets, Asset } from "../utils/appwriteApi";
+import { lastTouchedAt } from "../utils/assetNaming";
 import { type Project } from "./ProjectManager";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -92,10 +93,13 @@ export function AssetGrid({
         const typeCompare = (a.type || "").localeCompare(b.type || "");
         return typeCompare !== 0 ? typeCompare : (a.asset_name || a.nama_file).localeCompare(b.asset_name || b.nama_file);
       }
-      // "recent" (default): newest first
-      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-      return bTime - aTime;
+      // "recent" (default): most recently touched first.
+      //
+      // Deliberately last-TOUCHED, not last-created. An asset that was
+      // re-uploaded to Lightroom and relinked has new artwork but an old
+      // created_at, so sorting on creation alone hid exactly the changes people
+      // most want to see. See lastTouchedAt().
+      return lastTouchedAt(b) - lastTouchedAt(a);
     });
 
     return filtered;

@@ -51,3 +51,22 @@ export function detectType(filename: string): string {
 export function cleanFilename(value: string): string {
   return (value || '').trim().replace(/^["']|["']$/g, '');
 }
+
+/**
+ * When an asset last changed in any way — created, relinked, retyped or renamed.
+ *
+ * "Most Recent" used to read `created_at` alone, which quietly excluded the most
+ * useful case: an asset that was re-uploaded to Lightroom and relinked. Its
+ * artwork is new, but its created_at is months old, so it sat wherever it always
+ * had and nobody saw the redesign.
+ *
+ * Takes the later of the two timestamps rather than preferring updated_at,
+ * because Appwrite sets both on creation and a clock or import quirk shouldn't be
+ * able to rank a brand new asset below an old one.
+ */
+export function lastTouchedAt(asset: { created_at?: string; updated_at?: string }): number {
+  const created = asset.created_at ? Date.parse(asset.created_at) : NaN;
+  const updated = asset.updated_at ? Date.parse(asset.updated_at) : NaN;
+  const valid = [created, updated].filter((t) => !Number.isNaN(t));
+  return valid.length > 0 ? Math.max(...valid) : 0;
+}

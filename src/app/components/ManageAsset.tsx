@@ -37,11 +37,12 @@ import {
   SelectValue,
 } from './ui/select';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { Asset, getAllAssets, updateAsset, deleteAsset } from '../utils/appwriteApi';
+import { Asset, getAllAssets, updateAssetById, deleteAsset } from '../utils/appwriteApi';
 import { extractTags } from './helpers/assetHelpers';
 import { searchAssetList } from '../utils/search';
 import { getAssetTypeLabel } from './constants/projectConstants';
 import { toast } from "sonner";
+import { InlineRename } from './InlineRename';
 import { AlertCircle, CheckCircle, Download, Edit, Filter, Grid3X3, List, Loader2, MoreHorizontal, Search, Trash2 } from "./icons";
 
 interface ManageAssetProps {
@@ -216,7 +217,11 @@ export function ManageAsset({ onNavigateBack }: ManageAssetProps) {
 
     try {
       console.log('📝 Updating asset:', editAssetData.nama_file);
-      const response = await updateAsset(editAssetData.nama_file, {
+      // By id, not by filename: the filename variant has to look the document up
+      // first, which is a database read — so a small edit cost a read, and failed
+      // completely whenever the monthly read quota was exhausted. The id is
+      // already on the asset we're editing.
+      const response = await updateAssetById(editAssetData.id, {
         asset_name: editForm.asset_name.trim(),
         type: editForm.type,
         url_lightroom: editForm.url_lightroom.trim()
@@ -251,6 +256,17 @@ export function ManageAsset({ onNavigateBack }: ManageAssetProps) {
     }
   };
 
+  /**
+   * Apply a rename to the in-memory list.
+   *
+   * Patched locally rather than re-fetching: updateAssetById has already
+   * republished the snapshot, so a refetch would download the whole library again
+   * to learn one string we already have.
+   */
+  const handleRenamed = (updated: Asset) => {
+    setAssets((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+  };
+
   const handleDownloadAsset = (asset: Asset) => {
     window.open(asset.url_lightroom, '_blank');
   };
@@ -279,9 +295,7 @@ export function ManageAsset({ onNavigateBack }: ManageAssetProps) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex-1">
-                    <h4 className="truncate font-medium text-foreground">
-                      {asset.asset_name}
-                    </h4>
+                    <InlineRename asset={asset} onRenamed={handleRenamed} className="w-full" />
                     <p className="text-sm mt-1 text-muted-foreground overflow-x-auto whitespace-nowrap scrollbar-thin">
                       {asset.nama_file}
                     </p>
@@ -414,9 +428,10 @@ export function ManageAsset({ onNavigateBack }: ManageAssetProps) {
           </div>
 
           <div className="p-4">
-            <h4 className="font-medium text-foreground mb-1 truncate">
-              {asset.asset_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-            </h4>
+            {/* Shows the stored value, not a title-cased version of it — otherwise
+                clicking to rename would replace what you see with something
+                different, and every rename would silently rewrite the casing. */}
+            <InlineRename asset={asset} onRenamed={handleRenamed} className="mb-1 w-full" />
             <p className="text-sm text-muted-foreground mb-3 truncate">
               {asset.nama_file}
             </p>

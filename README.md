@@ -2,7 +2,7 @@
 
 Asset management dashboard for organizing illustration assets.
 
-**Version:** 1.0.46
+**Version:** 1.0.49
 
 ## ✨ Features
 
@@ -10,7 +10,7 @@ Asset management dashboard for organizing illustration assets.
 - Browse by category (All Assets, Spot Illus, Micro Illustration, Icons, Supergraphic, Others, Projects)
 - Search by asset name, filename or type, matching each word separately — "train blue" finds `tds_ic_train_blue`, in any word order, and pasting a full filename works too
 - Tag chips are multi-select filters: clicking adds a `#tag` to the search, several can be on at once (any of them matches), and active chips are highlighted
-- Sort by Most Recent, Alphabetical, or Type
+- Sort by Most Recent (last touched — includes assets whose Lightroom link was replaced), Alphabetical, or Type
 - Grid/List view with adjustable card size (4–10 columns)
 - Pagination at 50 assets per page; a fixed bottom pager on mobile that is visible without scrolling, plus a full pager with First/Last and jump-to-page at the end of the grid
 - Create projects and organize assets into collections
@@ -40,7 +40,7 @@ Asset management dashboard for organizing illustration assets.
 - **Imports survive navigation** — going back to the dashboard mid-import does not restart it
 - Re-uploaded assets are relinked automatically: a changed url_lightroom for an existing filename replaces the stored link, counted separately in the import summary
 - Optional "update type only" mode for rows that already exist
-- Edit & delete assets
+- Edit & delete assets, including click-to-rename directly in the list — costs no database reads, so it works even while the read quota is exhausted
 - Anonymous usage counting: active devices in the last 7/30 days, all-time devices split desktop/mobile, and total sessions — no IP, no user-agent, no personal data
 - Analytics — total assets, per-category counts and shares, assets added in the last 7/30 days, and a data-health panel flagging uncategorised assets, missing Lightroom links and duplicate filenames
 - **Backup & Restore** — one JSON file with every asset and project, plus assets-only CSV export and a snapshot/read-budget panel
@@ -73,6 +73,24 @@ npm run dev
 ```
 
 ## 📝 Changelog
+
+### 1.0.49
+- **Most Recent now includes re-uploaded assets.** It sorted on `created_at` alone, so an asset relinked to fresh artwork stayed buried at its original position. Now sorts by last-touched
+- Fixed the underlying reason that wouldn't have worked on its own: when a link was replaced, the locally-assembled snapshot kept the asset's **old** `updated_at`, so no sort could have surfaced it until an authoritative rebuild. The fresh timestamp now comes from the update response
+- **Click an asset name in Manage Asset to rename it** — Enter saves, Esc cancels. Superuser only, by virtue of the gate
+- Renames and edits cost **zero database reads**: they use the document id the snapshot already carries instead of looking the row up by filename, so they also work while the quota is exhausted
+- The grid view no longer title-cases names on screen, which would have rewritten your casing on every rename
+
+### 1.0.48
+- **Toasts now actually appear.** The `<Toaster />` host had never been mounted, so all 74 `toast()` calls across the app — added to project, link copied, import finished, backup downloaded, password changed — silently did nothing
+- Bottom-right on desktop, top-centre on mobile, where the fixed pager and the 85%-height detail sheet would otherwise cover them
+- Toasts follow the app's own dark-mode toggle; the wrapper was reading next-themes, which has no provider here and always reported "system"
+- While a CSV import is running, toasts lift above the progress widget instead of landing on top of it
+
+### 1.0.47
+- Tags in the asset detail sheet are pill-shaped chips, matching the cards — they were square-cornered with a different unselected treatment, so the same tag looked like two different components depending on where you saw it
+- Card and detail-panel chips now share one style definition, so they can't drift apart again
+- Removed `getTypeColors` from the detail panel: it mapped 'instant'/'upgrade'/'gold', values a tag never has, so it always returned the default
 
 ### 1.0.46
 - Card-size slider and the per-card copy button moved from B500 (#0064D2) to B400 (#007CFF), matching the copy button already used in the detail panel
