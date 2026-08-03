@@ -2,7 +2,7 @@
 
 Asset management dashboard for organizing illustration assets.
 
-**Version:** 1.0.49
+**Version:** 1.0.50
 
 ## ✨ Features
 
@@ -73,6 +73,12 @@ npm run dev
 ```
 
 ## 📝 Changelog
+
+### 1.0.50
+- **Paste a spreadsheet straight into Manual Input.** Copy the filename and link columns out of Sheets, Numbers or the Appwrite console and paste them into the collapsible box at the top of the tab — each line becomes a row with the name and type already filled in. Folded into Manual Input rather than given its own Superuser menu entry, because it produces exactly the rows below it: it is a faster way to fill this form, not a separate operation
+- The parser anchors on the **link**, not on column headers, since a paste has none. Whichever cell starts with `http` is the link and the rest is the filename, so the columns work in either order and a sheet title line above the data falls out on its own. Tab, comma, semicolon and multi-space separators are all accepted; a single space is not, because filenames contain them
+- **A link used by two different filenames is now flagged.** This imported cleanly before and looked correct in the grid — both entries resolve, one to the wrong artwork — so it was only discoverable by downloading the file. It comes from a copy-paste slip in the source sheet. Warned rather than blocked: the same artwork does legitimately serve two names sometimes, and only the person pasting knows which case it is
+- Pasted rows route through the same `deriveAssetName` / `detectType` pair the typed path uses, so a pasted row and a typed row are indistinguishable once in the form
 
 ### 1.0.49
 - **Most Recent now includes re-uploaded assets.** It sorted on `created_at` alone, so an asset relinked to fresh artwork stayed buried at its original position. Now sorts by last-touched

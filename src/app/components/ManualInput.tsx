@@ -5,7 +5,19 @@ import { Badge } from "./ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Plus, Trash2, Upload, RefreshCw, AlertCircle, CheckCircle, Search } from "./icons";
+import { Textarea } from "./ui/textarea";
+import {
+  Plus,
+  Trash2,
+  Upload,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle,
+  Search,
+  Copy,
+  ChevronDown,
+  ChevronUp,
+} from "./icons";
 import { getExistingAssetIndex } from "../utils/appwriteApi";
 import { useUploadJob } from "../context/UploadJobContext";
 import {
@@ -14,6 +26,7 @@ import {
   detectType,
   cleanFilename,
 } from "../utils/assetNaming";
+import { parsePastedAssets, type PasteParseResult } from "../utils/pasteParser";
 import { toast } from "sonner";
 
 /**
@@ -68,6 +81,11 @@ export function ManualInput() {
    */
   const [focusKey, setFocusKey] = useState<string | null>(null);
 
+  /** The paste box: raw text, open/closed, and the last parse for its summary. */
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [lastPaste, setLastPaste] = useState<PasteParseResult | null>(null);
+
   // Check against the library on mount. Costs zero database reads — it resolves
   // from the published snapshot — so there's no reason to make the user ask.
   const check = async () => {
@@ -111,6 +129,57 @@ export function ManualInput() {
     setFocusKey(row.key); // so you can keep typing without reaching for the mouse
   };
 
+  /**
+   * Turn pasted spreadsheet text into rows.
+   *
+   * Appends rather than replaces, so a second paste extends the batch instead of
+   * discarding the first — but drops the untouched blank scaffolding rows first,
+   * otherwise every paste leaves three empty rows stranded in the middle.
+   *
+   * Name and type come from the same `deriveAssetName` / `detectType` pair the
+   * typed path uses. That is the point of routing through them rather than
+   * re-deriving here: a pasted row and a typed row must be indistinguishable once
+   * they are in the form, or the two paths drift and only one of them stays right.
+   */
+  const applyPaste = () => {
+    const result = parsePastedAssets(pasteText);
+    setLastPaste(result);
+
+    if (result.rows.length === 0) {
+      toast.error("Nothing to read in that paste", {
+        description:
+          "Each line needs a filename and a link starting with http, separated by a tab or a comma.",
+      });
+      return;
+    }
+
+    const pasted: Row[] = result.rows.map((r) => {
+      const nama_file = cleanFilename(r.nama_file);
+      return {
+        key: `r${++rowSeq}`,
+        nama_file,
+        url_lightroom: r.url_lightroom,
+        asset_name: deriveAssetName(nama_file),
+        nameEdited: false,
+        type: detectType(nama_file),
+        typeEdited: false,
+      };
+    });
+
+    setRows((prev) => {
+      const kept = prev.filter((r) => r.nama_file.trim() || r.url_lightroom.trim());
+      return [...kept, ...pasted];
+    });
+    setPasteText("");
+
+    toast.success(`${pasted.length} row${pasted.length === 1 ? "" : "s"} read from the paste`, {
+      description:
+        result.duplicateUrls.length > 0
+          ? "One or more links are used by more than one filename — check the warning below before saving."
+          : "Names and types filled in automatically. Everything stays editable.",
+    });
+  };
+
   const removeRow = (key: string) =>
     setRows((prev) => (prev.length === 1 ? [blankRow()] : prev.filter((r) => r.key !== key)));
 
@@ -139,6 +208,46 @@ export function ManualInput() {
       return existingIndex.get(name) !== url ? "replaced" : "unchanged";
     };
   }, [filledRows, existingIndex]);
+
+  /**
+   * Links claimed by more than one filename in this form.
+   *
+   * A link used twice under two names imports without complaint and looks correct
+   * in the grid, because both entries resolve to a real image — the wrong one for
+   * one of them. It comes from a copy-paste slip in the source sheet and stays
+   * invisible unless something goes looking, so this counts names per URL rather
+   * than URLs per name.
+   *
+   * Deliberately kept OUT of RowStatus. Status decides what gets written, and a
+   * shared link is not a reason to refuse to write: the same artwork does
+   * legitimately serve two names sometimes, and only the person pasting knows
+   * which case this is. Folding it into the status enum would have quietly made
+   * those rows unsavable.
+   */
+  const sharedLinkUrls = useMemo(() => {
+    const namesPerUrl = new Map<string, Set<string>>();
+    filledRows.forEach((r) => {
+      const url = r.url_lightroom.trim();
+      const name = r.nama_file.trim().toLowerCase();
+      if (!url || !name) return;
+      const set = namesPerUrl.get(url) ?? new Set<string>();
+      set.add(name);
+      namesPerUrl.set(url, set);
+    });
+    return new Set(
+      [...namesPerUrl.entries()].filter(([, names]) => names.size > 1).map(([url]) => url)
+    );
+  }, [filledRows]);
+
+  const sharedLinkGroups = useMemo(() => {
+    const groups = new Map<string, string[]>();
+    filledRows.forEach((r) => {
+      const url = r.url_lightroom.trim();
+      if (!sharedLinkUrls.has(url)) return;
+      groups.set(url, [...(groups.get(url) ?? []), r.nama_file.trim()]);
+    });
+    return [...groups.entries()];
+  }, [filledRows, sharedLinkUrls]);
 
   const counts = useMemo(() => {
     const c = { new: 0, replaced: 0, unchanged: 0, incomplete: 0, duplicate: 0, unknown: 0 };
@@ -224,9 +333,10 @@ export function ManualInput() {
             Manual Input
           </CardTitle>
           <CardDescription>
-            Add a few assets without making a CSV. Type a filename and the name and type fill
-            themselves in — both stay editable. Saving uses the same import as Upload CSV, so
-            duplicates and changed links behave identically.
+            Add a few assets without making a CSV. Type a filename — or paste the filename and
+            link columns straight out of a spreadsheet — and the name and type fill themselves in,
+            both still editable. Saving uses the same import as Upload CSV, so duplicates and
+            changed links behave identically.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -248,6 +358,94 @@ export function ManualInput() {
               <Search className="mr-1.5 h-3.5 w-3.5" />
               Re-check
             </Button>
+          </div>
+
+          {/*
+            Paste from a spreadsheet.
+
+            Closed by default and folded into this tab rather than given a menu
+            entry of its own: it produces exactly the rows below it, so it is a
+            faster way to fill this form, not a separate operation. A second
+            Superuser menu item would have implied otherwise.
+          */}
+          <div className="rounded-[8px] border">
+            <button
+              type="button"
+              onClick={() => setPasteOpen((o) => !o)}
+              className="flex w-full items-center gap-2 p-3 text-left text-sm font-medium hover:bg-muted/50"
+            >
+              <Copy className="h-4 w-4 text-muted-foreground" />
+              Paste from a spreadsheet
+              <span className="font-normal text-muted-foreground">— filename and link columns</span>
+              {pasteOpen ? (
+                <ChevronUp className="ml-auto h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground" />
+              )}
+            </button>
+
+            {pasteOpen && (
+              <div className="space-y-3 border-t p-3">
+                <p className="text-xs text-muted-foreground">
+                  Copy the filename and link columns straight out of Sheets, Numbers or the
+                  Appwrite console and paste them here. Title and header lines above the data are
+                  ignored, and the columns can be in either order — whichever cell starts with
+                  <code className="mx-1">http</code>is treated as the link.
+                </p>
+
+                <Textarea
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                  rows={6}
+                  spellCheck={false}
+                  placeholder={
+                    "ot_bt_cc_hero_card.png\thttps://s-light.tiket.photos/…\not_bt_cc_hero_travel.png\thttps://s-light.tiket.photos/…"
+                  }
+                  className="font-mono text-xs"
+                />
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" onClick={applyPaste} disabled={!pasteText.trim()}>
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    Add as rows
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setPasteText("");
+                      setLastPaste(null);
+                    }}
+                    disabled={!pasteText.trim() && !lastPaste}
+                  >
+                    Clear
+                  </Button>
+                </div>
+
+                {lastPaste && (
+                  <div className="space-y-1.5 text-xs text-muted-foreground">
+                    <p>
+                      Read {lastPaste.rows.length} row
+                      {lastPaste.rows.length === 1 ? "" : "s"}
+                      {lastPaste.ignored.length > 0 &&
+                        ` · skipped ${lastPaste.ignored.length} header or title line${
+                          lastPaste.ignored.length === 1 ? "" : "s"
+                        }`}
+                    </p>
+                    {lastPaste.incomplete.length > 0 && (
+                      <p className="text-[var(--pp-text-alert)]">
+                        {lastPaste.incomplete.length} line
+                        {lastPaste.incomplete.length === 1 ? "" : "s"} had a filename or a link but
+                        not both, and {lastPaste.incomplete.length === 1 ? "was" : "were"} left out
+                        {lastPaste.incomplete.length <= 5 &&
+                          ` (line ${lastPaste.incomplete.map((i) => i.line).join(", ")})`}
+                        .
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Rows */}
@@ -323,6 +521,14 @@ export function ManualInput() {
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground lg:hidden">Status</span>
                   <StatusBadge row={row} />
+                  {sharedLinkUrls.has(row.url_lightroom.trim()) && (
+                    <span
+                      className="text-[var(--pp-text-alert)]"
+                      title="Another row uses this exact link under a different filename"
+                    >
+                      <AlertCircle className="h-3.5 w-3.5" />
+                    </span>
+                  )}
                 </div>
 
                 <Button
@@ -363,6 +569,25 @@ export function ManualInput() {
               <AlertDescription className="text-sm">
                 Two or more rows have the same <code>nama_file</code>. Saving them would create
                 duplicate entries in the library — remove or rename one before saving.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {sharedLinkGroups.length > 0 && (
+            <Alert className="border-transparent bg-[var(--pp-bg-orange-low)]">
+              <AlertCircle className="h-4 w-4 text-[var(--pp-text-alert)]" />
+              <AlertDescription className="space-y-1.5 text-sm">
+                <p>
+                  {sharedLinkGroups.length === 1 ? "One link is" : `${sharedLinkGroups.length} links are`}{" "}
+                  used by more than one filename. Both entries will save and both will display —
+                  showing the same artwork. If that is not deliberate, one of these links was
+                  copied into the wrong cell.
+                </p>
+                <ul className="list-inside list-disc text-xs text-muted-foreground">
+                  {sharedLinkGroups.map(([url, names]) => (
+                    <li key={url}>{names.join(" and ")}</li>
+                  ))}
+                </ul>
               </AlertDescription>
             </Alert>
           )}
