@@ -39,9 +39,6 @@ export function AboutModal({ isOpen, onClose }: AboutModalProps) {
         <DialogTitle className="sr-only">About GILI</DialogTitle>
         <DialogDescription className="sr-only">
           GILI version {APP_VERSION}, crafted and developed with JOY.
-          {/* The visible line carries a ✶ after JOY. Left out here on purpose:
-              a screen reader announces it as "black six pointed star", which is
-              noise in the middle of a sentence. */}
         </DialogDescription>
 
         {/* 3:2 artwork, uploaded via Superuser → About Image.
@@ -58,12 +55,7 @@ export function AboutModal({ isOpen, onClose }: AboutModalProps) {
         )}
 
         <div className="px-6 py-5 text-center">
-          <p className="text-sm text-muted-foreground">
-            Crafted &amp; developed with JOY{" "}
-            {/* aria-hidden so the sentence reads cleanly aloud — see the
-                DialogDescription above, which carries the spoken version. */}
-            <span aria-hidden="true">✶</span>
-          </p>
+          <p className="text-sm text-muted-foreground">Crafted &amp; developed with JOY ✶</p>
           <p className="mt-1 text-xs text-muted-foreground/70">GILI v{APP_VERSION}</p>
         </div>
       </DialogContent>

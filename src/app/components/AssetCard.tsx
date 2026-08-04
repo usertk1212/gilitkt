@@ -17,7 +17,6 @@ import { copyWithFeedback } from "../utils/clipboard";
 import { ProjectDropdownContent } from "./ProjectDropdownContent";
 import { ManageProjectDialog } from "./ManageProjectDialog";
 import { extractTags, tagChipClasses, tagChipTitle } from "./helpers/assetHelpers";
-import { runDownload } from "./helpers/runDownload";
 import { getAssetTypeLabel } from "./constants/projectConstants";
 import { Check, Copy, Download, Edit, Eye, FolderPlus, MoreHorizontal, Plus, Share, Trash2 } from "./icons";
 
@@ -169,7 +168,34 @@ function AssetCardImpl({
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    await runDownload(asset, toast);
+    
+    try {
+      // Show loading toast
+      toast.info("Starting download...", {
+        description: `Downloading "${asset.asset_name}"`,
+      });
+
+      // Create a link element and trigger download
+      const link = document.createElement('a');
+      link.href = asset.url_lightroom;
+      link.download = asset.nama_file || asset.asset_name;
+      link.target = '_blank';
+      
+      // Trigger the download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Show success toast
+      toast.success("Download started!", {
+        description: `"${asset.asset_name}" is being downloaded.`,
+      });
+    } catch (error) {
+      console.error('Download failed:', error);
+      toast.error("Download failed", {
+        description: "Could not download the asset. Please try again.",
+      });
+    }
   };
 
   const tags = extractTags(asset);
