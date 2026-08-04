@@ -2,7 +2,7 @@
 
 Asset management dashboard for organizing illustration assets.
 
-**Version:** 1.0.52
+**Version:** 1.0.53
 
 ## ✨ Features
 
@@ -14,7 +14,7 @@ Asset management dashboard for organizing illustration assets.
 - Grid/List view with adjustable card size (4–10 columns)
 - Pagination at 50 assets per page; a fixed bottom pager on mobile that is visible without scrolling, plus a full pager with First/Last and jump-to-page at the end of the grid
 - Create projects and organize assets into collections
-- Asset detail panel (preview, metadata, tags, Source link that opens the asset in Lightroom, copy link, Add to Project) — a bottom sheet with swipe-to-dismiss on mobile, a right-side panel on desktop
+- Asset detail panel (preview, metadata, tags, Source link that opens the asset in Lightroom, copy link, Download, Add to Project) — a bottom sheet with swipe-to-dismiss on mobile, a right-side panel on desktop
 - GILI brand mark in the mobile header, which also opens the About dialog
 - Fullscreen image zoom — scroll to zoom, drag to pan, double-click for 2x, Esc to close
 - Click a filename to copy it
@@ -73,6 +73,12 @@ npm run dev
 ```
 
 ## 📝 Changelog
+
+### 1.0.53
+- **Download now saves the file instead of opening Lightroom in a tab.** Not intended behaviour — a browser rule. The `<a download>` attribute is IGNORED for cross-origin URLs, and the assets are on `s-light.tiket.photos` while the app is on Vercel, so the attribute was always discarded and the click degraded to navigation; `target="_blank"` then made sure it opened in a tab. Now fetches the bytes and downloads them through a same-origin `blob:` URL, where `download` does apply
+- **This depends on the asset CDN allowing cross-origin reads.** If `s-light.tiket.photos` does not send `Access-Control-Allow-Origin`, no client-side code can produce a true download. In that case it falls back to opening the image and *says so* — "Opened in a new tab", with instructions to save from there — rather than claiming "Download started!" for a file that was never written, which is what the old code did on every single click
+- **Download is now in the asset detail panel.** The card's Preview/Download overlay is `hidden lg:flex` and also suppressed at 7+ columns, so on a phone or a dense grid there was no way to download an asset *anywhere* in the app: the card hid the control and the panel never had one. Both entry points now share one download path, so they cannot disagree about what happened
+- About dialog reads "Crafted & developed with JOY ✶". The star is `aria-hidden` — a screen reader would otherwise announce "black six pointed star" mid-sentence
 
 ### 1.0.52
 - **The project kebab menu is now reachable on mobile.** It was `opacity-0 group-hover:opacity-100`, and it is the only entry point to Rename, Export to CSV, Export to TXT and Delete Project — so on a phone all four were unreachable, not just hidden

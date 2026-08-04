@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useIsMobile } from "./ui/use-mobile";
-import { X, Copy, Check, Plus, Link, ZoomIn, ArrowRight } from "./icons";
+import { X, Copy, Check, Plus, Link, ZoomIn, ArrowRight, Download } from "./icons";
 import { ImageZoomModal } from "./ImageZoomModal";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -11,6 +11,7 @@ import { type Asset } from "../utils/appwriteApi";
 import { toast } from "sonner";
 import { copyWithFeedback } from "../utils/clipboard";
 import { extractTags, tagChipClasses, tagChipTitle } from "./helpers/assetHelpers";
+import { runDownload } from "./helpers/runDownload";
 
 interface AssetDetailPanelProps {
   asset: Asset;
@@ -335,17 +336,34 @@ export function AssetDetailPanel({
             </div>
           </div>
 
-          {/* Single full-width action. "Edit File Details" used to sit next to
-              this — it only fired a "coming soon" toast, and the two-button row
-              was what overflowed the panel edge. */}
-          <Button
-            onClick={() => onAssetOrganize?.(asset)}
-            className="h-9 w-full rounded-lg text-white"
-            style={{ background: 'var(--pp-bg-blue-high)' }}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add to Project
-          </Button>
+          {/*
+            Two stacked full-width actions.
+
+            Download lives here, not only on the card's hover overlay. That
+            overlay is `hidden lg:flex`, so on a phone or a dense grid there was NO
+            way to download an asset anywhere in the app — the card hid it and this
+            panel never had it. Stacked rather than side by side because a
+            two-button row is what used to overflow this panel's edge.
+          */}
+          <div className="space-y-2">
+            <Button
+              onClick={() => void runDownload(asset, toast)}
+              className="h-9 w-full rounded-lg text-white"
+              style={{ background: 'var(--pp-bg-blue-high)' }}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download
+            </Button>
+
+            <Button
+              variant="secondary"
+              onClick={() => onAssetOrganize?.(asset)}
+              className="h-9 w-full rounded-lg"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add to Project
+            </Button>
+          </div>
         </div>
         </div>
       </div>
