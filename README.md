@@ -2,7 +2,7 @@
 
 Asset management dashboard for organizing illustration assets.
 
-**Version:** 1.0.50
+**Version:** 1.0.51
 
 ## ✨ Features
 
@@ -73,6 +73,12 @@ npm run dev
 ```
 
 ## 📝 Changelog
+
+### 1.0.51
+- **New logo.** Supplied as two files — white wordmark and black wordmark — but they are identical apart from that fill, so this ships as one component with the wordmark on `currentColor`. It follows light/dark mode with no theme check to keep in sync, and the mark can't drift out of step with the wordmark. The 80% opacity the white file carried on its wordmark was treated as an artefact of the export, not a dark-mode treatment; say so if it was deliberate
+- Fixed a latent bug while replacing it: the gradient's `<defs>` id was hardcoded, and the logo renders twice at once (sidebar and dashboard). SVG ids are global, so the second instance was resolving to the first one's gradient — unmounting that one would have left the other's mark unfilled. Now uses `useId()`
+- **Mobile now shows 2 columns instead of 1.** The single column existed because a 2-up grid at 360px left ~160px cards that couldn't fit the card's contents. The real cause was that AssetCard sized its padding, type and controls off `gridColumns` — a *desktop* density setting — so a phone got a card built for a 300px slot. The card now compacts at the base breakpoint and expands at `lg`, which is what made 2 columns viable
+- **Add-to-project now works on mobile.** The button was `opacity-0 group-hover:opacity-100` at every width, and touch screens have no hover — so it was permanently invisible on phones and there was no way to add an asset to a project from the grid at all. Visible by default below `lg`; hover-reveal kept where a pointer exists
 
 ### 1.0.50
 - **Paste a spreadsheet straight into Manual Input.** Copy the filename and link columns out of Sheets, Numbers or the Appwrite console and paste them into the collapsible box at the top of the tab — each line becomes a row with the name and type already filled in. Folded into Manual Input rather than given its own Superuser menu entry, because it produces exactly the rows below it: it is a faster way to fill this form, not a separate operation

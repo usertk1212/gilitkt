@@ -55,7 +55,7 @@ export function AboutModal({ isOpen, onClose }: AboutModalProps) {
         )}
 
         <div className="px-6 py-5 text-center">
-          <p className="text-sm text-muted-foreground">Crafted &amp; developed with JOY ✶</p>
+          <p className="text-sm text-muted-foreground">Crafted &amp; developed with JOY</p>
           <p className="mt-1 text-xs text-muted-foreground/70">GILI v{APP_VERSION}</p>
         </div>
       </DialogContent>

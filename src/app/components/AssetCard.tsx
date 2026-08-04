@@ -219,13 +219,19 @@ function AssetCardImpl({
             e.stopPropagation();
             setIsDropdownOpen(true);
           }}
-          className={viewMode === "grid" 
-            ? `absolute top-2 right-2 ${isSmallCard ? 'p-1 w-6 h-6' : 'p-1.5 w-7 h-7'} opacity-0 group-hover:opacity-100 transition-opacity`
+          /* Hover-reveal on desktop only.
+             This was `opacity-0 group-hover:opacity-100` at every width, and a
+             touch screen has no hover — so on phones and tablets the button was
+             permanently invisible and adding an asset to a project was impossible
+             from the grid. It is always visible below lg for that reason; the
+             hover behaviour is preserved where a pointer actually exists. */
+          className={viewMode === "grid"
+            ? `absolute top-2 right-2 ${isSmallCard ? 'p-1 w-6 h-6' : 'p-1 w-6 h-6 lg:p-1.5 lg:w-7 lg:h-7'} opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100`
             : "p-2"
           }
           title="Manage project assignment"
         >
-          <Plus className={isSmallCard ? "w-3 h-3" : "w-4 h-4"} />
+          <Plus className={isSmallCard ? "w-3 h-3" : "w-3 h-3 lg:w-4 lg:h-4"} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56 max-h-64 overflow-y-auto" sideOffset={2}>
@@ -412,7 +418,7 @@ function AssetCardImpl({
             </div>
           ) : (
             <div className={`w-full h-full flex items-center justify-center ${
-              isSmallCard ? 'p-2' : isMediumCard ? 'p-3' : 'p-4'
+              isSmallCard ? 'p-2' : isMediumCard ? 'p-2 lg:p-3' : 'p-2 lg:p-4'
             }`}>
               <ImageWithFallback
                 src={asset.url_lightroom}
@@ -466,15 +472,26 @@ function AssetCardImpl({
           <ProjectDropdown />
         </div>
 
-        {/* Content - responsive padding */}
-        <div className={isSmallCard ? "p-2" : isMediumCard ? "p-3" : "p-4"}>
+        {/*
+          Content padding, and the whole block below it, compacts at the base
+          breakpoint before the `gridColumns` density is applied at lg.
+
+          `gridColumns` is a DESKTOP setting: `isSmallCard` only becomes true when
+          the user picks 7+ columns. It says nothing about how much room the card
+          actually has, so a phone rendering a 2-up grid used to get a card built
+          for a ~300px desktop slot inside a ~160px one — which is what pushed the
+          copy button outside the card. The `lg:` prefixes below mean the base
+          styles are the compact ones and the roomy desktop values only apply once
+          there is desktop room to apply them in.
+        */}
+        <div className={isSmallCard ? "p-2" : isMediumCard ? "p-2 lg:p-3" : "p-2 lg:p-4"}>
           {/* Title - responsive font size */}
           {/* truncate, not overflow-x-auto. A per-card horizontal scrollbar is
               noise at 50 cards a page, and it hides content behind a gesture
               nobody discovers. Full value stays available via title + the
               detail panel. */}
           <h4 className={`mb-1 truncate font-medium text-foreground ${
-            isSmallCard ? 'text-sm' : 'text-base'
+            isSmallCard ? 'text-sm' : 'text-sm lg:text-base'
           }`} title={asset.asset_name}>
             {asset.asset_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
           </h4>
@@ -482,17 +499,17 @@ function AssetCardImpl({
           {/* Filename — truncated. Hover shows the full name; the detail panel
               wraps it across up to 3 lines when you actually need to read it. */}
           <p className={`truncate text-muted-foreground ${
-            isSmallCard ? 'text-xs mb-2' : 'text-sm mb-3'
+            isSmallCard ? 'text-xs mb-2' : 'text-xs mb-2 lg:text-sm lg:mb-3'
           }`} title={asset.nama_file}>
             {asset.nama_file}
           </p>
 
           {/* URL with copy button - responsive sizing */}
           <div className={`overflow-hidden bg-muted border border-border rounded-lg ${
-            isSmallCard ? 'mb-2' : 'mb-3'
+            isSmallCard ? 'mb-2' : 'mb-2 lg:mb-3'
           }`}>
-            <div className={`flex items-center gap-2 ${
-              isSmallCard ? 'px-2 py-1.5' : 'px-3 py-2'
+            <div className={`flex items-center gap-1 lg:gap-2 ${
+              isSmallCard ? 'px-2 py-1.5' : 'px-2 py-1.5 lg:px-3 lg:py-2'
             }`}>
               {/* min-w-0 + size={1} are load-bearing.
                   A flex item defaults to min-width:auto, and for an <input>
@@ -506,7 +523,7 @@ function AssetCardImpl({
                 value={asset.url_lightroom}
                 readOnly
                 className={`min-w-0 flex-1 text-muted-foreground bg-transparent border-none outline-none cursor-pointer ${
-                  isSmallCard ? 'text-xs' : 'text-sm'
+                  isSmallCard ? 'text-xs' : 'text-xs lg:text-sm'
                 }`}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -520,15 +537,15 @@ function AssetCardImpl({
                   handleCopyClick(asset.url_lightroom);
                 }}
                 className={`shrink-0 p-0 bg-[var(--pp-bg-blue-high)] hover:opacity-90 text-white ${
-                  isSmallCard ? 'h-6 w-6 rounded-sm' : 'h-8 w-8 rounded-md'
+                  isSmallCard ? 'h-6 w-6 rounded-sm' : 'h-6 w-6 rounded-sm lg:h-8 lg:w-8 lg:rounded-md'
                 }`}
                 style={isCopied ? { background: 'var(--pp-bg-green-high)' } : {}}
                 title="Copy link"
               >
                 {isCopied ? (
-                  <Check className={isSmallCard ? "h-3 w-3" : "h-4 w-4"} />
+                  <Check className={isSmallCard ? "h-3 w-3" : "h-3 w-3 lg:h-4 lg:w-4"} />
                 ) : (
-                  <Copy className={isSmallCard ? "h-3 w-3" : "h-4 w-4"} />
+                  <Copy className={isSmallCard ? "h-3 w-3" : "h-3 w-3 lg:h-4 lg:w-4"} />
                 )}
               </Button>
             </div>
@@ -536,17 +553,17 @@ function AssetCardImpl({
 
           {/* Tags - horizontal scroll, show all tags */}
           {tags.length > 0 && (
-            <div className={isSmallCard ? 'mb-1' : 'mb-2'}>
+            <div className={isSmallCard ? 'mb-1' : 'mb-1 lg:mb-2'}>
               {/* Wraps to a single line and clips, rather than scrolling. */}
               <div className={`flex flex-nowrap overflow-hidden ${
-                isSmallCard ? 'gap-1' : 'gap-1.5'
+                isSmallCard ? 'gap-1' : 'gap-1 lg:gap-1.5'
               }`}>
                 {tags.map((tag, index) => (
                   <Badge
                     key={index}
                     variant="secondary"
                     className={`flex-shrink-0 ${tagClasses(tag)} ${
-                      isSmallCard ? 'text-xs px-1.5 py-0.5' : 'text-xs px-2 py-1'
+                      isSmallCard ? 'text-xs px-1.5 py-0.5' : 'text-xs px-1.5 py-0.5 lg:px-2 lg:py-1'
                     }`}
                     onClick={(e) => {
                       e.stopPropagation();
