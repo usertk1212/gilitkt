@@ -2,7 +2,7 @@
 
 Asset management dashboard for organizing illustration assets.
 
-**Version:** 1.0.51
+**Version:** 1.0.52
 
 ## ✨ Features
 
@@ -73,6 +73,11 @@ npm run dev
 ```
 
 ## 📝 Changelog
+
+### 1.0.52
+- **The project kebab menu is now reachable on mobile.** It was `opacity-0 group-hover:opacity-100`, and it is the only entry point to Rename, Export to CSV, Export to TXT and Delete Project — so on a phone all four were unreachable, not just hidden
+- Swept the whole app for the same pattern rather than fixing only the reported one, and found a third: the asset kebab in **Manage Asset**, the only way to Edit or Delete an asset. Also fixed
+- The two remaining hover-reveal elements are deliberately left alone. Both are the type-label pill on a card image — a label, not a control, so hiding it behind hover costs nobody an action. Making them always-visible would put a black pill over every card at every width
 
 ### 1.0.51
 - **New logo.** Supplied as two files — white wordmark and black wordmark — but they are identical apart from that fill, so this ships as one component with the wordmark on `currentColor`. It follows light/dark mode with no theme check to keep in sync, and the mark can't drift out of step with the wordmark. The 80% opacity the white file carried on its wordmark was treated as an artefact of the export, not a dark-mode treatment; say so if it was deliberate

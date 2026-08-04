@@ -292,13 +292,17 @@ export function ProjectManager({
                 className="group hover:shadow-lg transition-all cursor-pointer relative"
                 onClick={() => onSelectProject(project)}
               >
-                {/* Kebab Menu */}
+                {/* Kebab Menu — the only way to rename, export or delete a project.
+                    Hover-reveal below lg would hide it completely on touch, where
+                    there is no hover: Rename, Export and Delete would all be
+                    unreachable on a phone. Always visible there, hover-revealed
+                    only where a pointer exists. */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute top-3 right-3 z-10 p-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white shadow-sm"
+                      className="absolute top-3 right-3 z-10 p-2 bg-white shadow-sm opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100"
                       onClick={(e) => {
                         e.stopPropagation();
                       }}

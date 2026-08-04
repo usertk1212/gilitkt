@@ -398,10 +398,13 @@ export function ManageAsset({ onNavigateBack }: ManageAssetProps) {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
+                {/* Same hover-on-touch trap as the other two kebabs: this is the
+                    only entry point to Edit and Delete for an asset, so on a
+                    phone it has to be visible without a pointer. */}
                 <Button
                   variant="secondary"
                   size="sm"
-                  className="absolute top-2 right-2 p-1.5 w-7 h-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 p-1.5 w-7 h-7 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100"
                 >
                   <MoreHorizontal className="w-4 h-4" />
                 </Button>
