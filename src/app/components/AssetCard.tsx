@@ -18,7 +18,7 @@ import { ProjectDropdownContent } from "./ProjectDropdownContent";
 import { ManageProjectDialog } from "./ManageProjectDialog";
 import { extractTags, tagChipClasses, tagChipTitle } from "./helpers/assetHelpers";
 import { getAssetTypeLabel } from "./constants/projectConstants";
-import { Check, Copy, Download, Edit, Eye, FolderPlus, MoreHorizontal, Plus, Share, Trash2 } from "./icons";
+import { Check, Copy, Edit, Eye, FolderPlus, MoreHorizontal, Plus, Share, Trash2 } from "./icons";
 
 interface AssetCardProps {
   asset: Asset;
@@ -166,37 +166,24 @@ function AssetCardImpl({
     }
   };
 
-  const handleDownload = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    try {
-      // Show loading toast
-      toast.info("Starting download...", {
-        description: `Downloading "${asset.asset_name}"`,
-      });
-
-      // Create a link element and trigger download
-      const link = document.createElement('a');
-      link.href = asset.url_lightroom;
-      link.download = asset.nama_file || asset.asset_name;
-      link.target = '_blank';
-      
-      // Trigger the download
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      // Show success toast
-      toast.success("Download started!", {
-        description: `"${asset.asset_name}" is being downloaded.`,
-      });
-    } catch (error) {
-      console.error('Download failed:', error);
-      toast.error("Download failed", {
-        description: "Could not download the asset. Please try again.",
-      });
-    }
-  };
+  /*
+   * Download was removed here, deliberately.
+   *
+   * It was an `<a download>` click pointed at `asset.url_lightroom`. The
+   * `download` attribute is IGNORED for cross-origin URLs — the assets live on
+   * s-light.tiket.photos while the app is served from Vercel — so the attribute
+   * was always discarded and the click degraded to plain navigation. With
+   * `target="_blank"` on top, it opened Lightroom in a new tab. Every single
+   * time. And it still reported "Download started!", so the failure was silent.
+   *
+   * A working version has to fetch the bytes and hand them over as a same-origin
+   * blob, which needs `Access-Control-Allow-Origin` from the asset CDN. Until
+   * that header exists there is nothing to build, so there is no button.
+   *
+   * The honest path is already in the UI: the detail panel's Source link opens
+   * the asset in Lightroom, where saving actually works. Copy link covers the
+   * rest.
+   */
 
   const tags = extractTags(asset);
 
@@ -353,10 +340,6 @@ function AssetCardImpl({
                           onSelect?.(asset);
                         }}
                       ><Eye className="w-4 h-4 mr-2" />Preview</DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleDownload}>
-                        <Download className="w-4 h-4 mr-2" />
-                        Download
-                      </DropdownMenuItem>
                       <DropdownMenuItem><Share className="w-4 h-4 mr-2" />Share</DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem><Edit className="w-4 h-4 mr-2" />Edit</DropdownMenuItem>
@@ -448,14 +431,6 @@ function AssetCardImpl({
               >
                 <Eye className="w-3 h-3 mr-1" />
                 {!isMediumCard && <span>Preview</span>}
-              </Button>
-              <Button 
-                size="sm" 
-                className="p-1.5 bg-white/90 text-gray-900 hover:bg-white"
-                onClick={handleDownload}
-                title="Download asset"
-              >
-                <Download className="w-3 h-3" />
               </Button>
             </div>
           )}

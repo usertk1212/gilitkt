@@ -2,7 +2,7 @@
 
 Asset management dashboard for organizing illustration assets.
 
-**Version:** 1.0.52
+**Version:** 1.0.54
 
 ## ✨ Features
 
@@ -73,6 +73,13 @@ npm run dev
 ```
 
 ## 📝 Changelog
+
+### 1.0.54
+- **Removed the asset download button.** It never worked. It was an `<a download>` pointed at `asset.url_lightroom`, and the `download` attribute is ignored for cross-origin URLs — the assets are on `s-light.tiket.photos`, the app is on Vercel — so the click always degraded to navigation, and `target="_blank"` opened Lightroom in a tab instead. It reported "Download started!" every time regardless, which is why nobody filed it as a bug
+- Gone from both entry points on the asset card: the hover overlay button and the kebab menu item
+- **"Download" in Manage Asset was relabelled, not removed.** Its entire body was `window.open` — it never downloaded anything either, but opening the source in Lightroom *is* useful, so only the name was wrong. Now reads "Open in Lightroom" with a link icon
+- Every other download in the app is untouched and still works, because they all build the file locally as a same-origin blob: backup `.json`, backup assets `.csv`, project export to CSV and TXT, and the CSV import template
+- A real asset download needs `Access-Control-Allow-Origin` on the asset CDN. No client-side code can work around its absence — the note in `AssetCard.tsx` records what to build once that header exists
 
 ### 1.0.52
 - **The project kebab menu is now reachable on mobile.** It was `opacity-0 group-hover:opacity-100`, and it is the only entry point to Rename, Export to CSV, Export to TXT and Delete Project — so on a phone all four were unreachable, not just hidden

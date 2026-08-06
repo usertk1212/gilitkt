@@ -43,7 +43,7 @@ import { searchAssetList } from '../utils/search';
 import { getAssetTypeLabel } from './constants/projectConstants';
 import { toast } from "sonner";
 import { InlineRename } from './InlineRename';
-import { AlertCircle, CheckCircle, Download, Edit, Filter, Grid3X3, List, Loader2, MoreHorizontal, Search, Trash2 } from "./icons";
+import { AlertCircle, CheckCircle, Edit, Filter, Grid3X3, List, Link, Loader2, MoreHorizontal, Search, Trash2 } from "./icons";
 
 interface ManageAssetProps {
   onNavigateBack: () => void;
@@ -267,8 +267,18 @@ export function ManageAsset({ onNavigateBack }: ManageAssetProps) {
     setAssets((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
   };
 
-  const handleDownloadAsset = (asset: Asset) => {
-    window.open(asset.url_lightroom, '_blank');
+  /**
+   * Open the asset in Lightroom.
+   *
+   * This was labelled "Download" while its entire body was `window.open` — it
+   * never downloaded anything, in any browser, ever. The function is useful, so
+   * only the name was wrong: renamed here and relabelled in both menus.
+   *
+   * A real download is not possible from the client while the asset CDN withholds
+   * `Access-Control-Allow-Origin`; see the note in AssetCard.
+   */
+  const handleOpenInLightroom = (asset: Asset) => {
+    window.open(asset.url_lightroom, '_blank', 'noopener,noreferrer');
   };
 
   const AssetCard = ({ asset }: { asset: Asset }) => {
@@ -332,9 +342,9 @@ export function ManageAsset({ onNavigateBack }: ManageAssetProps) {
                         <Edit className="w-4 h-4 mr-2" />
                         Edit Asset
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDownloadAsset(asset)}>
-                        <Download className="w-4 h-4 mr-2" />
-                        Download
+                      <DropdownMenuItem onClick={() => handleOpenInLightroom(asset)}>
+                        <Link className="w-4 h-4 mr-2" />
+                        Open in Lightroom
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem 
@@ -414,9 +424,9 @@ export function ManageAsset({ onNavigateBack }: ManageAssetProps) {
                   <Edit className="w-4 h-4 mr-2" />
                   Edit Asset
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDownloadAsset(asset)}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Download
+                <DropdownMenuItem onClick={() => handleOpenInLightroom(asset)}>
+                  <Link className="w-4 h-4 mr-2" />
+                  Open in Lightroom
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
