@@ -70,7 +70,14 @@ function ControlPopover({ label, width, children }: ControlPopoverProps) {
         // this p-2 rather than stacking them.
         className={cn("p-2", width)}
       >
-        <GlassMenu>{children(() => setOpen(false))}</GlassMenu>
+        {/*
+          px-0 cancels GlassMenu's own px-2.
+          Two 8px insets were stacking — this shell's p-2 plus GlassMenu's px-2 —
+          so these two chips sat at 16px horizontal while the design draws 8px.
+          Overridden here rather than in GlassMenu because the island and user
+          popovers keep the 16px inset deliberately.
+        */}
+        <GlassMenu className="px-0">{children(() => setOpen(false))}</GlassMenu>
       </PopoverContent>
     </Popover>
   );

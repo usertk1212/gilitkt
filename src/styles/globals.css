@@ -313,8 +313,13 @@ body {
      needs a different surface, the answer is almost certainly that it should
      not — change it here rather than at a call site. */
   background: rgba(24, 25, 27, 0.8);
+  /* Unprefixed only, deliberately.
+     Writing `-webkit-backdrop-filter` by hand here made Lightning CSS keep ONLY
+     the prefixed declaration in the production bundle — the standard property
+     was dropped, so every popover lost its blur in Firefox and the glass read as
+     flat dark grey. The build adds whatever prefixes the browser targets need;
+     hand-prefixing fights it. */
   backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border-radius: 16px;
   color: var(--pp-text-static-white, #fff);
 }

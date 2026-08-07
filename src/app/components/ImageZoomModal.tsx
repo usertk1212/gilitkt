@@ -47,7 +47,11 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 export function ImageZoomModal({
   src,
   alt,
-  caption,
+  // Accepted but not rendered — the label above the zoom controls was removed
+  // because the details panel already shows the filename. Kept in the signature
+  // so the two call sites in AssetDetailPanel need no change, and so the value is
+  // to hand if a future layout wants it.
+  caption: _caption,
   isOpen,
   onClose,
   variant = "fullscreen",
@@ -191,21 +195,17 @@ export function ImageZoomModal({
       onWheel={onWheel}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Filename first, then the controls beneath it. No close button: in the
-          docked layout the panel's X is the only close affordance, and
-          duplicating it here put two of them a few hundred pixels apart. */}
-      {caption && (
-        <div className="absolute left-2 top-2 z-10 max-w-[calc(100%-1rem)] truncate text-sm leading-[1.43] text-[var(--pp-text-static-white)]">
-          {caption}
-        </div>
-      )}
+      {/* The filename label that used to sit above these controls is gone.
+          It duplicated the Name field in the details panel a few hundred pixels
+          to the right, and it collided with the sidebar logo underneath the
+          dimmed overlay. The `caption` prop is still accepted so callers do not
+          need changing, and so the value stays available if it is ever wanted
+          somewhere that is not already showing it.
 
-      <div
-        className={cn(
-          "absolute left-2 z-10 flex w-[172px] items-center gap-1 rounded-lg p-0.5",
-          caption ? "top-9" : "top-2"
-        )}
-      >
+          No close button here either: the panel's X is the only close
+          affordance, and a second one this far from it read as a different
+          action. */}
+      <div className="absolute left-2 top-2 z-10 flex w-[172px] items-center gap-1 rounded-lg p-0.5">
         <button
           type="button"
           onClick={() => applyZoom(zoom - STEP)}
@@ -279,9 +279,11 @@ export function ImageZoomModal({
         />
       </div>
 
-      {/* Hint row, 34px off the bottom edge and centred on the stage. Hidden on
-          narrow stages, where it wraps to three lines and eats the image. */}
-      <div className="absolute bottom-[34px] left-1/2 hidden -translate-x-1/2 items-center gap-2 whitespace-nowrap text-base leading-[1.38] text-[var(--pp-text-static-white)] xl:flex">
+      {/* Hint row, 16px off the bottom edge and centred on the stage.
+          `env(safe-area-inset-bottom)` is added on top so the row clears the home
+          indicator on iOS rather than sitting under it. Hidden on narrow stages,
+          where it wraps to three lines and eats the image. */}
+      <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 hidden -translate-x-1/2 items-center gap-2 whitespace-nowrap text-base leading-[1.38] text-[var(--pp-text-static-white)] xl:flex">
         <InfoCircle className="size-5 shrink-0" />
         Scroll or pinch to zoom • Drag to pan • Double click to zoom 2x • Esc to close
       </div>
