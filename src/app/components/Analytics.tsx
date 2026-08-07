@@ -4,6 +4,7 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Asset, getAllAssets, getAssetCounts } from '../utils/appwriteApi';
+import { assetKey } from '../utils/assetNaming';
 import { AlertTriangle, Layers, Package, Palette, RefreshCw, Image as ImageIcon, Sparkles } from "./icons";
 
 interface AnalyticsProps {
@@ -78,13 +79,18 @@ export function computeAnalytics(assets: Asset[]) {
 
   // Data-hygiene checks that matter for a library fed by CSV imports.
   const missingLink = assets.filter((a) => !a.url_lightroom?.trim()).length;
+  // Duplicates are counted case-insensitively, via assetKey().
+  //
+  // Comparing exactly meant `Halim.png` and `halim.png` were reported as two
+  // healthy assets — which is precisely the pair this panel exists to surface,
+  // since the import that created them thought they were unrelated too.
   const seen = new Set<string>();
   const duplicates = new Set<string>();
   assets.forEach((a) => {
-    const name = a.nama_file?.trim();
-    if (!name) return;
-    if (seen.has(name)) duplicates.add(name);
-    seen.add(name);
+    const key = assetKey(a.nama_file);
+    if (!key) return;
+    if (seen.has(key)) duplicates.add(key);
+    seen.add(key);
   });
 
   const timestamps = assets

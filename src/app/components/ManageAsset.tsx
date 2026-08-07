@@ -43,7 +43,7 @@ import { searchAssetList } from '../utils/search';
 import { getAssetTypeLabel } from './constants/projectConstants';
 import { toast } from "sonner";
 import { InlineRename } from './InlineRename';
-import { AlertCircle, CheckCircle, Edit, Filter, Grid3X3, List, Link, Loader2, MoreHorizontal, Search, Trash2 } from "./icons";
+import { AlertCircle, CheckCircle, Edit, Filter, Grid3X3, Link, List, Loader2, MoreHorizontal, Search, Trash2 } from "./icons";
 
 interface ManageAssetProps {
   onNavigateBack: () => void;
@@ -271,11 +271,9 @@ export function ManageAsset({ onNavigateBack }: ManageAssetProps) {
    * Open the asset in Lightroom.
    *
    * This was labelled "Download" while its entire body was `window.open` — it
-   * never downloaded anything, in any browser, ever. The function is useful, so
-   * only the name was wrong: renamed here and relabelled in both menus.
-   *
-   * A real download is not possible from the client while the asset CDN withholds
-   * `Access-Control-Allow-Origin`; see the note in AssetCard.
+   * never downloaded anything, in any browser. The action is useful, so only the
+   * name was wrong. See the note in AssetCard for why a real download is not
+   * possible from the client.
    */
   const handleOpenInLightroom = (asset: Asset) => {
     window.open(asset.url_lightroom, '_blank', 'noopener,noreferrer');

@@ -47,6 +47,33 @@ export function detectType(filename: string): string {
   return normalizeType(generateTypeFromFilename((filename || '').trim()));
 }
 
+/**
+ * The canonical key for matching one filename against another.
+ *
+ * ── WHY THIS EXISTS ────────────────────────────────────────────────────────────
+ * Every filename comparison used the raw string, so `Halim.png` and `halim.png`
+ * were two different assets. The consequences were silent and all bad:
+ *
+ *   - The database check graded a re-upload as "New" rather than "Replaced", so
+ *     the link was never replaced and the asset kept pointing at the retired file.
+ *   - The import then CREATED a second row, leaving two entries for one artwork,
+ *     each with a different link, with nothing to say which was current.
+ *   - The in-batch duplicate guard missed it too, so a CSV carrying both
+ *     spellings imported both without complaint.
+ *
+ * Casing carries no meaning here. Lightroom exports, spreadsheets and hand-typed
+ * rows disagree about it constantly, and nobody intends `Halim` and `halim` to be
+ * separate artwork.
+ *
+ * USE FOR LOOKUPS ONLY — never store it. `nama_file` keeps whatever casing it was
+ * created with, because that is the string people copy, paste and search for.
+ * Rewriting stored filenames to lowercase would silently rename thousands of
+ * assets, which is a far bigger change than fixing a comparison.
+ */
+export function assetKey(filename: string | undefined | null): string {
+  return (filename || '').trim().toLowerCase();
+}
+
 /** Strip whitespace and a leading/trailing quote people paste in by accident. */
 export function cleanFilename(value: string): string {
   return (value || '').trim().replace(/^["']|["']$/g, '');

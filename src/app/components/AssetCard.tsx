@@ -167,22 +167,20 @@ function AssetCardImpl({
   };
 
   /*
-   * Download was removed here, deliberately.
+   * Download was removed in 1.0.54, from here and from the detail panel.
    *
-   * It was an `<a download>` click pointed at `asset.url_lightroom`. The
-   * `download` attribute is IGNORED for cross-origin URLs — the assets live on
-   * s-light.tiket.photos while the app is served from Vercel — so the attribute
-   * was always discarded and the click degraded to plain navigation. With
-   * `target="_blank"` on top, it opened Lightroom in a new tab. Every single
-   * time. And it still reported "Download started!", so the failure was silent.
+   * Two attempts, both dead ends. The original was an `<a download>` pointed at
+   * `asset.url_lightroom`; the `download` attribute is IGNORED cross-origin, so
+   * it degraded to navigation and opened Lightroom in a tab while reporting
+   * "Download started!". The replacement fetched the bytes to hand them over as a
+   * same-origin blob, which is correct in principle but requires
+   * `Access-Control-Allow-Origin` from s-light.tiket.photos. That header does not
+   * exist, so the fetch is blocked and the code fell back to opening a tab too.
    *
-   * A working version has to fetch the bytes and hand them over as a same-origin
-   * blob, which needs `Access-Control-Allow-Origin` from the asset CDN. Until
-   * that header exists there is nothing to build, so there is no button.
-   *
-   * The honest path is already in the UI: the detail panel's Source link opens
-   * the asset in Lightroom, where saving actually works. Copy link covers the
-   * rest.
+   * There is no third approach that lives in the client. Until the CDN sends the
+   * header — or the app proxies the file through its own origin — there is
+   * nothing to build, so there is no button. The Source link in the detail panel
+   * opens the asset in Lightroom, which is where saving actually works.
    */
 
   const tags = extractTags(asset);

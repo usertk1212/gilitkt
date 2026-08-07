@@ -335,9 +335,18 @@ export function AssetDetailPanel({
             </div>
           </div>
 
-          {/* Single full-width action. "Edit File Details" used to sit next to
-              this — it only fired a "coming soon" toast, and the two-button row
-              was what overflowed the panel edge. */}
+          {/*
+            Single full-width action.
+
+            A Download button sat above this one until 1.0.54. It could not work:
+            it fetched the asset from s-light.tiket.photos, a different origin,
+            and without `Access-Control-Allow-Origin` from that CDN the browser
+            blocks the read. Saving to the device is impossible from here until
+            that header exists.
+
+            The Source link above — the one that opens the asset in Lightroom — is
+            the working path, and Copy link covers the rest.
+          */}
           <Button
             onClick={() => onAssetOrganize?.(asset)}
             className="h-9 w-full rounded-lg text-white"

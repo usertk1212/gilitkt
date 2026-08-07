@@ -14,7 +14,7 @@ Asset management dashboard for organizing illustration assets.
 - Grid/List view with adjustable card size (4–10 columns)
 - Pagination at 50 assets per page; a fixed bottom pager on mobile that is visible without scrolling, plus a full pager with First/Last and jump-to-page at the end of the grid
 - Create projects and organize assets into collections
-- Asset detail panel (preview, metadata, tags, Source link that opens the asset in Lightroom, copy link, Add to Project) — a bottom sheet with swipe-to-dismiss on mobile, a right-side panel on desktop
+- Asset detail panel (preview, metadata, tags, Source link that opens the asset in Lightroom, copy link, Download, Add to Project) — a bottom sheet with swipe-to-dismiss on mobile, a right-side panel on desktop
 - GILI brand mark in the mobile header, which also opens the About dialog
 - Fullscreen image zoom — scroll to zoom, drag to pan, double-click for 2x, Esc to close
 - Click a filename to copy it
@@ -75,11 +75,19 @@ npm run dev
 ## 📝 Changelog
 
 ### 1.0.54
-- **Removed the asset download button.** It never worked. It was an `<a download>` pointed at `asset.url_lightroom`, and the `download` attribute is ignored for cross-origin URLs — the assets are on `s-light.tiket.photos`, the app is on Vercel — so the click always degraded to navigation, and `target="_blank"` opened Lightroom in a tab instead. It reported "Download started!" every time regardless, which is why nobody filed it as a bug
-- Gone from both entry points on the asset card: the hover overlay button and the kebab menu item
-- **"Download" in Manage Asset was relabelled, not removed.** Its entire body was `window.open` — it never downloaded anything either, but opening the source in Lightroom *is* useful, so only the name was wrong. Now reads "Open in Lightroom" with a link icon
-- Every other download in the app is untouched and still works, because they all build the file locally as a same-origin blob: backup `.json`, backup assets `.csv`, project export to CSV and TXT, and the CSV import template
-- A real asset download needs `Access-Control-Allow-Origin` on the asset CDN. No client-side code can work around its absence — the note in `AssetCard.tsx` records what to build once that header exists
+- **Filenames now match case-insensitively.** `Halim.png` and `halim.png` are one asset, not two. Comparisons used the raw string everywhere, so a re-upload spelled with different capitalisation was graded **New** instead of **Replaced** — the link was never replaced, the old artwork stayed live, and the import created a **second row** for the same asset with no way to tell which was current. The in-batch duplicate guard missed it too, so a CSV carrying both spellings imported both without complaint
+- One `assetKey()` helper is now the single definition of "same filename", used by the database checker, Manual Input, the CSV viewer, the import engine's existing-row lookup and its in-batch duplicate guard, and the Analytics duplicate check — which was itself reporting case-variant duplicates as two healthy assets
+- **Stored filenames are untouched.** `assetKey()` is for lookups only; `nama_file` keeps whatever casing it was created with, because it is the string people copy, paste and search for. Normalising it would silently rename thousands of assets
+- Assets already duplicated by casing resolve deterministically — first row wins — and are logged, rather than depending on list order. Analytics now counts them so they can be cleaned up
+- **Removed the asset download entirely**, from the card overlay, the card kebab and the detail panel, along with `utils/download.ts` and `helpers/runDownload.ts`. Two implementations, both dead ends: `<a download>` is ignored cross-origin, and the fetch-to-blob replacement needs `Access-Control-Allow-Origin` from `s-light.tiket.photos`, which is not sent. No client-side approach can work until that header exists or the app proxies the file through its own origin
+- **"Download" in Manage Asset was relabelled, not removed** — its entire body was `window.open`, so it never downloaded anything either. Now reads "Open in Lightroom"
+- Every blob-based download still works and is untouched: backup `.json`, backup assets `.csv`, project export to CSV and TXT, and the CSV import template
+
+### 1.0.53
+- **Download now saves the file instead of opening Lightroom in a tab.** Not intended behaviour — a browser rule. The `<a download>` attribute is IGNORED for cross-origin URLs, and the assets are on `s-light.tiket.photos` while the app is on Vercel, so the attribute was always discarded and the click degraded to navigation; `target="_blank"` then made sure it opened in a tab. Now fetches the bytes and downloads them through a same-origin `blob:` URL, where `download` does apply
+- **This depends on the asset CDN allowing cross-origin reads.** If `s-light.tiket.photos` does not send `Access-Control-Allow-Origin`, no client-side code can produce a true download. In that case it falls back to opening the image and *says so* — "Opened in a new tab", with instructions to save from there — rather than claiming "Download started!" for a file that was never written, which is what the old code did on every single click
+- **Download is now in the asset detail panel.** The card's Preview/Download overlay is `hidden lg:flex` and also suppressed at 7+ columns, so on a phone or a dense grid there was no way to download an asset *anywhere* in the app: the card hid the control and the panel never had one. Both entry points now share one download path, so they cannot disagree about what happened
+- About dialog reads "Crafted & developed with JOY ✶". The star is `aria-hidden` — a screen reader would otherwise announce "black six pointed star" mid-sentence
 
 ### 1.0.52
 - **The project kebab menu is now reachable on mobile.** It was `opacity-0 group-hover:opacity-100`, and it is the only entry point to Rename, Export to CSV, Export to TXT and Delete Project — so on a phone all four were unreachable, not just hidden

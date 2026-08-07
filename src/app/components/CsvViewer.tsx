@@ -14,6 +14,7 @@ import {
 } from "./icons";
 import { parseCSV, ParsedAsset } from "../utils/csvParser";
 import { getExistingAssetIndex } from "../utils/appwriteApi";
+import { assetKey } from "../utils/assetNaming";
 import { useUploadJob } from "../context/UploadJobContext";
 import { copyWithFeedback } from "../utils/clipboard";
 import { toast } from "sonner";
@@ -112,8 +113,12 @@ custom_graphic.png,https://example.com/image4.jpg,Supergraphic`;
     const row = parsedAssets[rowNo - 1];
     const name = row?.nama_file?.trim();
     if (!name) return "unknown";
-    if (!existingIndex.has(name)) return "new";
-    const storedUrl = existingIndex.get(name) ?? "";
+    // assetKey(), not the raw name — see assetNaming. Comparing exactly meant a
+    // re-upload spelled `Halim.png` against a stored `halim.png` was graded New,
+    // so its link was never replaced and the import duplicated the asset.
+    const key = assetKey(name);
+    if (!existingIndex.has(key)) return "new";
+    const storedUrl = existingIndex.get(key) ?? "";
     const incomingUrl = row?.url_lightroom?.trim() ?? "";
     // Lightroom issues a fresh URL per upload, so a changed link means the file
     // itself was replaced. An identical link means nothing to do.

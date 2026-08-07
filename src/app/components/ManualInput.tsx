@@ -25,6 +25,7 @@ import {
   deriveAssetName,
   detectType,
   cleanFilename,
+  assetKey,
 } from "../utils/assetNaming";
 import { parsePastedAssets, type PasteParseResult } from "../utils/pasteParser";
 import { toast } from "sonner";
@@ -192,7 +193,7 @@ export function ManualInput() {
   const statusOf = useMemo(() => {
     const seen = new Map<string, number>();
     filledRows.forEach((r) => {
-      const n = r.nama_file.trim().toLowerCase();
+      const n = assetKey(r.nama_file);
       if (n) seen.set(n, (seen.get(n) ?? 0) + 1);
     });
 
@@ -202,10 +203,14 @@ export function ManualInput() {
       if (!name || !url) return "incomplete";
       // Two rows in this form claiming the same filename — the second would
       // silently overwrite the first, so flag it before saving rather than after.
-      if ((seen.get(name.toLowerCase()) ?? 0) > 1) return "duplicate";
+      if ((seen.get(assetKey(name)) ?? 0) > 1) return "duplicate";
       if (!existingIndex) return "unknown";
-      if (!existingIndex.has(name)) return "new";
-      return existingIndex.get(name) !== url ? "replaced" : "unchanged";
+      // assetKey(), not the raw name: the library may hold `Halim.png` while you
+      // typed `halim.png`. Matching exactly graded that as New, so the link was
+      // never replaced and the import created a second row for one artwork.
+      const key = assetKey(name);
+      if (!existingIndex.has(key)) return "new";
+      return existingIndex.get(key) !== url ? "replaced" : "unchanged";
     };
   }, [filledRows, existingIndex]);
 

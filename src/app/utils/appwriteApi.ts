@@ -121,6 +121,7 @@ export async function initializeAssetSystem(): Promise<ApiResponse<any>> {
 // Unchanged libraries cost a single small request instead of forty-five.
 import { countReads } from './readBudget';
 import { getSnapshotInfo, downloadSnapshot, publishSnapshot } from './librarySnapshot';
+import { assetKey } from './assetNaming';
 import { searchAssetList } from './search';
 import {
   readCachedAssets,
@@ -630,10 +631,28 @@ export async function getExistingAssetIndex(
   if (!res.success || !res.data) {
     return { success: false, error: res.error || 'Failed to read existing assets' };
   }
+  // Keyed by assetKey(), not by the raw filename, so `Halim.png` in the library
+  // matches `halim.png` in a CSV. See assetKey() for why casing carries no
+  // meaning here and why the STORED filename is left alone.
   const index = new Map<string, string>();
+  const caseDupes: string[] = [];
   res.data.forEach((a) => {
-    if (a.nama_file) index.set(a.nama_file, a.url_lightroom ?? '');
+    if (!a.nama_file) return;
+    const key = assetKey(a.nama_file);
+    // Two rows differing only by case means the library already holds a
+    // case-variant duplicate, created back when comparisons were exact. First
+    // wins deterministically rather than whichever happened to come last.
+    if (index.has(key)) {
+      caseDupes.push(a.nama_file);
+      return;
+    }
+    index.set(key, a.url_lightroom ?? '');
   });
+  if (caseDupes.length > 0) {
+    console.warn(
+      `\u26a0\ufe0f ${caseDupes.length} asset(s) differ from another only by capitalisation, so the library holds two rows for one artwork: ${caseDupes.slice(0, 10).join(', ')}${caseDupes.length > 10 ? '\u2026' : ''}`
+    );
+  }
   onProgress?.(index.size);
   return { success: true, data: index, count: index.size };
 }
@@ -698,7 +717,14 @@ export async function bulkCreateAssets(
     return { success: false, error: `Failed to check existing assets before import: ${before.error ?? 'unknown error'}` };
   }
   const existingAssets = before.data;
-  existingAssets.forEach((a) => existingByFilename.set(a.nama_file, { id: a.id, url_lightroom: a.url_lightroom }));
+  // Keyed by assetKey() so a re-upload spelled with different capitalisation
+  // updates the existing row instead of creating a second one.
+  existingAssets.forEach((a) => {
+    const key = assetKey(a.nama_file);
+    if (!existingByFilename.has(key)) {
+      existingByFilename.set(key, { id: a.id, url_lightroom: a.url_lightroom });
+    }
+  });
   console.log(`📋 Found ${existingByFilename.size} assets already in the library (source: ${before.source}).`);
 
   const DELAY_MS = 80; // pace requests to stay under Appwrite Cloud's rate limit
@@ -744,15 +770,18 @@ export async function bulkCreateAssets(
       onProgress?.(processed, total);
       continue;
     }
-    if (seenFilenames.has(filename)) {
+    // Case-insensitive, so a CSV holding both `Halim.png` and `halim.png` is
+    // caught as the duplicate it is instead of importing the artwork twice.
+    const key = assetKey(filename);
+    if (seenFilenames.has(key)) {
       errors.push(`Duplicate filename in batch: ${filename}`);
       processed++;
       onProgress?.(processed, total);
       continue;
     }
-    seenFilenames.add(filename);
+    seenFilenames.add(key);
 
-    const existing = existingByFilename.get(filename);
+    const existing = existingByFilename.get(key);
     if (existing) {
       // A different link for the same filename means the asset was re-uploaded
       // to Lightroom (redesigned, re-exported), because Lightroom issues a new
@@ -796,7 +825,7 @@ export async function bulkCreateAssets(
             replacedCount++;
             // Keep the map current so a later duplicate row in the same CSV
             // isn't counted as a second replacement.
-            existingByFilename.set(filename, { id: existing.id, url_lightroom: asset.url_lightroom });
+            existingByFilename.set(key, { id: existing.id, url_lightroom: asset.url_lightroom });
           } else {
             updatedCount++;
           }
