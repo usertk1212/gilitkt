@@ -34,7 +34,21 @@ export function AboutModal({ isOpen, onClose }: AboutModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md gap-0 overflow-hidden p-0">
+      <DialogContent
+        className={
+          // 360 wide, 12px radius, no padding or border — the artwork runs edge
+          // to edge, and the design draws no stroke on the card. The radius is
+          // literal because globals.css pins the whole rounded-* ladder to the
+          // system's single 8px value, so rounded-xl would render at 8 here.
+              "h-[349px] w-[420px] max-w-[420px] gap-0 overflow-hidden rounded-[12px] border-0 p-0 " +
+          // The stock close sits at 16px with a 16px glyph. The design puts it
+          // in a 12px-padded header over the artwork at 20px. It is the only
+          // direct-child button here, hence the child selector; the important
+          // modifier is needed because the primitive's own size rule would
+          // otherwise win on source order.
+          "[&>button]:right-3 [&>button]:top-3 [&>button_svg]:size-5!"
+        }
+      >
         {/* Present for screen readers; the visible design has no header. */}
         <DialogTitle className="sr-only">About GILI</DialogTitle>
         <DialogDescription className="sr-only">
@@ -57,14 +71,19 @@ export function AboutModal({ isOpen, onClose }: AboutModalProps) {
           </div>
         )}
 
-        <div className="px-6 py-5 text-center">
-          <p className="text-sm text-muted-foreground">
-            Crafted &amp; developed with JOY{" "}
-            {/* aria-hidden so the sentence reads cleanly aloud — see the
-                DialogDescription above, which carries the spoken version. */}
-            <span aria-hidden="true">✶</span>
+        <div className="flex w-full flex-col items-center justify-center gap-[3px] py-3 text-center">
+          <p className="w-full px-[18px] text-base leading-[1.38] text-[var(--pp-text-high)]">
+            Crafted &amp; developed with{" "}
+            {/* Only "JOY ✶" is bold, and aria-hidden on the star so the
+                sentence reads cleanly aloud — see the DialogDescription above,
+                which carries the spoken version. */}
+            <span className="font-bold">
+              JOY <span aria-hidden="true">✶</span>
+            </span>
           </p>
-          <p className="mt-1 text-xs text-muted-foreground/70">GILI v{APP_VERSION}</p>
+          <p className="w-full px-[18px] font-sans text-sm leading-[1.43] text-[var(--pp-text-low)]">
+            GILI v{APP_VERSION}
+          </p>
         </div>
       </DialogContent>
     </Dialog>

@@ -14,6 +14,35 @@ export const APPWRITE_DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID as
 // If you ever recreate the table with a different ID, update this value.
 export const APPWRITE_ASSETS_COLLECTION_ID = 'assets';
 
+/**
+ * Which required variables are missing, or null when the config is complete.
+ *
+ * Vite inlines import.meta.env at build time, so an unset variable becomes the
+ * literal `undefined` in the bundle. Appwrite then sends requests with no
+ * project header and the failure comes back as a generic network/authorisation
+ * error, which reads as "the database is down" rather than "this build was
+ * compiled without credentials". Naming it here keeps that distinction.
+ *
+ * Because the value is baked in at build time, setting the variables on the
+ * host is not enough on its own — the app has to be rebuilt or redeployed.
+ */
+const missingConfig = [
+  !APPWRITE_PROJECT_ID && 'VITE_APPWRITE_PROJECT_ID',
+  !APPWRITE_DATABASE_ID && 'VITE_APPWRITE_DATABASE_ID',
+].filter(Boolean) as string[];
+
+export const APPWRITE_CONFIG_ERROR: string | null = missingConfig.length
+  ? `This build has no Appwrite credentials: ${missingConfig.join(' and ')} ${
+      missingConfig.length > 1 ? 'were' : 'was'
+    } not set when it was compiled. Set ${
+      missingConfig.length > 1 ? 'them' : 'it'
+    } in .env.local for local development, or in the host's environment variables, then rebuild.`
+  : null;
+
+if (APPWRITE_CONFIG_ERROR) {
+  console.error(`🚨 ${APPWRITE_CONFIG_ERROR}`);
+}
+
 // Storage bucket holding app settings: the About-dialog image and the Superuser
 // credential. Named "gili-settings" in the console; this is its generated ID.
 //

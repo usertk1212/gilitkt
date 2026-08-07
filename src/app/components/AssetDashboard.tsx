@@ -1,676 +1,392 @@
-import { useState, useEffect, useRef } from "react";
-import * as React from "react";
-import { SidebarProvider, SidebarTrigger, SidebarInset } from "./ui/sidebar";
-import { Breadcrumb, BreadcrumbEllipsis, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "./ui/breadcrumb";
-import { Search, Plus, Grid, List, Image, Palette, Sparkles, Layers, Upload, Folder, RefreshCw, Database, AlertCircle, Download, X, FolderOpen, ArrowLeft, Home, ChevronRight, SlidersHorizontal, Settings, Sort, Zap, Package } from "./icons";
-import { GiliLogo } from "./GiliLogo";
-import { AboutModal } from "./AboutModal";
-import { Slider } from "./ui/slider";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SidebarProvider, SidebarTrigger } from "./ui/sidebar";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Badge } from "./ui/badge";
 import { Alert, AlertDescription } from "./ui/alert";
-import { Label } from "./ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { AssetGrid, type SortOption } from "./AssetGrid";
-import { AssetDetailPanel } from "./AssetDetailPanel";
-import { ProjectManager, type Project } from "./ProjectManager";
-import { AssetProjectModal } from "./AssetProjectModal";
+import { AlertCircle, RefreshCw, X } from "./icons";
+import { ArrowNarrowLeft } from "./icons/ArrowNarrowLeft";
+import { SearchLg } from "./icons/figma";
+import { AboutModal } from "./AboutModal";
 import { SharedSidebar } from "./SharedSidebar";
-import { getAllAssets, getAssetCounts, exportAssetsToCSV, Asset } from "../utils/appwriteApi";
-import { toggleTagInQuery, activeTags } from "../utils/search";
-import { toast } from "sonner";
-
+import { AssetGrid, type PageInfo, type SortOption } from "./AssetGrid";
+import { AssetDetailPanel } from "./AssetDetailPanel";
+import { PaginationControl, SortControl, ViewControl } from "./HeaderControls";
+import { SuperuserLoginModal } from "./SuperuserLoginModal";
+import { IslandManager } from "./islands/IslandManager";
+import { ISLANDS_KEY, ISLAND_STORAGE_KEY, type Island } from "./islands/types";
+import { getAllAssets, getAssetCounts, Asset } from "../utils/appwriteApi";
+import { activeTags, toggleTagInQuery } from "../utils/search";
+import { useSuperuser } from "../context/SuperuserContext";
 interface AssetDashboardProps {
   onNavigateToAssetManagement: () => void;
 }
 
-
+/**
+ * Header titles for each sidebar key.
+ *
+ * Deliberately not the sidebar's own labels: the design writes "All" in the
+ * nav, where the column is 240px wide and the context is obvious, but "All
+ * Assets" as the page heading.
+ */
+const CATEGORY_TITLES: Record<string, string> = {
+  "All Assets": "All Assets",
+  "Spot Illus": "Spot Illustration",
+  "Micro Illustration": "Micro Illustration",
+  Icons: "Icons",
+  Supergraphic: "Supergraphic",
+  Other: "Other",
+  [ISLANDS_KEY]: "Island",
+};
 
 export function AssetDashboard({ onNavigateToAssetManagement }: AssetDashboardProps) {
-  // Navigation state
-  const [currentView, setCurrentView] = useState<"category" | "projects" | "project-detail">("category");
+  const { unlocked } = useSuperuser();
+
+  // Navigation
   const [selectedCategory, setSelectedCategory] = useState("All Assets");
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  
-  // UI state
+  const [selectedIsland, setSelectedIsland] = useState<Island | null>(null);
+
+  // Search. The input stays bound to searchQuery for instant typing feedback;
+  // filtering (over a potentially thousands-strong list) only reacts to the
+  // debounced value, so typing doesn't re-filter on every keystroke.
   const [searchQuery, setSearchQuery] = useState("");
-  // The input itself stays bound to searchQuery for instant typing feedback;
-  // the actual filtering (over the whole, potentially thousands-strong asset
-  // list) only reacts to this debounced value, so typing doesn't re-filter
-  // and re-sort on every single keystroke.
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  // View controls
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortBy, setSortBy] = useState<SortOption>("recent");
-  const [cardSize, setCardSize] = useState<number[]>([5]); // 5 columns by default
+  const [gridColumns, setGridColumns] = useState(4);
+  const [page, setPage] = useState(1);
+  const [pageInfo, setPageInfo] = useState<PageInfo>({ page: 1, totalPages: 1, total: 0 });
 
-  
-  // Data state
-  const [assetCounts, setAssetCounts] = useState<Record<string, number>>({});
+  // Data
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [islands, setIslands] = useState<Island[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [dataSource, setDataSource] = useState<string>('loading');
-  const [isAboutOpen, setIsAboutOpen] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
+  const [dataSource, setDataSource] = useState("loading");
 
-  // Brief "done!" confirmation shown right after the initial load finishes,
-  // before the asset grid appears — purely cosmetic, doesn't affect data.
+  // Overlays
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+
+  // Brief "done!" confirmation after the initial load, before the grid appears.
   const [justFinishedLoading, setJustFinishedLoading] = useState(false);
   const hasLoadedOnceRef = useRef(false);
 
-  // Modal state
-  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [assetToOrganize, setAssetToOrganize] = useState<Asset | null>(null);
+  const isIslandList = selectedCategory === ISLANDS_KEY && !selectedIsland;
+  const isIslandDetail = Boolean(selectedIsland);
 
-  // Load assets from the Appwrite database. Serves from a short-lived local cache
-  // by default (see getAllAssets) so opening/reopening the app feels instant instead
-  // of re-fetching everything every time. Pass forceRefresh=true to bypass it.
-  const loadAssets = async (showLoading = true, forceRefresh = false) => {
+  const loadAssets = useCallback(async (showLoading = true, forceRefresh = false) => {
     try {
-      if (showLoading) {
-        setLoading(true);
-      }
+      if (showLoading) setLoading(true);
       setError(null);
 
-      console.log('🚀 Loading assets…');
-
-      // initializeAssetSystem() was awaited here and its result discarded. It runs
-      // listDocuments, so it charged one database read to every visitor on every
-      // load of the dashboard — the most-visited screen in the app — for no
-      // benefit. getAllAssets already reports its own failures.
-
+      // Serves from a long-lived local cache by default so reopening the app is
+      // instant; forceRefresh bypasses it when the user explicitly asks.
       const response = await getAllAssets({ forceRefresh });
-      
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to load assets');
-      }
-      
-      const loadedAssets = response.data || [];
-      console.log(`✅ Loaded ${loadedAssets.length} assets from ${response.source || 'database'}`);
-      
-      setAssets(loadedAssets);
-      setDataSource(response.source || 'database');
-      
-      // Calculate counts
-      const counts = getAssetCounts(loadedAssets);
-      setAssetCounts(counts);
-      
+      if (!response.success) throw new Error(response.error || "Failed to load assets");
+
+      setAssets(response.data || []);
+      setDataSource(response.source || "database");
     } catch (err) {
-      console.error('🚨 Error loading assets:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load assets';
-      setError(errorMessage);
-      
-      // Set empty state
+      console.error("🚨 Error loading assets:", err);
+      setError(err instanceof Error ? err.message : "Failed to load assets");
       setAssets([]);
-      setDataSource('offline');
-      setAssetCounts({
-        "All Assets": 0,
-        "Spot Illus": 0,
-        "Micro Illustration": 0,
-        "Icons": 0,
-        "Supergraphic": 0,
-        "Other": 0,
-        "Projects": 0
-      });
-      
+      setDataSource("offline");
     } finally {
       setLoading(false);
     }
-  };
-
-  // Handle CSV export
-  const handleExportCSV = async () => {
-    if (assets.length === 0) {
-      toast.error("No assets to export", {
-        description: "Please add some assets first before exporting."
-      });
-      return;
-    }
-
-    setIsExporting(true);
-    
-    try {
-      toast.loading("Preparing CSV export...", {
-        description: `Exporting ${assets.length} assets from ${dataSource === 'database' ? 'Database: Appwrite' : 'KV Store'}`
-      });
-
-      const result = await exportAssetsToCSV();
-      
-      if (result.success) {
-        toast.success("CSV exported successfully!", {
-          description: `Downloaded: ${result.filename || 'assets-export.csv'} (${assets.length} assets)`
-        });
-      } else {
-        throw new Error(result.error || 'Export failed');
-      }
-      
-    } catch (error) {
-      console.error('🚨 Export failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to export CSV';
-      
-      toast.error("Export failed", {
-        description: errorMessage
-      });
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  // Load projects from localStorage on mount
-  useEffect(() => {
-    const savedProjects = localStorage.getItem("gili-projects");
-    if (savedProjects) {
-      try {
-        const parsedProjects = JSON.parse(savedProjects);
-        setProjects(parsedProjects);
-      } catch (error) {
-        console.error("Error loading projects:", error);
-      }
-    }
   }, []);
 
-  // Update asset counts whenever projects or assets change
-  useEffect(() => {
-    const counts = getAssetCounts(assets);
-    counts["Projects"] = projects.length;
-    setAssetCounts(counts);
-  }, [assets, projects]);
-
-  // Load assets on component mount
   useEffect(() => {
     loadAssets();
+  }, [loadAssets]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(ISLAND_STORAGE_KEY);
+    if (!saved) return;
+    try {
+      setIslands(JSON.parse(saved));
+    } catch (err) {
+      console.error("Error loading islands:", err);
+    }
   }, []);
 
-  // Debounce the search query before it drives any filtering.
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 250);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Show a brief "done!" checkmark the first time loading finishes, then let
-  // the normal grid take over. Only fires once (not on every silent refresh).
   useEffect(() => {
-    if (!loading && !hasLoadedOnceRef.current) {
-      hasLoadedOnceRef.current = true;
-      setJustFinishedLoading(true);
-      const timer = setTimeout(() => setJustFinishedLoading(false), 700);
-      return () => clearTimeout(timer);
-    }
+    if (loading || hasLoadedOnceRef.current) return;
+    hasLoadedOnceRef.current = true;
+    setJustFinishedLoading(true);
+    const timer = setTimeout(() => setJustFinishedLoading(false), 700);
+    return () => clearTimeout(timer);
   }, [loading]);
 
-  // Refresh data when component becomes visible
+  // Refresh when the tab becomes visible again.
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        loadAssets(false);
-      }
+    const onVisibility = () => {
+      if (!document.hidden) loadAssets(false);
     };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [loadAssets]);
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  // Back to page 1 whenever the basis of the list changes — otherwise you can
+  // land on a page that no longer exists.
+  useEffect(() => {
+    setPage(1);
+  }, [selectedCategory, debouncedSearchQuery, sortBy, selectedIsland]);
+
+  const assetCounts = useMemo(() => {
+    const counts = getAssetCounts(assets);
+    counts[ISLANDS_KEY] = islands.length;
+    return counts;
+  }, [assets, islands]);
+
+  const handleUpdateIslands = useCallback(
+    (next: Island[]) => {
+      setIslands(next);
+      localStorage.setItem(ISLAND_STORAGE_KEY, JSON.stringify(next));
+      // Keep the open island in step with the edit, and drop it if deleted.
+      setSelectedIsland((current) =>
+        current ? next.find((i) => i.id === current.id) ?? null : null
+      );
+    },
+    []
+  );
+
+  const handleTagClick = useCallback((tag: string) => {
+    /*
+     * Toggle a tag chip.
+     *
+     * This adds or removes a `#tag` token rather than replacing the whole query,
+     * so chips accumulate, anything typed is left alone, and the search box stays
+     * the single source of truth for what's being filtered.
+     *
+     * Applied immediately rather than through the debounce: a click is a discrete
+     * action, and waiting 250ms to light the chip up feels broken.
+     */
+    setSearchQuery((current) => {
+      const next = toggleTagInQuery(current, tag);
+      setDebouncedSearchQuery(next);
+      return next;
+    });
   }, []);
 
-  const handleRefresh = () => {
-    loadAssets(true, true); // force-bypass the cache — user explicitly asked for fresh data
-  };
+  // Derived from the query, never stored separately — so the chips and the
+  // search box cannot disagree, including when the query is edited by hand.
+  const currentActiveTags = activeTags(debouncedSearchQuery);
 
-  const handleSelectAsset = (asset: Asset) => {
-    setSelectedAsset(asset);
-  };
-
-  const handleCloseDetailPanel = () => {
+  const handleCategoryClick = (categoryKey: string) => {
+    setSelectedCategory(categoryKey);
+    setSelectedIsland(null);
     setSelectedAsset(null);
   };
 
-  /**
-   * Toggle a tag chip.
-   *
-   * This used to REPLACE the whole query with the tag, so only one chip could ever
-   * be in effect, clicking a second one silently discarded the first, and nothing
-   * showed which was active. Now it adds or removes a `#tag` token and leaves
-   * anything typed alone, so chips accumulate and the search box stays the single
-   * source of truth for what's being filtered.
-   *
-   * Applied immediately rather than through the debounce: a click is a discrete
-   * action, and waiting 250ms to light the chip up feels broken.
-   */
-  const handleTagClick = (tag: string) => {
-    const next = toggleTagInQuery(searchQuery, tag);
-    setSearchQuery(next);
-    setDebouncedSearchQuery(next);
+  const handleSelectIsland = (island: Island | null) => {
+    setSelectedIsland(island);
   };
 
-  // Derived from the query, never stored separately — so the chips and the search
-  // box cannot disagree, including when the query is edited by hand.
-  const currentActiveTags = activeTags(debouncedSearchQuery);
+  const islandAssets = useMemo(() => {
+    if (!selectedIsland) return assets;
+    const wanted = new Set(selectedIsland.asset_ids);
+    return assets.filter((a) => wanted.has(a.nama_file));
+  }, [assets, selectedIsland]);
 
-  const handleClearSearch = () => {
-    setSearchQuery("");
-    setDebouncedSearchQuery("");
-  };
+  const title = selectedIsland ? selectedIsland.name : CATEGORY_TITLES[selectedCategory] ?? selectedCategory;
 
-  // Navigation handlers
-  const handleCategoryClick = (category: string) => {
-    setSelectedCategory(category);
-    setSelectedProject(null);
-    if (category === "Projects") {
-      setCurrentView("projects");
-    } else {
-      setCurrentView("category");
+  // The design sets the count as a small superscript beside the heading rather
+  // than a subtitle line, so this is a bare number, not a sentence.
+  const countLabel = (() => {
+    if (selectedIsland) {
+      // The island detail spells the unit out — "544 assets" — where the
+      // library headers show a bare figure.
+      const n = selectedIsland.asset_ids.length;
+      return `${n.toLocaleString()} ${n === 1 ? "asset" : "assets"}`;
     }
-  };
-
-  const handleSelectProject = (project: Project | null) => {
-    if (project) {
-      setSelectedProject(project);
-      setCurrentView("project-detail");
-      toast.success("Project opened", {
-        description: `Viewing ${project.asset_ids.length} assets in "${project.name}"`
-      });
-    } else {
-      setSelectedProject(null);
-      setCurrentView("projects");
-    }
-  };
-
-  const handleBackToDashboard = () => {
-    setCurrentView("category");
-    setSelectedCategory("All Assets");
-    setSelectedProject(null);
-  };
-
-  const handleBackToProjects = () => {
-    setCurrentView("projects");
-    setSelectedProject(null);
-  };
-
-  const handleUpdateProjects = (updatedProjects: Project[]) => {
-    setProjects(updatedProjects);
-    localStorage.setItem("gili-projects", JSON.stringify(updatedProjects));
-    if (selectedProject) {
-      const updatedSelectedProject = updatedProjects.find(p => p.id === selectedProject.id);
-      setSelectedProject(updatedSelectedProject || null);
-    }
-  };
-
-  const handleAssetOrganize = (asset: Asset) => {
-    setAssetToOrganize(asset);
-  };
-
-  const handleCreateNewProject = () => {
-    setCurrentView("projects");
-    setSelectedProject(null);
-  };
-
-  const handleNavigateToAllAssets = () => {
-    setCurrentView("category");
-    setSelectedCategory("All Assets");
-    setSelectedProject(null);
-  };
-
-  // Generate breadcrumb items based on current state
-  const getBreadcrumbItems = () => {
-    const items = [];
-
-    // "All Assets" IS the root, so it renders as a single "Home" crumb rather
-    // than "Dashboard > All Assets" — the old version implied All Assets was a
-    // child of the dashboard when it's the same screen.
-    const atRoot = currentView === "category" && selectedCategory === "All Assets";
-
-    items.push({
-      label: "Home",
-      icon: Home,
-      onClick: atRoot ? null : handleBackToDashboard,
-      isActive: atRoot
-    });
-
-    if (atRoot) return items;
-
-    // Current view
-    if (currentView === "projects") {
-      items.push({
-        label: "Projects",
-        icon: FolderOpen,
-        onClick: null,
-        isActive: true
-      });
-    } else if (currentView === "project-detail" && selectedProject) {
-      items.push({
-        label: "Projects",
-        icon: FolderOpen,
-        onClick: handleBackToProjects,
-        isActive: false
-      });
-      items.push({
-        label: selectedProject.name,
-        icon: Folder,
-        onClick: null,
-        isActive: true
-      });
-    } else {
-      const categoryIcons: Record<string, any> = {
-        "All Assets": Folder,
-        "Spot Illus": Palette,
-        "Micro Illustration": Sparkles,
-        "Icons": Layers,
-        "Supergraphic": Image,
-        "Other": Package,
-        "Projects": FolderOpen
-      };
-
-      items.push({
-        label: selectedCategory,
-        icon: categoryIcons[selectedCategory] || Folder,
-        onClick: null,
-        isActive: true
-      });
-    }
-
-    return items;
-  };
-
-  // Determine what content to show
-  const getPageTitle = () => {
-    if (currentView === "projects") {
-      return "Projects";
-    } else if (currentView === "project-detail" && selectedProject) {
-      return selectedProject.name;
-    } else {
-      return selectedCategory;
-    }
-  };
-
-
-  const getAssetCount = () => {
-    if (currentView === "project-detail" && selectedProject) {
-      return `${selectedProject.asset_ids.length} project assets`;
-    } else {
-      return `${assets.length} total assets`;
-    }
-  };
-
-  const getFilteredAssets = () => {
-    if (currentView === "project-detail" && selectedProject) {
-      return assets.filter(asset => selectedProject.asset_ids.includes(asset.nama_file));
-    } else {
-      return assets;
-    }
-  };
+    return (isIslandList ? islands.length : pageInfo.total).toLocaleString();
+  })();
 
   return (
-    <SidebarProvider defaultOpen={true}>
-      <div className="flex h-screen w-full bg-background">
+    <SidebarProvider defaultOpen>
+      {/*
+        The page itself is the sunken surface; the content sits on it as a
+        floating white panel with the sidebar alongside on the bare background.
+        Note the panel is padded on three sides only — the design butts it
+        straight up against the sidebar, with no gap on the left.
+      */}
+      <div className="flex h-screen w-full bg-[var(--pp-bg-sunken)]">
         <SharedSidebar
           onNavigateToAssetManagement={onNavigateToAssetManagement}
           onCategoryClick={handleCategoryClick}
-          selectedCategory={currentView === "projects" ? "Projects" : selectedCategory}
+          selectedCategory={selectedCategory}
           assetCounts={assetCounts}
           assets={assets}
           loading={loading}
           error={error}
           dataSource={dataSource}
-          handleRefresh={handleRefresh}
+          handleRefresh={() => loadAssets(true, true)}
+          onRequestSuperuserLogin={() => setIsLoginOpen(true)}
+          onOpenAbout={() => setIsAboutOpen(true)}
         />
 
-        <SidebarInset>
-          {/* Header with Search and Controls.
-              sticky so the breadcrumb, count, sort and page controls stay
-              reachable while you scroll a 50-card page — that's the cheap half
-              of the "don't scroll so deep" fix, since this row exists anyway.
-              NOTE: backdrop-filter creates a containing block for descendant
-              fixed elements, which is exactly why the overlays are portalled to
-              <body>. Don't un-portal them. */}
-          <div className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            {/* Mobile brand row.
-                On mobile the sidebar is an off-canvas sheet, so the GILI
-                wordmark is invisible until you open it — nothing tells you which
-                app you're in. Desktop already shows it in the persistent
-                sidebar, so this row is mobile-only to avoid duplicating it. */}
-            <button
-              type="button"
-              onClick={() => setIsAboutOpen(true)}
-              title="About GILI"
-              aria-label="About GILI"
-              className="flex w-full items-center px-4 pt-4 pb-1 transition-opacity hover:opacity-80 focus-visible:outline-none lg:hidden"
-            >
-              <GiliLogo />
-            </button>
+        <div className="flex min-w-0 flex-1 flex-col py-3 pr-3 [filter:drop-shadow(var(--gili-panel-shadow))]">
+          <div className="flex min-h-px flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card">
+            <header className="flex w-full shrink-0 flex-col gap-4 px-6 pb-4 pt-6">
+              <div className="flex items-start gap-1">
+                {/* Only reachable control for the off-canvas sidebar on mobile. */}
+                <SidebarTrigger className="mr-1 size-9 shrink-0 lg:hidden" />
 
-            {/* Top row: Search and controls */}
-            {/* Single row at every width. This used to be flex-col below lg, which
-                pushed the view toggle onto its own second line on mobile and
-                wasted ~50px of vertical space above the grid. */}
-            <div className="flex h-auto flex-row items-center gap-2 px-4 py-3 lg:h-20 lg:gap-6 lg:px-7 lg:py-0">
-              <div className="flex min-w-0 flex-1 items-center gap-2 lg:gap-6">
-                {/* Sidebar Toggle Button - Outside sidebar */}
-                <SidebarTrigger className="size-9 lg:size-10 hover:bg-accent/50 rounded-lg bg-transparent text-foreground shrink-0 flex items-center justify-center transition-colors" />
-
-
-                {/* Large Search Bar - Now takes more space */}
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 lg:left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 lg:w-5 h-4 lg:h-5" />
-                  <Input
-                    placeholder="Search assets — try &quot;train blue&quot;"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 lg:pl-12 pr-10 lg:pr-12 h-10 lg:h-12 text-sm lg:text-base bg-card border border-border focus:ring-2 focus:ring-primary/20 rounded-xl"
-                  />
-                  {searchQuery && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleClearSearch}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 lg:h-8 w-6 lg:w-8 p-0 hover:bg-gray-100 rounded-full"
-                      title="Clear search"
-                    >
-                      <X className="h-3 lg:h-4 w-3 lg:w-4 text-muted-foreground" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-              
-              {/* Controls, far right of the same row */}
-              <div className="flex shrink-0 items-center gap-2 lg:gap-3">
-                {/* Card Size Slider - Only visible in grid view */}
-                {viewMode === "grid" && (
-                  <div className="hidden lg:flex items-center gap-2 px-3 py-2 border rounded-lg bg-background">
-                    <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
-                    <div className="w-20">
-                      <Slider
-                        value={cardSize}
-                        onValueChange={setCardSize}
-                        min={4}
-                        max={10}
-                        step={1}
-                        className="w-full"
-                      />
-                    </div>
-                    <span className="text-xs text-muted-foreground w-6 text-center">
-                      {cardSize[0]}
-                    </span>
-                  </div>
+                {/* 10px to the title, per the design. A bare button rather than
+                    a ghost Button: the design draws the glyph alone on the
+                    header, with no padding box or hover plate around it. */}
+                {selectedIsland && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedIsland(null)}
+                    className="mr-[10px] mt-0.5 shrink-0 text-[var(--pp-text-high)] transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <ArrowNarrowLeft className="size-5" />
+                    <span className="sr-only">Back to islands</span>
+                  </button>
                 )}
-                
-                <div className="flex border rounded-lg overflow-hidden">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setViewMode("grid")}
-                    className="rounded-none h-8 lg:h-10 px-2 lg:px-4"
-                    style={viewMode === "grid" ? {
-                      background: 'var(--pp-bg-blue-high)',
-                      color: 'white'
-                    } : {}}
-                  >
-                    <Grid className="w-3 lg:w-4 h-3 lg:h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setViewMode("list")}
-                    className="rounded-none h-8 lg:h-10 px-2 lg:px-4 border-l"
-                    style={viewMode === "list" ? {
-                      background: 'var(--pp-bg-blue-high)',
-                      color: 'white'
-                    } : {}}
-                  >
-                    <List className="w-3 lg:w-4 h-3 lg:h-4" />
-                  </Button>
-                </div>
+
+                {/* pp-h3 rather than literal sizes: it is the foundation's
+                    Heading 3 (24/26 bold), and it steps down to 18/24 on
+                    mobile the way the ramp specifies. */}
+                <h1 className="pp-h3 min-w-0 truncate text-foreground">{title}</h1>
+                {/* Sits on the heading's baseline-top as a superscript count. */}
+                <span className="shrink-0 whitespace-nowrap text-sm leading-[1.43] text-foreground">
+                  {countLabel}
+                </span>
               </div>
-            </div>
 
-            {/* Bottom row: Breadcrumb Navigation */}
-            <div className="px-4 lg:px-7 py-2 lg:py-3 border-t bg-muted/30">
-              {/* Stacks on mobile, single row on desktop.
-                  Inline at every width collided once a category name got long
-                  ("Micro Illustration" + "4486 total assets" + sort doesn't fit
-                  in 360px), so below the desktop breakpoint the count and sort
-                  drop to their own line. */}
-              <div className="flex flex-col items-stretch gap-2 lg:flex-row lg:items-center lg:justify-between">
-                <Breadcrumb>
-                  <BreadcrumbList>
-                    {getBreadcrumbItems().map((item, index) => (
-                      <div key={index} className="flex items-center">
-                        {index > 0 && <BreadcrumbSeparator className="mx-1 lg:mx-2" />}
-                        <BreadcrumbItem>
-                          {item.isActive ? (
-                            <BreadcrumbPage className="flex items-center gap-1 lg:gap-2 font-medium text-sm lg:text-base">
-                              <item.icon className="w-3 lg:w-4 h-3 lg:h-4" />
-                              <span className="truncate max-w-32 lg:max-w-none">{item.label}</span>
-                            </BreadcrumbPage>
-                          ) : (
-                            <BreadcrumbLink 
-                              className="flex items-center gap-1 lg:gap-2 hover:text-foreground cursor-pointer text-sm lg:text-base"
-                              onClick={item.onClick}
-                            >
-                              <item.icon className="w-3 lg:w-4 h-3 lg:h-4" />
-                              <span className="truncate max-w-24 lg:max-w-none">{item.label}</span>
-                            </BreadcrumbLink>
-                          )}
-                        </BreadcrumbItem>
-                      </div>
-                    ))}
-                  </BreadcrumbList>
-                </Breadcrumb>
-                
-                {/* Count + Sort share the right edge of the breadcrumb row.
-                    Sort lives here rather than in its own row so it sits on the
-                    same line as the thing it describes, and costs no extra
-                    vertical space on mobile. */}
-                <div className="flex shrink-0 items-center justify-between gap-2 lg:justify-end">
-                  <Badge
-                    variant="secondary"
-                    className="shrink-0 px-2 py-1 text-xs lg:px-3 lg:text-sm"
+              <div className="flex h-[42px] w-full items-center gap-2 rounded-lg border border-border bg-[var(--gili-search-surface)] px-3">
+                {/* N400, the same tone as the placeholder — the design reads the
+                    magnifier as part of the empty state, not as a control. */}
+                <SearchLg className="size-5 shrink-0 text-[var(--pp-icon-low)]" />
+                <input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={'Search assets, try "tds_ic_flights" or "train blue"'}
+                  aria-label="Search assets"
+                  className="min-w-0 flex-1 bg-transparent text-base leading-[1.38] text-foreground outline-none placeholder:text-[var(--pp-text-disabled)]"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setDebouncedSearchQuery("");
+                    }}
+                    title="Clear search"
+                    aria-label="Clear search"
+                    className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
-                    {getAssetCount()}
-                  </Badge>
-
-                  {(currentView === "category" || currentView === "project-detail") && (
-                    <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                      <SelectTrigger className="h-8 w-auto gap-1.5 text-xs lg:h-9 lg:gap-2 lg:text-sm">
-                        <Sort className="h-3.5 w-3.5 shrink-0 lg:h-4 lg:w-4" />
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent align="end">
-                        <SelectItem value="recent">Most Recent</SelectItem>
-                        <SelectItem value="alphabetical">Alphabetical</SelectItem>
-                        <SelectItem value="type">By Type</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
+                    <X className="size-3.5" />
+                  </button>
+                )}
               </div>
-            </div>
-          </div>
 
-          {/* Content */}
-          <div className="flex-1 overflow-auto">
-            <div className="p-4 lg:p-7">
-              {currentView === "projects" && (
-                <ProjectManager
+              {/* The island list has nothing to sort, page, or set density on. */}
+              {!isIslandList && (
+                <div className="flex w-full items-center justify-between gap-4">
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <ViewControl
+                      viewMode={viewMode}
+                      onViewModeChange={setViewMode}
+                      gridColumns={gridColumns}
+                      onGridColumnsChange={setGridColumns}
+                    />
+                    <SortControl sortBy={sortBy} onSortChange={setSortBy} />
+                  </div>
+                  <PaginationControl
+                    page={pageInfo.page}
+                    totalPages={pageInfo.totalPages}
+                    total={pageInfo.total}
+                    onPageChange={setPage}
+                  />
+                </div>
+              )}
+            </header>
+
+            <div className="h-px w-full shrink-0 bg-[var(--pp-stroke-disabled)]" />
+
+            <main className="min-h-px flex-1 overflow-auto p-6">
+              {error && (
+                <Alert className="mb-6 border-[var(--pp-stroke-alert)] bg-[var(--pp-bg-red-low)]">
+                  <AlertCircle className="size-4 text-[var(--pp-icon-alert)]" />
+                  <AlertDescription className="text-[var(--pp-text-alert)]">
+                    <div className="mb-1 font-bold">Connection Error</div>
+                    <div>{error}</div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => loadAssets(true, true)}
+                      className="mt-2 h-8"
+                    >
+                      <RefreshCw className="mr-1 size-4" />
+                      Retry
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {isIslandList ? (
+                <IslandManager
                   assets={assets}
-                  onSelectProject={handleSelectProject}
-                  selectedProject={selectedProject}
-                  onExportProject={() => {}}
-                  projects={projects}
-                  onUpdateProjects={handleUpdateProjects}
+                  islands={islands}
+                  onUpdateIslands={handleUpdateIslands}
+                  onSelectIsland={handleSelectIsland}
+                  selectedIsland={selectedIsland}
+                />
+              ) : (
+                <AssetGrid
+                  category={isIslandDetail ? "Island" : selectedCategory}
+                  searchQuery={debouncedSearchQuery}
+                  viewMode={viewMode}
+                  sortBy={sortBy}
+                  loading={loading}
+                  justFinishedLoading={justFinishedLoading}
+                  assets={isIslandDetail ? islandAssets : assets}
+                  selectedAsset={selectedAsset}
+                  onSelectAsset={setSelectedAsset}
+                  onTagClick={handleTagClick}
+                  activeTags={currentActiveTags}
+                  islands={islands}
+                  onUpdateIslands={handleUpdateIslands}
+                  onNavigateToAllAssets={() => handleCategoryClick("All Assets")}
+                  gridColumns={gridColumns}
+                  page={page}
+                  onPageChange={setPage}
+                  onPageInfoChange={setPageInfo}
                 />
               )}
-
-              {(currentView === "category" || currentView === "project-detail") && (
-                <>
-
-                  {/* Error Alert */}
-                  {error && (
-                    <Alert className="mb-6 border-red-200 bg-red-50">
-                      <AlertCircle className="h-4 w-4 text-red-600" />
-                      <AlertDescription className="text-red-800">
-                        <div className="font-medium mb-1">Connection Error</div>
-                        <div>{error}</div>
-                        <Button 
-                          size="sm" 
-                          onClick={handleRefresh}
-                          className="mt-2 h-8 bg-red-600 hover:bg-red-700"
-                        >
-                          <RefreshCw className="w-4 h-4 mr-1" />
-                          Retry
-                        </Button>
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {/* Asset Grid */}
-                  <AssetGrid
-                    category={currentView === "project-detail" ? "Project" : selectedCategory}
-                    searchQuery={debouncedSearchQuery}
-                    viewMode={viewMode}
-                    sortBy={sortBy}
-                    loading={loading}
-                    justFinishedLoading={justFinishedLoading}
-                    assets={getFilteredAssets()}
-                    selectedAsset={selectedAsset}
-                    onSelectAsset={handleSelectAsset}
-                    onTagClick={handleTagClick}
-                    activeTags={currentActiveTags}
-                    onAssetOrganize={handleAssetOrganize}
-                    projects={projects}
-                    onUpdateProjects={handleUpdateProjects}
-                    onCreateNewProject={handleCreateNewProject}
-                    currentProject={currentView === "project-detail" ? selectedProject : undefined}
-                    onNavigateToAllAssets={handleNavigateToAllAssets}
-                    gridColumns={cardSize[0]}
-                  />
-                </>
-              )}
-            </div>
+            </main>
           </div>
-        </SidebarInset>
+        </div>
 
-        {/* About dialog — reachable from the mobile brand mark in the header,
-            since on mobile the sidebar (and its version label) is hidden. */}
         <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
 
-        {/* Asset Detail Panel */}
-        <AssetDetailPanel
-          asset={selectedAsset!}
-          isOpen={!!selectedAsset}
-          onClose={handleCloseDetailPanel}
-          onTagClick={handleTagClick}
-          activeTags={currentActiveTags}
-          onAssetOrganize={handleAssetOrganize}
+        <SuperuserLoginModal
+          isOpen={isLoginOpen}
+          onClose={() => setIsLoginOpen(false)}
+          onUnlocked={onNavigateToAssetManagement}
         />
 
-        {/* Asset Project Modal */}
-        {assetToOrganize && (
-          <AssetProjectModal
-            isOpen={!!assetToOrganize}
-            onClose={() => setAssetToOrganize(null)}
-            asset={assetToOrganize}
-            projects={projects}
-            onUpdateProjects={handleUpdateProjects}
+        {selectedAsset && (
+          <AssetDetailPanel
+            asset={selectedAsset}
+            isOpen
+            onClose={() => setSelectedAsset(null)}
+            onTagClick={handleTagClick}
+            activeTags={currentActiveTags}
+            islands={islands}
+            onUpdateIslands={handleUpdateIslands}
+            onManageAsset={unlocked ? onNavigateToAssetManagement : undefined}
           />
         )}
       </div>

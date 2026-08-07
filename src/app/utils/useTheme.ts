@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 const THEME_KEY = "gili_theme";
 
-type Theme = "light" | "dark";
+export type Theme = "light" | "dark";
 
 function getInitialTheme(): Theme {
   try {
@@ -17,29 +17,60 @@ function getInitialTheme(): Theme {
   return "light";
 }
 
-// Applies/removes the `dark` class on <html> (the CSS in globals.css keys off
-// `.dark` via @custom-variant), persists the choice, and falls back to the
-// user's OS-level preference the very first time the app is opened.
+/*
+ * Module-level store rather than per-component useState.
+ *
+ * useTheme has more than one caller (the sidebar user menu and the Sonner
+ * Toaster). With useState each of those held an independent copy, so toggling
+ * the theme in the sidebar left the toaster rendering in whatever theme the app
+ * booted with until the next reload. A shared store keeps every consumer on the
+ * same value.
+ */
+let current: Theme = getInitialTheme();
+const listeners = new Set<() => void>();
+
+function apply(theme: Theme) {
+  document.documentElement.classList.toggle("dark", theme === "dark");
+  try {
+    localStorage.setItem(THEME_KEY, theme);
+  } catch {
+    // no-op — theme just won't persist across reloads
+  }
+}
+
+// Applied at module load so the class is on <html> before the first paint,
+// rather than after an effect flushes.
+if (typeof document !== "undefined") apply(current);
+
+function setThemeValue(theme: Theme) {
+  if (theme === current) return;
+  current = theme;
+  apply(theme);
+  listeners.forEach((l) => l());
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/**
+ * Reads and writes the app theme. Toggling adds/removes `dark` on <html>, which
+ * is what the `@custom-variant dark` rule in globals.css keys off, and persists
+ * the choice. Defaults to the OS preference the first time the app is opened.
+ */
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const theme = useSyncExternalStore(
+    subscribe,
+    () => current,
+    () => current
+  );
 
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-    try {
-      localStorage.setItem(THEME_KEY, theme);
-    } catch {
-      // no-op — theme just won't persist across reloads
-    }
-  }, [theme]);
+  const setTheme = useCallback((next: Theme) => setThemeValue(next), []);
+  const toggleTheme = useCallback(
+    () => setThemeValue(current === "dark" ? "light" : "dark"),
+    []
+  );
 
-  const toggleTheme = useCallback(() => {
-    setTheme((t) => (t === "dark" ? "light" : "dark"));
-  }, []);
-
-  return { theme, toggleTheme };
+  return { theme, setTheme, toggleTheme };
 }

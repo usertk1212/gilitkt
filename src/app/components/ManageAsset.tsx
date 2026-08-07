@@ -45,17 +45,13 @@ import { toast } from "sonner";
 import { InlineRename } from './InlineRename';
 import { AlertCircle, CheckCircle, Edit, Filter, Grid3X3, Link, List, Loader2, MoreHorizontal, Search, Trash2 } from "./icons";
 
-interface ManageAssetProps {
-  onNavigateBack: () => void;
-}
-
 interface EditAssetForm {
   asset_name: string;
   type: string;
   url_lightroom: string;
 }
 
-export function ManageAsset({ onNavigateBack }: ManageAssetProps) {
+export function ManageAsset() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [filteredAssets, setFilteredAssets] = useState<Asset[]>([]);
   const [searchQuery, setSearchQuery] = useState('');

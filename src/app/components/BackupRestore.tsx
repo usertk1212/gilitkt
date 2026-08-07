@@ -49,7 +49,7 @@ export function BackupRestore() {
       if (!res.success || !res.backup) throw new Error(res.error || "Backup failed");
       const filename = downloadBackup(res.backup);
       toast.success("Backup downloaded", {
-        description: `${filename} — ${res.backup.counts.assets} assets, ${res.backup.counts.projects} projects.`,
+        description: `${filename} — ${res.backup.counts.assets} assets, ${res.backup.counts.projects} islands.`,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Backup failed");
@@ -88,8 +88,8 @@ export function BackupRestore() {
       setError(res.error || "Restore failed");
       return;
     }
-    toast.success("Projects restored", {
-      description: `${res.projects} projects written. Reload to see them.`,
+    toast.success("Islands restored", {
+      description: `${res.projects} islands written. Reload to see them.`,
     });
   };
 
@@ -137,7 +137,7 @@ export function BackupRestore() {
             Back up everything
           </CardTitle>
           <CardDescription>
-            One JSON file with every asset and every project. Reads the published snapshot, so it
+            One JSON file with every asset and every island. Reads the published snapshot, so it
             costs no database reads and works even while the account is throttled.
           </CardDescription>
         </CardHeader>
@@ -158,7 +158,7 @@ export function BackupRestore() {
           </div>
           <Alert>
             <AlertDescription className="text-xs">
-              <strong>Projects only exist in this browser.</strong> They're kept in localStorage, not
+              <strong>Islands only exist in this browser.</strong> They're kept in localStorage, not
               in Appwrite, so they're invisible to the CSV export and gone if you clear site data.
               The JSON backup is the only thing that captures them — take one before clearing
               anything, and from the browser you actually use.
@@ -201,7 +201,7 @@ export function BackupRestore() {
             <div className="space-y-3 rounded-[8px] bg-muted/50 p-3">
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <Badge variant="secondary">{loaded.backup.counts.assets} assets</Badge>
-                <Badge variant="secondary">{loaded.backup.counts.projects} projects</Badge>
+                <Badge variant="secondary">{loaded.backup.counts.projects} islands</Badge>
                 <span className="text-xs text-muted-foreground">
                   from GILI {loaded.backup.appVersion},{" "}
                   {loaded.backup.createdAt ? loaded.backup.createdAt.slice(0, 10) : "unknown date"}
@@ -217,7 +217,7 @@ export function BackupRestore() {
               <div className="space-y-2">
                 <Button variant="secondary" onClick={handleRestoreLocal} disabled={busy !== null} className="w-full">
                   <Check className="mr-2 h-4 w-4" />
-                  Restore {loaded.backup.counts.projects} projects to this browser
+                  Restore {loaded.backup.counts.projects} islands to this browser
                 </Button>
                 <Button
                   variant="outline"
@@ -259,7 +259,7 @@ export function BackupRestore() {
           <div className="space-y-1">
             <div className="flex items-baseline justify-between gap-2 text-sm">
               <span className="font-medium">Database reads this month (estimated)</span>
-              <span className="tabular-nums" style={{ color: budgetTone }}>
+              <span style={{ color: budgetTone }}>
                 {budget ? budget.rows.toLocaleString("en-US") : "—"} /{" "}
                 {FREE_PLAN_MONTHLY_READS.toLocaleString("en-US")}
               </span>

@@ -2,30 +2,38 @@
 
 Asset management dashboard for organizing illustration assets.
 
-**Version:** 1.1.0
+**Version:** 2.0.0
 
 ## ✨ Features
 
 ### Asset Dashboard
-- Browse by category (All Assets, Spot Illus, Micro Illustration, Icons, Supergraphic, Others, Projects)
+- Browse by category (All Assets, Spot Illus, Micro Illustration, Icons, Supergraphic, Others) plus Islands
 - Search by asset name, filename or type, matching each word separately — "train blue" finds `tds_ic_train_blue`, in any word order, and pasting a full filename works too
 - Tag chips are multi-select filters: clicking adds a `#tag` to the search, several can be on at once (any of them matches), and active chips are highlighted
+- **View, Sort and Pagination live in three header popovers**, so the controls sit in one place instead of being spread between the header and the end of the grid
 - Sort by Most Recent (last touched — includes assets whose Lightroom link was replaced), Alphabetical, or Type
 - Grid/List view with adjustable card size (4–10 columns)
-- Pagination at 50 assets per page; a fixed bottom pager on mobile that is visible without scrolling, plus a full pager with First/Last and jump-to-page at the end of the grid
-- Create projects and organize assets into collections
-- Asset detail panel (preview, metadata, tags, Source link that opens the asset in Lightroom, copy link, Download, Add to Project) — a bottom sheet with swipe-to-dismiss on mobile, a right-side panel on desktop
+- Pagination at 50 assets per page, driven from the header popover and available without scrolling to the bottom of the grid
+- Asset detail panel (preview, metadata, tags, Source link that opens the asset in Lightroom, copy link, Download, Add to Island) — a bottom sheet with swipe-to-dismiss on mobile, a 360px right-side panel on desktop
 - GILI brand mark in the mobile header, which also opens the About dialog
 - Fullscreen image zoom — scroll to zoom, drag to pan, double-click for 2x, Esc to close
 - Click a filename to copy it
 - Loading spinner while fetching data
-- Instant loads from a persistent local cache, with a "last synced" indicator in the sidebar
+- Instant loads from a persistent local cache, with a "last synced" indicator in the sidebar that doubles as the database status light
 - Dark mode (persists across sessions, follows system preference)
 - Collapsible sidebar with active section highlight
-- About dialog, opened from the version label in the sidebar footer
+- About dialog and the dark mode toggle live in the sidebar user menu
+
+### Islands
+*(formerly "Projects" — existing collections carry over untouched)*
+- Group assets into named collections, created inline from any card or from the detail panel
+- Island cards show a collage of their contents, so a collection is recognisable before you open it
+- Glassmorphic kebab menu per island: Rename, Export to CSV, Export to TXT, Delete
+- One picker handles both adding and removing, with search and inline island creation, replacing the four separate dialogs 1.x used for the same job
 
 ### Superuser
 *(formerly "Admin")*
+- Sign in from the sidebar user menu, in a modal over the dashboard rather than a full-screen gate — the library stays visible behind it
 - One Superuser, one password. The password is never stored — only a salted PBKDF2-SHA256 credential at 600,000 iterations, so it can't be read out of the bundle or out of Appwrite
 - **About Image** — upload a 3:2 image for the About dialog, with drag-to-reposition, zoom and crop before saving. Stored in an Appwrite Storage bucket, so it's shared across every device and browser
 - Password-protected Superuser panel *(client-side only)*
@@ -43,7 +51,7 @@ Asset management dashboard for organizing illustration assets.
 - Edit & delete assets, including click-to-rename directly in the list — costs no database reads, so it works even while the read quota is exhausted
 - Anonymous usage counting: active devices in the last 7/30 days, all-time devices split desktop/mobile, and total sessions — no IP, no user-agent, no personal data
 - Analytics — total assets, per-category counts and shares, assets added in the last 7/30 days, and a data-health panel flagging uncategorised assets, missing Lightroom links and duplicate filenames
-- **Backup & Restore** — one JSON file with every asset and project, plus assets-only CSV export and a snapshot/read-budget panel
+- **Backup & Restore** — one JSON file with every asset and island, plus assets-only CSV export and a snapshot/read-budget panel
 - Hard reset database (password + typed confirmation required)
 - Change Superuser password from the UI — applies immediately on every device, no redeploy. Requires the current password, and enforces a 12-character minimum with penalties for predictable shapes
 - Failed unlock attempts trigger an escalating cooldown (15s doubling to 5 minutes) after 5 tries
@@ -57,7 +65,8 @@ Follows **tiket.com Passport 4.6**.
 - **Buttons:** TDS variants — Primary, Secondary, Tertiary, Invert, Alert — flat fills, no gradients
 - **Radius:** 8px
 - **Grid:** 16-column dashboard (28px margin) and 12-column desktop (120px margin), 24px gutter
-- **Icons:** single in-house solid 24×24 set, `currentColor` throughout so dark mode works
+- **Icons:** in-house solid 24×24 set plus a stroke set generated from Figma, `currentColor` throughout so dark mode works. `npm run icons` regenerates the Figma set from the SVGs in `src/app/assets/icons`
+- **Surfaces:** glassmorphic menus for kebab and popover surfaces, defined once in `globals.css`
 
 ## ⚙️ Tech
 - **Backend:** Appwrite Cloud (Frankfurt)
@@ -73,6 +82,52 @@ npm run dev
 ```
 
 ## 📝 Changelog
+
+### 2.0.0
+Full visual and interaction revamp against the new Figma design, desktop first. Major version because the navigation, the Superuser entry point and the "Projects" vocabulary all changed — no data migration is required, but muscle memory from 1.x will not survive.
+
+**Islands replace Projects**
+- "Project" is now "Island" throughout. This is a rename only: the `localStorage` key and its contents are unchanged, so every existing collection is still there under the new name
+- Island cards render a collage of their contents instead of a bare row, so a collection is identifiable at a glance
+- The four separate project dialogs — create, manage, the card dropdown and the add-to-project modal — collapse into one `IslandPicker` that both adds and removes, with search and inline creation. Adding an asset to a new island used to mean leaving the grid to create it first
+
+**Navigation and controls**
+- Sidebar rebuilt: asset types and admin tools are now distinct groups, the sync line carries the database status light, and the user menu holds the Superuser entry, dark mode and About
+- View, Sort and Pagination move into three header popovers. Pagination state lifted from `AssetGrid` up to `AssetDashboard`, so the header and the grid can no longer disagree about the current page
+- **The View and Sort menus never actually appeared.** Their chip is a custom component behind `<PopoverTrigger asChild>`, and it did not forward its ref — so Radix had no element to measure and anchored the menu against nothing, placing it a couple of hundred pixels above the top of the window. The chip forwards its ref now
+- View and Sort adopt the same dark glassmorphic surface as the island and user menus, rather than the light popover they had been using. Card density is three discrete stops (4/6/8) on a segmented control, replacing a continuous 4–8 slider that could land on widths the design never drew
+- The sidebar collapse control sits with the logo: always visible while the sidebar is open, revealed on hovering the logo once it is collapsed. It cross-fades with the logo rather than sitting beside it in the collapsed rail, which is only 68px wide
+- Detail panel widened to 360px and given a Superuser-only "Edit in Manage Asset" jump
+
+**Buttons**
+- Three filled variants (Primary, Secondary, Invert) across three sizes (52/44/32px), rebuilt against the Figma component. The existing `default` / `secondary` / `outline` keys are unchanged, so no call site moved
+- Each carries a 1px inside stroke that is a gradient from its colour at full opacity to 40%. `border-color` cannot express that, so the fill and the stroke are painted as two background layers (`.btn-gs` in `globals.css`) with a transparent border between them. The side effect is that `background-color` no longer reaches these buttons at all, so hover and active reassign the layers instead of setting a background
+- Vertical padding is one pixel under the drawn value because Figma strokes inside the frame while CSS puts the border outside the padding box; this is what makes the heights land on 52/44/32 rather than 54/46/34
+
+**Superuser**
+- The full-screen unlock gate is now a modal over the dashboard, so signing in no longer hides the library
+- Session state moved out of the gate component into a `SuperuserContext`. It was previously local to the gate, which meant nothing else could ask whether you were signed in — the sidebar and the cards can now show Superuser affordances directly
+- Losing the session while an admin screen is open returns you to the dashboard instead of leaving admin tooling on screen behind an expired lock
+
+**Layout matches the design 1:1**
+- **The whole spacing scale was rendering at 87.5%.** `html` was pinned to `font-size: 14px`, and every rem-based Tailwind utility is measured against that — so a `p-4` the design specifies as 16px came out at 14, `size-5` icons at 17.5 instead of 20, and the 240px sidebar at 210. Tailwind's scale assumes a 16px root and so does the Figma file; the root is now 16px and the two agree. Type is unaffected, because every font size in the app resolves to a Passport token and those are declared in px
+- **Icons were 5–50% oversized.** Figma exports the glyph's own bounding box, not the 24-unit frame it sits in, so rendering an export as-is stretches the glyph to fill the box and loses the inset. `scripts/gen-figma-icons.mjs` now widens each viewBox back out to the full frame and squares it, which restores the drawn size without touching path data
+- The page is the sunken surface with the content on it as a floating white panel, the header carries the title/count, search and controls in one column, and the card is rebuilt to spec — 160px artwork on a sunken block, a bare `+` in the corner, an 18px title, and the copy action folded into the link chip rather than a separate blue button
+
+**Foundations reconciled against Figma**
+- Colour was checked token by token against the Colour Foundation board — all 9 palette ramps, the Neutral Dark ramp, alphas, gradients, brand, and the Background/Text/Icon/Stroke semantic layer. **No drift; nothing changed.**
+- **Heading 3 was 28/30 and the foundation says 24/26.** 28 is not a rung on the desktop ramp at all. The likely source is the retired `🚫Heading 3` token, which is 22/28 — the 28 there is its line height, not its size. Affects the dashboard title and five admin/Analytics headings
+- **Added the mobile type ramp, which had never been transcribed.** The foundation defines every token twice, Desktop and Mobile; only Desktop existed, so a 56px Heading 1 specified to drop to 32px on a 360px screen stayed at 56 and overflowed. Headings now step down below the 840px breakpoint
+- The mobile *body* ramp is recorded but deliberately not switched on. Those tokens are what Tailwind's `--text-lg/base/sm` alias, so enabling them resizes most of the app's text, and Body 2 sets the font size of every input — anything under 16px makes iOS auto-zoom the page on focus. One consequence to be aware of: with headings ramped and body not, a mobile page title (18px) is the same size as a card title, so the two no longer separate
+
+**Correctness**
+- **Dark mode now applies everywhere at once.** `useTheme` kept per-component state, so each caller had its own copy — toggling from the sidebar left toasts and any other consumer on the old theme until remount. It is now a single module-level store
+- **The create-asset signature no longer demands an `id` it ignores.** `createAsset` and `bulkCreateAssets` asked for `Omit<Asset, 'created_at' | 'updated_at'>`, which requires the Appwrite document `$id` — a value only Appwrite can mint, and one both functions discard in favour of `ID.unique()`. CSV rows could not satisfy it. Replaced with an explicit `AssetDraft` type
+
+**Housekeeping**
+- TypeScript checking added (`npm run typecheck`), strict and clean, including `noUnusedLocals`/`noUnusedParameters`
+- Removed the orphaned `src/app/imports/` Figma export folder, the dead `AssetFilters` component, and duplicate `generateThumbnail`/`generateTags` helpers defined in two files and called from neither
+- Dropped 38 unused dependencies — including three whole UI kits (MUI, Emotion, lucide-react) that nothing imported — and 24 unused shadcn components, halving the UI layer. CSS bundle 143kB → 108kB
 
 ### 1.1.0
 - **Filenames now match case-insensitively.** `Halim.png` and `halim.png` are one asset, not two. Comparisons used the raw string everywhere, so a re-upload spelled with different capitalisation was graded **New** instead of **Replaced** — the link was never replaced, the old artwork stayed live, and the import created a **second row** for the same asset with no way to tell which was current. The in-batch duplicate guard missed it too, so a CSV carrying both spellings imported both without complaint

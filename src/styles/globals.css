@@ -1,7 +1,17 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --font-size: 14px;
+  /* Root font size, which is what every rem-based Tailwind utility is measured
+     against — p-4, gap-4, size-5, rounded-2xl and the rest.
+     
+     This was 14px, which silently rendered the entire spacing scale at 87.5%:
+     a `p-4` the design specifies as 16px came out 14px, `size-5` icons at 17.5
+     instead of 20, and the 240px sidebar at 210. Tailwind's scale assumes a
+     16px root, and so does the Figma file, so the two only agree at 16.
+     
+     Type is unaffected: every font-size in the app resolves to a Passport token
+     and those are all declared in px. */
+  --font-size: 16px;
 
   /* ---- Passport 4.6 mapping (light) ----
      Every value below resolves to a Passport semantic token. To change a colour,
@@ -43,6 +53,35 @@
 
   --radius: 8px; /* design system: 8px */
 
+  /* Two values the revamp design uses that have no Passport token.
+     Kept as named variables rather than inline hexes so dark mode has one
+     place to override them, and so they are obviously deliberate exceptions. */
+  /* Secondary's button stroke. Figma draws #A3CFFF, which exists in Passport
+     only as the primitive --pp-b200 — and primitives do not flip, while
+     Secondary's own fill (--pp-bg-blue-low) does. Left as the primitive the
+     stroke would sit at a light-mode value on a dark-mode fill, so it gets a
+     semantic name here with a value per theme.
+
+     Light is B200, exactly as drawn. Dark steps one rung to B300: against the
+     darker fill, B200 at full opacity reads as a hard bright edge rather than
+     the soft outline the light mode has. That rung is a judgement call — it is
+     the one line to change if you want it otherwise. */
+  --gili-stroke-blue-subtle: var(--pp-b200);
+
+  /* GAP — the brand yellow the superuser stroke ends on. Figma specifies
+     #FEE801, which is not on Passport's yellow ramp: Y500 is #FEDD00 and Y600
+     is #E5C700, so neither substitutes without shifting the colour. Named here
+     rather than inlined so there is one place to point at when the real token
+     lands. It does not flip: it is a brand mark, like the white on Primary. */
+  --gili-brand-yellow: #fee801;
+
+  --gili-search-surface: #f4f7fe;  /* search box fill — a shade under N50 */
+  --gili-panel-shadow: 0 4px 6px rgba(149, 157, 165, 0.2);
+  /* Island card thumbnail tiles. Deliberately not --gili-panel-shadow: the card
+     itself is drawn with a border and no shadow, so this is the only elevation
+     on that component and it is a different, much tighter value. */
+  --gili-tile-shadow: 0 2px 2px color-mix(in srgb, var(--pp-n800) 8%, transparent);
+
   --sidebar: var(--pp-bg-base);                 /* N0 */
   --sidebar-foreground: var(--pp-text-high);
   --sidebar-primary: var(--pp-brand-blue);
@@ -53,16 +92,17 @@
   --sidebar-ring: var(--pp-stroke-active);
 
   /* Typography scale — aliased onto the Passport ladder.
-     Passport rungs are 8 / 10 / 12 / 14 / 16 / 18 / 28 / 38 / 56.
-     GILI's old --text-xl (20px) and --text-2xl (24px) have NO Passport
-     equivalent, so both snap up to the nearest real rung, Heading 3 (28px).
-     That makes them identical — use the .pp-* classes for real hierarchy. */
+     Desktop rungs are 8 / 10 / 12 / 14 / 16 / 18 / 24 / 38 / 56.
+     GILI's old --text-xl (20px) has NO Passport equivalent, so it snaps up to
+     the nearest real rung, Heading 3. --text-2xl lands on Heading 3 exactly.
+     The two are therefore identical — use the .pp-* classes for real
+     hierarchy, since those also carry the matching line height. */
   --text-xs: var(--pp-small-size);    /* 12px — Small */
   --text-sm: var(--pp-body3-size);    /* 14px — Body 3 */
   --text-base: var(--pp-body2-size);  /* 16px — Body 2 */
   --text-lg: var(--pp-body1-size);    /* 18px — Body 1 */
-  --text-xl: var(--pp-h3-size);       /* 28px — snapped up from 20px */
-  --text-2xl: var(--pp-h3-size);      /* 28px — snapped up from 24px */
+  --text-xl: var(--pp-h3-size);       /* 24px — snapped up from 20px */
+  --text-2xl: var(--pp-h3-size);      /* 24px — Heading 3 */
 }
 
 .dark {
@@ -85,6 +125,15 @@
   --destructive: var(--pp-bg-red-high);         /* R400 in dark */
   --destructive-foreground: var(--pp-text-static-white);
   --border: var(--pp-stroke-disabled);          /* ND200 */
+
+  /* The light values are tuned for a white page and read as glare on a dark
+     one, so both fall back to the dark theme's own surfaces. */
+  --gili-search-surface: var(--pp-bg-sunken);
+  --gili-stroke-blue-subtle: var(--pp-b300);
+  --gili-panel-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+  /* An 8% N800 shadow is invisible against a dark surface, so the tile leans on
+     a stronger black here. The card's border still carries the outer edge. */
+  --gili-tile-shadow: 0 2px 2px rgba(0, 0, 0, 0.4);
   --input: var(--pp-nd200);
   --ring: var(--pp-stroke-active);              /* B500 */
   --font-weight-medium: 500;
@@ -240,6 +289,209 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* --font-sans and --font-display are declared in `@theme inline` above, and
+   `inline` means Tailwind substitutes their values into utilities without ever
+   emitting the custom properties. So `var(--font-sans)` resolved to nothing at
+   runtime, and Tailwind's own preflight — `html { font-family:
+   var(--default-font-family, ui-sans-serif, system-ui, sans-serif) }` — silently
+   fell back to the system stack. Re-declaring them here as real properties, and
+   pointing preflight's variable at ours, makes Odyssey the actual default
+   instead of a value that only exists at build time. */
+:root {
+  --font-sans: "Tiket Odyssey Text", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Tiket Odyssey Display", "Tiket Odyssey Text", ui-sans-serif, system-ui, sans-serif;
+  --default-font-family: var(--font-sans);
+}
+
+/* Glassmorphic context menu (Figma "Island" component).
+   Fixed dark surface in both themes by design — it floats over artwork, so it
+   cannot borrow the theme background without losing contrast against light
+   illustrations. */
+.gili-glass-menu {
+  /* THE popover surface. Every floating panel in the app uses this and only
+     this: N900 (#18191B) at 80%, over a 20px background blur. If a popover
+     needs a different surface, the answer is almost certainly that it should
+     not — change it here rather than at a call site. */
+  background: rgba(24, 25, 27, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 16px;
+  color: var(--pp-text-static-white, #fff);
+}
+
+/* The sidebar trigger in its Superuser state — solid N900 under a stroke
+   running yellow into blue, left to right.
+   
+   NOTE ON DIRECTION: the Manage asset button runs the same two colours the
+   other way, blue into yellow. That is deliberate and the two must stay
+   separately editable, so this does NOT reuse .btn-gs-brand or share a helper
+   with it, even though the declarations look near-identical.
+   
+   Three layers, and the order is what makes the stroke and the artwork coexist:
+   backgrounds paint first-listed on top, so the supergraphic sits ABOVE the
+   solid N900 rather than behind it. Putting the fill first would hide the image
+   entirely, which was the concern that had this state shipped without artwork
+   for a round. The border-box gradient stays last, showing only through the
+   transparent border. */
+.gili-user-trigger-super {
+  border: 1px solid transparent;
+  background:
+    url("/assets/supergraph/user-card.png") left center / cover no-repeat padding-box,
+    linear-gradient(var(--pp-n900), var(--pp-n900)) padding-box,
+    linear-gradient(to right, var(--gili-brand-yellow) 0%, var(--pp-b400) 100%) border-box;
+}
+
+/* Focus cannot be "recolour the border" here, because the border is already a
+   gradient and a colour change would be invisible against it. An offset ring
+   sits outside the stroke instead, so the two read as separate things. */
+.gili-user-trigger-super:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* The superuser login modal's wash. This is the exported supergraphic, not a
+   CSS gradient: an earlier pass approximated it with a radial-gradient because
+   the asset had not been exported, and the stop positions were guesswork. With
+   the real image there is nothing left to guess.
+   
+   It is pinned to the top at full width and does not repeat; the base surface
+   underneath covers the rest of the panel however tall the content grows. */
+.gili-superuser-modal {
+  background:
+    url("/assets/supergraph/superuser-modal.png") top center / 100% auto no-repeat,
+    var(--pp-bg-base);
+}
+
+.gili-glass-menu-divider {
+  background: rgba(216, 220, 232, 0.2);
+}
+
+/* The height of one menu row, published so the non-menu parts of a popover can
+   size themselves against it instead of hardcoding a number.
+   
+   It is not a free choice: a row is the item's line box (16px text at the 1.38
+   ramp) plus its 4px of padding top and bottom, which is exactly what
+   GlassMenuItem renders. The empty state is two of these tall, so it occupies
+   the same space as the two rows it stands in for rather than collapsing the
+   popover when a filter matches nothing. */
+:root {
+  --gili-menu-row-h: calc(1rem * 1.38 + 0.5rem);
+
+  /* PROVISIONAL — the one value in the popover work that is not derived.
+     
+     The glass surface is dark in both themes, so a low-emphasis text colour has
+     to come from the static-white family; Passport's --pp-text-low is mixed for
+     a light page and turns to mud here. The design system defines only the full
+     -strength --pp-text-static-white for this surface, with no secondary rung,
+     and the empty state, hint row and menu labels all need one.
+     
+     The alpha below follows the convention the divider already sets — N200 with
+     an alpha, rather than a grey of its own — but the specific value is a
+     stand-in until the real token exists. Change it here, not at call sites. */
+  --gili-menu-text-secondary: rgba(216, 220, 232, 0.72);
+}
+
+/* Button gradient stroke.
+   ------------------------------------------------------------------
+   Every button carries a 1px inside stroke that is a linear gradient — its
+   colour at full opacity along the top edge, fading to 40% at the bottom. It is
+   written `to bottom` rather than `180deg` so nobody has to recall which way CSS
+   measures the angle; `90deg` would run it sideways. border-color
+   does not accept a gradient, so the stroke is painted as a background layer:
+   the fill is clipped to padding-box, the gradient to border-box behind it, and
+   the border itself is transparent so the gradient shows through exactly where
+   the stroke belongs.
+
+   TWO CONSEQUENCES.
+
+   `background` is now fully spoken for, so background-color — and therefore
+   every Tailwind bg-* utility — has no effect on these buttons. Both layers
+   have to be restated for every state, so the two colours are held in
+   --btn-fill and --btn-stroke and the states reassign those rather than
+   redeclaring the whole shorthand. That also keeps the technique in one place
+   instead of repeating the gradient across nine rules.
+
+   The 40% end is derived with color-mix rather than written as a second
+   literal, so a variant's stroke is described by exactly one token. */
+.btn-gs {
+  border: 1px solid transparent;
+  --btn-surface: var(--btn-fill);
+
+  /* Direction and both stops are variables so a variant can replace any of
+     them. Most variants are one colour fading to 40% of itself down the button,
+     which is what these defaults describe; the brand variant overrides all
+     three to run a two-colour stroke sideways instead. A custom property can
+     hold a gradient direction because substitution happens before the value is
+     parsed. */
+  --btn-stroke-dir: to bottom;
+  --btn-stroke-from: var(--btn-stroke);
+  --btn-stroke-to: color-mix(in srgb, var(--btn-stroke) 40%, transparent);
+
+  background:
+    linear-gradient(var(--btn-surface), var(--btn-surface)) padding-box,
+    linear-gradient(var(--btn-stroke-dir), var(--btn-stroke-from) 0%, var(--btn-stroke-to) 100%)
+      border-box;
+}
+
+/* Hover and active are DERIVED from each variant's own semantic fill rather
+   than named per variant, because Figma draws only the rest state and Passport
+   has no hover/pressed tokens to borrow. Shifting the semantic fill by a fixed
+   12% toward ink or paper means one rule covers all three variants and both
+   themes: in dark mode --btn-fill already resolves to the dark token, so the
+   shift lands relative to that rather than to the light value.
+
+   Active moves toward paper, not ink — TDS draws the pressed state lighter
+   than rest, which is the opposite of the usual convention. */
+.btn-gs:hover:not(:disabled) {
+  --btn-surface: color-mix(in srgb, var(--btn-fill) 88%, var(--pp-n900));
+}
+.btn-gs:active:not(:disabled) {
+  --btn-surface: color-mix(in srgb, var(--btn-fill) 88%, var(--pp-n0));
+}
+
+/* Disabled is a specific grey fill in the spec, not a faded copy of the
+   variant, so it replaces both layers for all three. */
+.btn-gs:disabled {
+  --btn-fill: var(--pp-bg-disabled);
+  --btn-stroke: var(--pp-stroke-disabled);
+}
+
+/* 01 Primary — High Blue fill, white label and icon, white stroke. */
+/* Primary carries an extra 60% opacity layer over the whole stroke, matching the
+   Figma group's own opacity — so the 100%→40% ramp lands at 60%→24%. The other
+   three variants have no such layer and keep the shared ramp. */
+.btn-gs-primary {
+  --btn-fill: var(--pp-bg-blue-high);
+  --btn-stroke: var(--pp-text-static-white);
+  --btn-stroke-from: color-mix(in srgb, var(--pp-text-static-white) 60%, transparent);
+  --btn-stroke-to: color-mix(in srgb, var(--pp-text-static-white) 24%, transparent);
+}
+
+/* 02 Secondary — Low Blue fill, Active-blue label and icon. */
+.btn-gs-secondary {
+  --btn-fill: var(--pp-bg-blue-low);
+  --btn-stroke: var(--gili-stroke-blue-subtle);
+}
+
+/* 03 Invert — base surface fill, High-Emphasis label, neutral stroke. */
+.btn-gs-invert {
+  --btn-fill: var(--pp-bg-base);
+  --btn-stroke: var(--pp-stroke-light);
+}
+
+/* 04 Superuser — Invert's fill and label under a two-colour stroke running top
+   to bottom, yellow into blue. This is the superuser affordance: the same
+   surface as Invert, marked out by the stroke rather than by a different fill.
+
+   It is the one stroke that does not fade, so both stops sit at full opacity.
+   It used to run left to right, blue into yellow; both were wrong. */
+.btn-gs-brand {
+  --btn-fill: var(--pp-bg-base);
+  --btn-stroke-dir: to bottom;
+  --btn-stroke-from: var(--gili-brand-yellow);
+  --btn-stroke-to: var(--pp-b400);
+}
+
 /* Custom sidebar styling for compact left-aligned layout */
 .sidebar-menu-item[data-active="true"] {
   background: var(--pp-bg-blue-low);
@@ -300,33 +552,7 @@ body {
   scrollbar-color: var(--pp-stroke-light) transparent;
 }
 
-/* Detail panel specific styling */
-.asset-detail-panel {
-  font-family: inherit;
-}
-
-.asset-detail-panel h2 {
-  font-size: var(--text-lg);
-  font-weight: 600;
-  line-height: 1.3;
-  color: var(--foreground);
-}
-
-.asset-detail-panel h3 {
-  font-size: var(--text-base);
-  font-weight: 600;
-  line-height: 1.3;
-  color: var(--foreground);
-}
-
-.asset-detail-panel .info-label {
-  font-size: var(--text-sm);
-  font-weight: 400;
-  color: var(--muted-foreground);
-}
-
-.asset-detail-panel .info-value {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--foreground);
-}
+/* The detail panel used to carry element rules for h2, h3, .info-label and
+   .info-value here. They are gone: `.asset-detail-panel h2` outranks a single
+   Tailwind utility, so the panel's own type classes were being silently
+   overridden. The panel now sets its type inline, from the design's scale. */

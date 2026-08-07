@@ -311,7 +311,7 @@ export function AboutImageManager() {
               <Button variant="outline" size="sm" onClick={() => setZoom((z) => Math.max(1, +(z - 0.1).toFixed(2)))} disabled={zoom <= 1}>
                 <ZoomOut className="h-4 w-4" />
               </Button>
-              <span className="w-16 text-center text-sm tabular-nums text-muted-foreground">
+              <span className="w-16 text-center text-sm text-muted-foreground">
                 {Math.round(zoom * 100)}%
               </span>
               <Button variant="outline" size="sm" onClick={() => setZoom((z) => Math.min(4, +(z + 0.1).toFixed(2)))} disabled={zoom >= 4}>

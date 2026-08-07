@@ -7,10 +7,6 @@ import { Asset, getAllAssets, getAssetCounts } from '../utils/appwriteApi';
 import { assetKey } from '../utils/assetNaming';
 import { AlertTriangle, Layers, Package, Palette, RefreshCw, Image as ImageIcon, Sparkles } from "./icons";
 
-interface AnalyticsProps {
-  onNavigateBack: () => void;
-}
-
 /**
  * The five categories, matching the dashboard sidebar exactly.
  *
@@ -119,7 +115,7 @@ export function computeAnalytics(assets: Asset[]) {
   };
 }
 
-export function Analytics({ onNavigateBack }: AnalyticsProps) {
+export function Analytics() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -287,7 +283,7 @@ export function Analytics({ onNavigateBack }: AnalyticsProps) {
                       <div key={key} className="space-y-1">
                         <div className="flex items-baseline justify-between gap-2 text-sm">
                           <span className="truncate font-medium text-foreground">{key}</span>
-                          <span className="shrink-0 tabular-nums text-muted-foreground">
+                          <span className="shrink-0 text-muted-foreground">
                             {formatNumber(count)} · {share.toFixed(1)}%
                           </span>
                         </div>

@@ -2,9 +2,9 @@
    tiket.com Passport 4.6 — Typography & Grid Foundation
    Transcribed from the Typography Token table and the Column/Gutter/Margin board.
 
-   All sizes are px, exactly as specified. They are deliberately NOT rem:
-   GILI sets `html { font-size: 14px }`, so rem would silently scale every
-   Passport size by 14/16 and nothing would match the spec.
+   All sizes are px, exactly as specified, and deliberately NOT rem — type is
+   an absolute scale in the foundation, so it should not move if the root font
+   size ever does.
 
    Tracking is "Normal" on every token, so no letter-spacing is emitted.
    ========================================================================== */
@@ -54,9 +54,12 @@
   --pp-h2-lh: 42px;
   --pp-h2-weight: 700;
 
-  /* Heading 3 — Bold 28/30 (107%) — Main titles, once per page */
-  --pp-h3-size: 28px;
-  --pp-h3-lh: 30px;
+  /* Heading 3 — Bold 24/26 (107%) — Main titles, once per page.
+     Was transcribed as 28/30. The foundation says 24 at 107%; 28 is not a rung
+     on the desktop ramp at all. The likely source of the error is the retired
+     `🚫Heading 3` token, which is 22/28 — the 28 there is its line height. */
+  --pp-h3-size: 24px;
+  --pp-h3-lh: 26px;
   --pp-h3-weight: 700;
 
   /* Body 1 — Bold/Regular 18/24 (133%) — Large button, link, sub heading */
@@ -108,6 +111,49 @@
   /* Ultrawide margin as a percentage. The board says "margin using percentage"
      without giving the number, so this is a placeholder, not a spec value. */
   --pp-margin-ultrawide: 8%;
+}
+
+/* ==========================================================================
+   Mobile type ramp — below the 840px desktop breakpoint.
+
+   The foundation defines every token twice, Desktop and Mobile, and the app
+   only ever transcribed Desktop. Headings were the visible cost: a 56px
+   Heading 1 is specified to drop to 32px on a 360px screen, and instead stayed
+   at 56 and overflowed.
+
+   HEADINGS ONLY, on purpose. The foundation also steps the body ramp down a
+   rung on mobile (Body 1 18>16, Body 2 16>14, Body 3 14>12), but those tokens
+   are what Tailwind's --text-lg/base/sm alias, so switching them would resize
+   most of the app's text at a breakpoint with no mobile design to check it
+   against. Body 2 in particular sets the font size of every input, and any
+   value under 16px makes iOS auto-zoom the page on focus. The mobile body
+   values are recorded below, unused, so turning them on later is a decision
+   rather than a re-transcription.
+   ========================================================================== */
+@media (max-width: 839px) {
+  :root {
+    /* Heading 1 — Bold 32/38 (119%) */
+    --pp-h1-size: 32px;
+    --pp-h1-lh: 38px;
+
+    /* Heading 2 — Bold 22/28 (127%) */
+    --pp-h2-size: 22px;
+    --pp-h2-lh: 28px;
+
+    /* Heading 3 — Bold 18/24 (134%) */
+    --pp-h3-size: 18px;
+    --pp-h3-lh: 24px;
+  }
+}
+
+:root {
+  /* Recorded from the foundation's Mobile ramp but not applied — see above. */
+  --pp-body1-size-mobile: 16px;
+  --pp-body1-lh-mobile: 22px;
+  --pp-body2-size-mobile: 14px;
+  --pp-body2-lh-mobile: 20px;
+  --pp-body3-size-mobile: 12px;
+  --pp-body3-lh-mobile: 16px;
 }
 
 /* ==========================================================================

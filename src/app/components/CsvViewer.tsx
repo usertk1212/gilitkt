@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "./ui/alert";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "./ui/table";
 import {
   FileText, Upload, Download, CheckCircle, AlertCircle, Database, ChevronLeft, ChevronRight,
-  ChevronsLeft, ChevronsRight, Eye, ArrowUp, ArrowDown, Search, Copy, RefreshCw,
+  ChevronsLeft, ChevronsRight, ArrowUp, ArrowDown, Search, Copy, RefreshCw,
 } from "./icons";
 import { parseCSV, ParsedAsset } from "../utils/csvParser";
 import { getExistingAssetIndex } from "../utils/appwriteApi";

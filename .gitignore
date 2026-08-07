@@ -1,1 +1,8 @@
 node_modules
+dist
+.DS_Store
+*.local
+.vercel
+
+# local visual-verification harness, not part of the app
+scratch

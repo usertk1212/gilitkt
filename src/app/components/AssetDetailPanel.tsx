@@ -1,16 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useIsMobile } from "./ui/use-mobile";
-import { X, Copy, Check, Plus, Link, ZoomIn, ArrowRight } from "./icons";
+import { X, Plus, ZoomIn, Settings } from "./icons";
+import { ArrowUpRight } from "./icons/ArrowUpRight";
 import { ImageZoomModal } from "./ImageZoomModal";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { Separator } from "./ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { type Asset } from "../utils/appwriteApi";
 import { toast } from "sonner";
 import { copyWithFeedback } from "../utils/clipboard";
 import { extractTags, tagChipClasses, tagChipTitle } from "./helpers/assetHelpers";
+import { Copy03 } from "./icons/figma";
+import { CheckCircle } from "./icons/CheckCircle";
+import { cn } from "./ui/utils";
+import { IslandPicker } from "./islands/IslandPicker";
+import { type Island } from "./islands/types";
+import { useSuperuser } from "../context/SuperuserContext";
 
 interface AssetDetailPanelProps {
   asset: Asset;
@@ -19,7 +26,10 @@ interface AssetDetailPanelProps {
   onTagClick?: (tag: string) => void;
   /** Tags currently switched on, lowercased — kept in step with the search box. */
   activeTags?: string[];
-  onAssetOrganize?: (asset: Asset) => void;
+  islands?: Island[];
+  onUpdateIslands?: (islands: Island[]) => void;
+  /** Superuser-only: jump to the Manage Asset screen. */
+  onManageAsset?: () => void;
 }
 
 export function AssetDetailPanel({
@@ -28,11 +38,23 @@ export function AssetDetailPanel({
   onClose,
   onTagClick,
   activeTags = [],
-  onAssetOrganize
+  islands = [],
+  onUpdateIslands,
+  onManageAsset,
 }: AssetDetailPanelProps) {
   const [isCopied, setIsCopied] = useState(false);
-  const [isZoomOpen, setIsZoomOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const isMobile = useIsMobile();
+
+  // Desktop has no panel-without-canvas state: opening a card opens both halves
+  // of one screen, so zoom is not a mode you enter, it is where you already are.
+  // Mobile cannot fit them side by side, so it keeps the two-step flow — sheet
+  // first, tap the preview to zoom — and this stays false until that tap.
+  const [isZoomOpen, setIsZoomOpen] = useState(!isMobile);
+  useEffect(() => {
+    setIsZoomOpen(!isMobile);
+  }, [isMobile]);
+  const { unlocked } = useSuperuser();
 
   // Swipe-down-to-dismiss, mobile only.
   //
@@ -108,23 +130,39 @@ export function AssetDetailPanel({
     };
   }, [isOpen]);
 
-  // Esc closes, matching the zoom modal.
+  // Esc unwinds one layer at a time. Without the guard both this and the zoom
+  // stage answer the same keypress, and dismissing the zoom takes the panel
+  // with it.
   useEffect(() => {
     if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      // Desktop closes the whole screen from either region — the canvas is not a
+      // layer you can back out of. Mobile still steps back to the sheet.
+      if (isMobile && isZoomOpen) setIsZoomOpen(false);
+      else onClose();
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, onClose]);
+  }, [isOpen, isZoomOpen, isMobile, onClose]);
 
   if (!isOpen) return null;
 
-  const handleCopyClick = async (text: string) => {
+  /**
+   * `what` names the thing being copied, and only the link chip has a copied
+   * state to flip. Both used to share one handler and one flag, so copying the
+   * filename announced "Link copied" and turned the URL row green underneath —
+   * it read as though the wrong thing had gone to the clipboard.
+   */
+  const handleCopyClick = async (text: string, what: "name" | "link") => {
     await copyWithFeedback(
       text,
       () => {
-        setIsCopied(true);
-        toast.success("Link copied to clipboard!");
-        setTimeout(() => setIsCopied(false), 2000);
+        if (what === "link") {
+          setIsCopied(true);
+          setTimeout(() => setIsCopied(false), 2000);
+        }
+        toast.success(what === "link" ? "Link copied to clipboard!" : "Name copied to clipboard!");
       },
       (errorMessage: string) => {
         toast.error("Copy failed", { description: errorMessage });
@@ -152,10 +190,29 @@ export function AssetDetailPanel({
   return createPortal(
     <div
       /* Mobile: sheet anchored to the bottom edge, full width.
-         Desktop (840px+): unchanged right-side panel. */
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 lg:items-stretch lg:justify-end"
+         Desktop (840px+): right-side panel.
+
+         Zoomed on desktop the same container becomes the overlay from the
+         design: a 12px gutter all round, the zoom stage taking the remaining
+         width, and the panel beside it at 320px rather than on top of it. */
+      className={cn(
+        "fixed inset-0 z-50 flex items-end justify-center lg:items-stretch lg:justify-end",
+        isZoomOpen ? "bg-black/80 lg:gap-4 lg:p-3" : "bg-black/50"
+      )}
       onClick={onClose}
     >
+      {isZoomOpen && !isMobile && (
+        <ImageZoomModal
+          src={asset.url_lightroom}
+          alt={asset.asset_name}
+          caption={displayName}
+          isOpen
+          onClose={() => setIsZoomOpen(false)}
+          variant="docked"
+          className="hidden min-w-0 flex-1 lg:block"
+        />
+      )}
+
       <div
         /* Mobile bottom sheet — 85dvh so a strip of backdrop stays visible and
            it reads as a sheet over the grid rather than a new page. dvh over vh
@@ -168,7 +225,14 @@ export function AssetDetailPanel({
 
            flex-col here, with the scroll moved to the content wrapper below, so
            the drag handle stays put instead of scrolling away with the content. */
-        className="asset-detail-panel flex h-[85dvh] w-full flex-col overflow-hidden rounded-t-[16px] bg-card shadow-xl animate-in slide-in-from-bottom duration-300 lg:h-full lg:w-[340px] lg:max-w-[340px] lg:rounded-none lg:slide-in-from-bottom-0 lg:slide-in-from-right-0 lg:duration-300"
+        className={cn(
+          "asset-detail-panel flex h-[85dvh] w-full flex-col overflow-hidden rounded-t-[16px] bg-card shadow-xl animate-in slide-in-from-bottom duration-300 lg:h-full lg:rounded-none lg:slide-in-from-bottom-0 lg:slide-in-from-right-0 lg:duration-300",
+          // Zoomed, the panel narrows to 320 and rounds off, because it is now a
+          // card floating in the overlay rather than a slab against the edge.
+          isZoomOpen
+            ? "lg:w-[320px] lg:max-w-[320px] lg:rounded-2xl"
+            : "lg:w-[360px] lg:max-w-[360px]"
+        )}
         style={
           dragY > 0
             ? { transform: `translateY(${dragY}px)`, transition: "none" }
@@ -190,182 +254,238 @@ export function AssetDetailPanel({
           <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
         </div>
 
-        {/* Everything below scrolls; the handle above does not. */}
-        <div className="flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
-        {/* Header with Asset Details */}
-        <div className="p-4 lg:p-6 border-b">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">Asset Details</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="h-8 w-8 p-0 hover:bg-accent rounded-full"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
+        {/* Header. 20px all round, the title on Body 1 - Bold and a bare 20px
+            close glyph — no button chrome, as drawn. */}
+        <div className="flex shrink-0 items-center gap-3 p-5">
+          <h2 className="min-w-0 flex-1 text-[18px] font-bold leading-[1.33] text-[var(--pp-text-high)]">
+            Details
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="shrink-0 rounded-sm text-[var(--pp-icon-high)] transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
 
-          {/* Preview Image — click to inspect at full size.
-              object-contain across every type: object-cover was cropping
-              portrait and non-4:3 assets, which is unusable in a library whose
-              whole job is letting you check what an asset actually looks like. */}
+        {/* Everything between the header and the action footer scrolls. */}
+        <div className="flex-1 overflow-y-auto overscroll-contain">
+          {/* Preview band — a fixed 160px-tall image on the sunken surface,
+              not a 4:3 card. object-contain across every type: object-cover was
+              cropping portrait and non-4:3 assets, which is unusable in a
+              library whose whole job is letting you check what an asset
+              actually looks like. Click still zooms; the design only draws the
+              rest state. */}
           <button
             type="button"
             onClick={() => setIsZoomOpen(true)}
-            title="Click to zoom"
-            className="group relative mb-4 block aspect-[4/3] w-full overflow-hidden rounded-lg bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            // Desktop reaches the canvas by opening the card, so the preview is
+            // inert there and advertising a zoom step would be a lie. Only
+            // mobile still needs the affordance.
+            disabled={!isMobile}
+            title={isMobile ? "Tap to zoom" : undefined}
+            className="group relative flex w-full items-center justify-center bg-[var(--pp-bg-sunken)] px-5 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           >
             <ImageWithFallback
               src={asset.url_lightroom}
               alt={asset.asset_name}
-              className={`h-full w-full object-contain ${
-                asset.type === 'Micro' ? 'p-4' : asset.type === 'Icon' ? 'p-3' : 'p-1'
-              }`}
+              className="h-[160px] w-[240px] object-contain"
             />
-            <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
-              <span className="flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-medium text-neutral-900">
-                <ZoomIn className="h-3.5 w-3.5" />
-                Zoom
+            {isMobile && (
+              <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
+                <span className="flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-medium text-neutral-900">
+                  <ZoomIn className="h-3.5 w-3.5" />
+                  Zoom
+                </span>
               </span>
-            </span>
+            )}
           </button>
 
-          {/* Asset Information */}
-          <div className="space-y-3">
-            {/* Name — filenames have no spaces, so break-all is what actually
-                forces a wrap; line-clamp caps it at 3 lines so a very long name
-                can't push the whole panel down. Full name on hover + click to copy. */}
-            <div>
-              <div className="info-label mb-1">Name</div>
-              <button
-                type="button"
-                onClick={() => handleCopyClick(displayName)}
-                title={`${displayName} — click to copy`}
-                className="info-value line-clamp-3 break-all text-left text-base leading-snug transition-opacity hover:opacity-70"
-              >
-                {displayName}
-              </button>
-            </div>
+          {/* Detail. 20/16 padding, 16px between every field, 4px between a
+              field's label and its value. */}
+          <div className="flex flex-col gap-4 px-5 py-4">
+            <h3 className="break-words text-[18px] font-bold leading-[1.33] text-[var(--pp-text-high)]">
+              {asset.asset_name}
+            </h3>
 
-            {/* Type */}
-            <div>
-              <div className="info-label mb-1">Type</div>
-              <div className="info-value">
-                {asset.type || 'Illustration'}
-              </div>
-            </div>
-
-            {/* Source — opens the asset straight in Lightroom.
-                rel="noopener noreferrer" because target="_blank" otherwise hands
-                the opened page a reference back to this window. */}
-            <div>
-              <div className="info-label mb-1">Source</div>
-              {asset.url_lightroom ? (
-                <a
-                  href={asset.url_lightroom}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[var(--pp-text-active)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  title="Open in Lightroom (new tab)"
+            <div className="flex flex-col gap-4">
+              {/* Name — filenames have no spaces, so break-all is what actually
+                  forces a wrap; line-clamp caps it at 3 lines so a very long
+                  name can't push the whole panel down. Click to copy. */}
+              <div className="flex flex-col gap-1">
+                <div className="text-base leading-[1.38] text-[var(--pp-text-low)]">Name</div>
+                <button
+                  type="button"
+                  onClick={() => handleCopyClick(displayName, "name")}
+                  title={`${displayName} — click to copy`}
+                  className="line-clamp-3 break-all text-left text-base font-bold leading-[1.38] text-[var(--pp-text-high)] transition-opacity hover:opacity-70"
                 >
-                  Lightroom
-                  <ArrowRight className="h-3.5 w-3.5 -rotate-45" />
-                </a>
-              ) : (
-                <div className="info-value text-muted-foreground">-</div>
-              )}
-            </div>
+                  {displayName}
+                </button>
+              </div>
 
-            {/* Tags */}
-            {tags.length > 0 && (
-              <div>
-                <div className="info-label mb-2">Tags</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {tags.map((tag, index) => (
-                    <Badge
-                      key={index}
-                      variant="secondary"
-                      className={`text-xs px-2 py-1 ${tagChipClasses(isTagOn(tag))}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onTagClick?.(tag);
-                      }}
-                      title={tagChipTitle(tag, isTagOn(tag))}
-                    >
-                      {tag}
-                    </Badge>
-                  ))}
+              <div className="flex flex-col gap-1">
+                <div className="text-base leading-[1.38] text-[var(--pp-text-low)]">Type</div>
+                <div className="text-base font-bold leading-[1.38] text-[var(--pp-text-high)]">
+                  {asset.type || "Illustration"}
                 </div>
               </div>
-            )}
-          </div>
-        </div>
 
-        <Separator />
+              {/* Source — opens the asset straight in Lightroom.
+                  rel="noopener noreferrer" because target="_blank" otherwise
+                  hands the opened page a reference back to this window. */}
+              <div className="flex flex-col gap-1">
+                <div className="text-base leading-[1.38] text-[var(--pp-text-low)]">Source</div>
+                {asset.url_lightroom ? (
+                  <a
+                    href={asset.url_lightroom}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex w-fit items-center gap-0.5 text-base font-bold leading-[1.38] text-[var(--pp-text-active)] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    title="Open in Lightroom (new tab)"
+                  >
+                    Lightroom
+                    <ArrowUpRight className="size-5 shrink-0" />
+                  </a>
+                ) : (
+                  <div className="text-base font-bold leading-[1.38] text-[var(--pp-text-low)]">
+                    -
+                  </div>
+                )}
+              </div>
 
-        {/* Detail Section */}
-        <div className="p-4 lg:p-6">
-          <h3 className="text-base font-semibold text-foreground mb-4">Detail</h3>
-
-          {/* Lightroom Link */}
-          <div className="space-y-3 mb-6">
-            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-              <Link className="w-4 h-4 text-muted-foreground shrink-0" />
-              <input
-                type="text"
-                size={1}
-                value={asset.url_lightroom}
-                readOnly
-                className="min-w-0 flex-1 text-sm text-muted-foreground bg-transparent border-none outline-none"
-                onClick={(e) => {
-                  (e.target as HTMLInputElement).select();
-                }}
-              />
-              <Button
-                size="sm"
-                onClick={() => handleCopyClick(asset.url_lightroom)}
-                className="h-7 w-7 p-0 text-white rounded"
-                style={{
-                  background: isCopied ? 'var(--pp-bg-green-high)' : 'var(--pp-bg-blue-high)'
-                }}
-              >
-                {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-              </Button>
+              {tags.length > 0 && (
+                <div className="flex flex-col gap-1">
+                  <div className="text-base leading-[1.38] text-[var(--pp-text-low)]">Tags</div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    {tags.map((tag, index) => (
+                      <Badge
+                        key={index}
+                        variant="secondary"
+                        className={tagChipClasses(isTagOn(tag))}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onTagClick?.(tag);
+                        }}
+                        title={tagChipTitle(tag, isTagOn(tag))}
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-
-          {/*
-            Single full-width action.
-
-            A Download button sat above this one until 1.0.54. It could not work:
-            it fetched the asset from s-light.tiket.photos, a different origin,
-            and without `Access-Control-Allow-Origin` from that CDN the browser
-            blocks the read. Saving to the device is impossible from here until
-            that header exists.
-
-            The Source link above — the one that opens the asset in Lightroom — is
-            the working path, and Copy link covers the rest.
-          */}
-          <Button
-            onClick={() => onAssetOrganize?.(asset)}
-            className="h-9 w-full rounded-lg text-white"
-            style={{ background: 'var(--pp-bg-blue-high)' }}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add to Project
-          </Button>
         </div>
+
+        {/* Action footer, outside the scroller so the primary action is always
+            reachable on a short viewport. Same 20/16 padding and 16px rhythm as
+            the detail block above it.
+
+            A Download button sat here until 1.0.54. It could not work: it
+            fetched the asset from s-light.tiket.photos, a different origin, and
+            without `Access-Control-Allow-Origin` from that CDN the browser
+            blocks the read. The Source link above is the working path, and the
+            copy chip covers the rest. */}
+        <div className="flex shrink-0 flex-col gap-4 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="flex flex-col gap-1">
+            <div className="text-base leading-[1.38] text-[var(--pp-text-low)]">Details</div>
+            {/* The same link chip the inventory card uses: one surface that is
+                itself the copy button, rather than a read-only field beside a
+                filled action button. Kept as literal markup rather than an
+                extracted component because AssetCard owns its own copy state
+                and feedback; only the appearance is shared. */}
+            <button
+              type="button"
+              onClick={() => handleCopyClick(asset.url_lightroom, "link")}
+              title={`Copy ${asset.url_lightroom}`}
+              aria-label="Copy link"
+              className={cn(
+                "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                isCopied
+                  ? "bg-[var(--pp-bg-green-low)]"
+                  : "bg-[var(--pp-bg-backdrop)] hover:bg-[var(--pp-n200,#d8dce8)]"
+              )}
+            >
+              <span
+                className={cn(
+                  "min-w-0 flex-1 truncate text-sm leading-[1.43]",
+                  isCopied ? "text-[var(--pp-text-positive)]" : "text-[var(--pp-text-low)]"
+                )}
+              >
+                {isCopied ? "Link copied to clipboard" : asset.url_lightroom}
+              </span>
+              {isCopied ? (
+                <CheckCircle className="size-5 shrink-0 text-[var(--pp-text-positive)]" />
+              ) : (
+                <Copy03 className="size-5 shrink-0 text-[var(--pp-icon-active)]" />
+              )}
+            </button>
+          </div>
+
+          {/* Med, not Big: the instance in the design measures 20px side and
+              11px top inset with an 8px radius and an 84px minimum, which is
+              Med's geometry once the 1px stroke is counted as part of the inset.
+
+              Guest sees Add to Island across the full width, as drawn.
+              Superuser gets Edit details beside it, and two of them cannot both
+              carry Med's 20px side padding inside 320px, so the pair drops to
+              12px — the only value that gives; height, radius and type stay on
+              the size. Editing itself still happens on the Manage Asset screen,
+              which owns the write path to Appwrite. */}
+          <div className="flex items-center gap-2">
+            {unlocked && onManageAsset && (
+              <Button
+                variant="secondary"
+                onClick={onManageAsset}
+                className="min-w-0 flex-1 px-3"
+              >
+                <Settings />
+                Edit details
+              </Button>
+            )}
+
+            <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  className={cn("w-full", unlocked && onManageAsset && "min-w-0 flex-1 px-3")}
+                >
+                  <Plus />
+                  Add to Island
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="center"
+                sideOffset={6}
+                className="w-[360px] max-w-[calc(100vw-2rem)]"
+              >
+                <IslandPicker
+                  asset={asset}
+                  islands={islands}
+                  onUpdateIslands={onUpdateIslands ?? (() => {})}
+                  onDone={() => setPickerOpen(false)}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
       </div>
 
-      <ImageZoomModal
-        src={asset.url_lightroom}
-        alt={asset.asset_name}
-        caption={displayName}
-        isOpen={isZoomOpen}
-        onClose={() => setIsZoomOpen(false)}
-      />
+      {/* Mobile keeps the covering overlay: there is no room to dock a stage
+          beside a full-width sheet. */}
+      {isMobile && (
+        <ImageZoomModal
+          src={asset.url_lightroom}
+          alt={asset.asset_name}
+          caption={displayName}
+          isOpen={isZoomOpen}
+          onClose={() => setIsZoomOpen(false)}
+        />
+      )}
     </div>,
     document.body
   );

@@ -13,6 +13,12 @@
  *   projects  the browser-local collections, with their asset lists
  *   favorites see the note below
  *
+ * The `projects` field and the `gili-projects` storage key keep their old names
+ * even though 2.0 calls these Islands in the UI. Both are on-disk formats: a
+ * rename would make every backup written before 2.0 restore zero collections,
+ * and would orphan the ones already in people's browsers. The wording users see
+ * is the only thing that changed.
+ *
  * On favorites: as of this version they aren't persisted anywhere at all — they
  * live in AssetGrid's useState and are gone on reload, so there is nothing to back
  * up and the array will be empty. The field is read and written defensively so

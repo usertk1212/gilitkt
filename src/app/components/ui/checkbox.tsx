@@ -14,16 +14,30 @@ function Checkbox({
     <CheckboxPrimitive.Root
       data-slot="checkbox"
       className={cn(
-        "peer border bg-input-background dark:bg-input/30 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary data-[state=checked]:border-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive size-4 shrink-0 rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
+        // 20px box, radius 4, no border. The fill is a white alpha rather than a
+        // surface token because this checkbox lives on the glass menu, which is
+        // dark in both themes — a token that flipped would vanish in one.
+        //
+        // Checking does not change the fill, only reveals the mark. That is
+        // deliberate in the design; the previous build swapped to a solid blue
+        // plate on check, which reads as a different control.
+        "group peer size-5 shrink-0 rounded-[4px] bg-white/40 text-[var(--pp-text-static-white)] outline-none transition-opacity",
+        "focus-visible:ring-[3px] focus-visible:ring-ring/50",
+        // Disabled dims the mark, not the plate. Fading the whole control also
+        // faded its white/20 fill down to near-nothing, so a disabled checkbox
+        // read as empty space; the design keeps the plate legible and drops
+        // only the tick to 20%.
+        "disabled:cursor-not-allowed disabled:bg-white/20",
         className,
       )}
       {...props}
     >
       <CheckboxPrimitive.Indicator
         data-slot="checkbox-indicator"
-        className="flex items-center justify-center text-current transition-none"
+        className="flex size-full items-center justify-center text-current transition-none group-disabled:opacity-20"
       >
-        <CheckIcon className="size-3.5" />
+        {/* 16px glyph centred in the 20px box, per the design's 2px inset. */}
+        <CheckIcon className="size-4" />
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   );

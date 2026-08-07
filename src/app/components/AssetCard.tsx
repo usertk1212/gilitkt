@@ -1,31 +1,21 @@
-import { useState, memo } from "react";
-import { Card, CardContent } from "./ui/card";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
+import { memo, useState } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { type Asset } from "../utils/appwriteApi";
-import { type Project } from "./ProjectManager";
 import { toast } from "sonner";
 import { copyWithFeedback } from "../utils/clipboard";
-import { ProjectDropdownContent } from "./ProjectDropdownContent";
-import { ManageProjectDialog } from "./ManageProjectDialog";
 import { extractTags, tagChipClasses, tagChipTitle } from "./helpers/assetHelpers";
 import { getAssetTypeLabel } from "./constants/projectConstants";
-import { Check, Copy, Edit, Eye, FolderPlus, MoreHorizontal, Plus, Share, Trash2 } from "./icons";
+import { Copy03, Plus } from "./icons/figma";
+import { CheckCircle } from "./icons/CheckCircle";
+import { IslandPicker } from "./islands/IslandPicker";
+import { type Island } from "./islands/types";
+import { cn } from "./ui/utils";
 
 interface AssetCardProps {
   asset: Asset;
   viewMode: "grid" | "list";
-  isFavorite: boolean;
   isSelected?: boolean;
-  onToggleFavorite: (nama_file: string) => void;
   onSelect?: (asset: Asset) => void;
   onTagClick?: (tag: string) => void;
   /**
@@ -34,46 +24,53 @@ interface AssetCardProps {
    * search box, which is the single source of truth for what's being filtered.
    */
   activeTags?: string[];
-  onAssetOrganize?: (asset: Asset) => void;
-  projects?: Project[];
-  onUpdateProjects?: (projects: Project[]) => void;
-  onCreateNewProject?: () => void;
-  isInProject?: boolean;
-  currentProject?: Project;
-  gridColumns?: number; // Add gridColumns prop
+  islands?: Island[];
+  onUpdateIslands?: (islands: Island[]) => void;
+  /** Density from the header's View popover — desktop only. */
+  gridColumns?: number;
 }
+
+/*
+ * Download was removed in 1.0.54 and stays removed.
+ *
+ * Two attempts, both dead ends. The original was an `<a download>` pointed at
+ * `asset.url_lightroom`; the `download` attribute is IGNORED cross-origin, so
+ * it degraded to navigation and opened Lightroom in a tab while reporting
+ * "Download started!". The replacement fetched the bytes to hand them over as a
+ * same-origin blob, which is correct in principle but requires
+ * `Access-Control-Allow-Origin` from s-light.tiket.photos. That header does not
+ * exist, so the fetch is blocked and the code fell back to opening a tab too.
+ *
+ * There is no third approach that lives in the client. Copy Link is the honest
+ * affordance, which is why the design gives it the card's primary action slot —
+ * as of 2.0 that slot is the copy glyph inside the link chip itself.
+ */
 
 function AssetCardImpl({
   asset,
   viewMode,
-  isFavorite,
   isSelected = false,
-  onToggleFavorite,
   onSelect,
   onTagClick,
   activeTags = [],
-  onAssetOrganize,
-  projects = [],
-  onUpdateProjects,
-  onCreateNewProject,
-  isInProject = false,
-  currentProject,
-  gridColumns = 4, // Default to 4 columns
+  islands = [],
+  onUpdateIslands,
+  gridColumns = 4,
 }: AssetCardProps) {
-  const [isHovered, setIsHovered] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const [projectSearchQuery, setProjectSearchQuery] = useState("");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [showManageProjectDialog, setShowManageProjectDialog] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
-  // Determine card size based on grid columns
-  const isSmallCard = gridColumns >= 7; // 7+ columns = small cards
-  const isMediumCard = gridColumns >= 5 && gridColumns < 7; // 5-6 columns = medium cards
-  const isLargeCard = gridColumns < 5; // 4 or fewer columns = large cards
+  // Density only compacts the card's chrome; the artwork keeps its aspect ratio
+  // at every step so a dense grid still reads as a contact sheet.
+  const isDense = gridColumns >= 7;
 
-  const handleCopyClick = async (text: string) => {
+  const tags = extractTags(asset);
+  const isTagOn = (tag: string) => activeTags.includes(tag.toLowerCase());
+  const memberCount = islands.filter((i) => i.asset_ids.includes(asset.nama_file)).length;
+
+  const handleCopy = async () => {
     await copyWithFeedback(
-      text,
+      asset.url_lightroom,
       () => {
         setIsCopied(true);
         toast.success("Link copied to clipboard!", {
@@ -81,492 +78,246 @@ function AssetCardImpl({
         });
         setTimeout(() => setIsCopied(false), 2000);
       },
-      (errorMessage: string) => {
-        if (errorMessage.includes("selected")) {
-          toast.info("Please copy manually", { description: errorMessage, duration: 5000 });
-        } else if (errorMessage.includes("dialog")) {
-          toast.info("Copy manually", { description: errorMessage, duration: 4000 });
+      (message: string) => {
+        if (message.includes("selected") || message.includes("dialog")) {
+          toast.info("Copy manually", { description: message, duration: 5000 });
         } else {
-          toast.error("Copy failed", { description: errorMessage, duration: 6000 });
+          toast.error("Copy failed", { description: message, duration: 6000 });
         }
       }
     );
   };
 
-  const handleAddToProject = (project: Project) => {
-    if (!onUpdateProjects) return;
+  /** Bare glyph in the media corner — the design gives it no fill or border. */
+  const islandButton = (
+    <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          title={memberCount > 0 ? `In ${memberCount} island(s)` : "Add to an island"}
+          aria-label="Add to an island"
+          className={cn(
+            "flex shrink-0 items-center justify-center rounded-lg p-1.5 transition-colors",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            // Bare over the thumbnail at rest; once the scrim comes up it needs
+            // its own light surface to stay legible, which is also how the
+            // design draws the hover state.
+            "group-hover:bg-[var(--pp-bg-base)] group-hover:text-[var(--pp-icon-active)]",
+            "hover:bg-[var(--pp-bg-backdrop)]",
+            memberCount > 0 ? "text-[var(--pp-text-active)]" : "text-[var(--pp-icon-high)]"
+          )}
+        >
+          <Plus className="size-5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        sideOffset={4}
+        className="w-[360px] max-w-[calc(100vw-2rem)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <IslandPicker
+          asset={asset}
+          islands={islands}
+          onUpdateIslands={onUpdateIslands ?? (() => {})}
+          onDone={() => setPickerOpen(false)}
+        />
+      </PopoverContent>
+    </Popover>
+  );
 
-    if (project.asset_ids.includes(asset.nama_file)) {
-      toast.info("Asset already in project", {
-        description: `"${asset.asset_name}" is already in "${project.name}".`
-      });
-      return;
-    }
-
-    const updatedProjects = projects.map(p => 
-      p.id === project.id 
-        ? { ...p, asset_ids: [...p.asset_ids, asset.nama_file] }
-        : p
-    );
-
-    onUpdateProjects(updatedProjects);
-    toast.success("Asset added to project!", {
-      description: `"${asset.asset_name}" has been added to "${project.name}".`
-    });
-  };
-
-  const handleUnpinFromProject = () => {
-    if (!currentProject || !onUpdateProjects) return;
-
-    const updatedProject = {
-      ...currentProject,
-      asset_ids: currentProject.asset_ids.filter(id => id !== asset.nama_file),
-      updated_at: new Date().toISOString()
-    };
-
-    const updatedProjects = projects.map(p => 
-      p.id === currentProject.id ? updatedProject : p
-    );
-
-    onUpdateProjects(updatedProjects);
-    toast.success("Asset unpinned", {
-      description: `"${asset.asset_name}" has been removed from "${currentProject.name}".`
-    });
-  };
-
-  const handleUnpinFromSpecificProject = (project: Project) => {
-    if (!onUpdateProjects) return;
-
-    const updatedProject = {
-      ...project,
-      asset_ids: project.asset_ids.filter(id => id !== asset.nama_file),
-      updated_at: new Date().toISOString()
-    };
-
-    const updatedProjects = projects.map(p => 
-      p.id === project.id ? updatedProject : p
-    );
-
-    onUpdateProjects(updatedProjects);
-    setIsDropdownOpen(false); // Close dropdown after unpin
-    toast.success("Asset unpinned", {
-      description: `"${asset.asset_name}" has been removed from "${project.name}".`
-    });
-  };
-
-  const handleOpenManageDialog = () => {
-    setIsDropdownOpen(false); // Close dropdown first
-    setShowManageProjectDialog(true);
-  };
-
-  const handleDropdownOpenChange = (open: boolean) => {
-    setIsDropdownOpen(open);
-    if (!open) {
-      setProjectSearchQuery("");
-    }
-  };
-
-  /*
-   * Download was removed in 1.0.54, from here and from the detail panel.
-   *
-   * Two attempts, both dead ends. The original was an `<a download>` pointed at
-   * `asset.url_lightroom`; the `download` attribute is IGNORED cross-origin, so
-   * it degraded to navigation and opened Lightroom in a tab while reporting
-   * "Download started!". The replacement fetched the bytes to hand them over as a
-   * same-origin blob, which is correct in principle but requires
-   * `Access-Control-Allow-Origin` from s-light.tiket.photos. That header does not
-   * exist, so the fetch is blocked and the code fell back to opening a tab too.
-   *
-   * There is no third approach that lives in the client. Until the CDN sends the
-   * header — or the app proxies the file through its own origin — there is
-   * nothing to build, so there is no button. The Source link in the detail panel
-   * opens the asset in Lightroom, which is where saving actually works.
+  /**
+   * The link chip. The whole chip is the copy button — the design shows the URL
+   * and a copy glyph on one N100 surface, with no separate action button.
    */
+  const linkChip = (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        handleCopy();
+      }}
+      title={`Copy ${asset.url_lightroom}`}
+      aria-label="Copy link"
+      className={cn(
+        "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        isCopied ? "bg-[var(--pp-bg-green-low)]" : "bg-[var(--pp-bg-backdrop)] hover:bg-[var(--pp-n200,#d8dce8)]"
+      )}
+    >
+      <span
+        className={cn(
+          "min-w-0 flex-1 truncate text-sm leading-[1.43]",
+          isCopied ? "text-[var(--pp-text-positive)]" : "text-muted-foreground"
+        )}
+      >
+        {isCopied ? "Link copied to clipboard" : asset.url_lightroom}
+      </span>
+      {isCopied ? (
+        <CheckCircle className="size-5 shrink-0 text-[var(--pp-text-positive)]" />
+      ) : (
+        <Copy03 className="size-5 shrink-0 text-[var(--pp-icon-active)]" />
+      )}
+    </button>
+  );
 
-  const tags = extractTags(asset);
-
-  /** An active chip has to be unmistakable — it's changing what you're looking at. */
-  const isTagOn = (tag: string) => activeTags.includes(tag.toLowerCase());
-  // Shared with the detail panel so the same tag can't look like two different
-  // components depending on where you see it.
-  const tagClasses = (tag: string) => tagChipClasses(isTagOn(tag));
-  const tagTitle = (tag: string) => tagChipTitle(tag, isTagOn(tag));
-
-  // Tags render on one clipped line — see the tag row below.
-
-  const ProjectDropdown = () => (
-    <DropdownMenu open={isDropdownOpen} onOpenChange={handleDropdownOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant={viewMode === "grid" ? "secondary" : "ghost"}
-          size="sm"
+  const tagRow = tags.length > 0 && (
+    <div className="flex w-full flex-nowrap items-center gap-1 overflow-hidden">
+      {tags.map((tag) => (
+        <button
+          key={tag}
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
-            setIsDropdownOpen(true);
+            onTagClick?.(tag);
           }}
-          /* Hover-reveal on desktop only.
-             This was `opacity-0 group-hover:opacity-100` at every width, and a
-             touch screen has no hover — so on phones and tablets the button was
-             permanently invisible and adding an asset to a project was impossible
-             from the grid. It is always visible below lg for that reason; the
-             hover behaviour is preserved where a pointer actually exists. */
-          className={viewMode === "grid"
-            ? `absolute top-2 right-2 ${isSmallCard ? 'p-1 w-6 h-6' : 'p-1 w-6 h-6 lg:p-1.5 lg:w-7 lg:h-7'} opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100`
-            : "p-2"
-          }
-          title="Manage project assignment"
+          title={tagChipTitle(tag, isTagOn(tag))}
+          className={cn("shrink-0", tagChipClasses(isTagOn(tag)))}
         >
-          <Plus className={isSmallCard ? "w-3 h-3" : "w-3 h-3 lg:w-4 lg:h-4"} />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56 max-h-64 overflow-y-auto" sideOffset={2}>
-        <ProjectDropdownContent
-          projects={projects}
-          projectSearchQuery={projectSearchQuery}
-          setProjectSearchQuery={setProjectSearchQuery}
-          onOpenCreateDialog={handleOpenManageDialog}
-          isInProject={isInProject}
-          currentProject={currentProject}
-          onUnpinFromProject={handleUnpinFromProject}
-          onAddToProject={handleAddToProject}
-          onUnpinFromSpecificProject={handleUnpinFromSpecificProject}
-          asset={asset}
-          setIsDropdownOpen={setIsDropdownOpen}
-        />
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {tag}
+        </button>
+      ))}
+    </div>
   );
 
   if (viewMode === "list") {
     return (
-      <Card 
-        className={`bg-card hover:bg-accent/50 transition-all duration-200 cursor-pointer shadow-sm border border-border hover:shadow-md ${
-          isSelected ? 'ring-2 ring-ring ring-offset-2' : ''
-        }`}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => onSelect?.(asset)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onSelect?.(asset);
+        }}
+        className={cn(
+          "flex cursor-pointer items-center gap-4 rounded-2xl border border-border bg-card p-3 transition-colors hover:bg-accent/40",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          isSelected && "ring-2 ring-ring"
+        )}
       >
-        <CardContent className="p-4">
-          <div className="flex items-center gap-4">
-            <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
-              <ImageWithFallback
-                src={asset.url_lightroom}
-                alt={asset.asset_name}
-                className={`w-full h-full ${
-                  asset.type === 'Micro' ? 'object-contain p-3' :
-                  asset.type === 'Icon' ? 'object-contain p-2' :
-                  'object-contain p-2'
-                }`}
-                style={{ minHeight: '100%', minWidth: '100%', display: 'block' }}
-              />
-            </div>
+        <div className="size-16 shrink-0 overflow-hidden rounded-lg bg-[var(--pp-bg-sunken)]">
+          <ImageWithFallback
+            src={asset.url_lightroom}
+            alt={asset.asset_name}
+            className="size-full object-contain p-2"
+          />
+        </div>
 
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between">
-                <div className="min-w-0 flex-1">
-                  <h4 className="truncate text-lg font-medium text-foreground">
-                    {asset.asset_name}
-                  </h4>
-                  <p className="mt-1 truncate text-sm text-muted-foreground" title={asset.nama_file}>
-                    {asset.nama_file}
-                  </p>
+        <div className="min-w-0 flex-1">
+          <h4 className="truncate text-base font-bold leading-[1.38] text-foreground">
+            {asset.asset_name}
+          </h4>
+          <p
+            className="mt-0.5 truncate text-sm leading-[1.43] text-muted-foreground"
+            title={asset.nama_file}
+          >
+            {asset.nama_file}
+          </p>
+          <div className="mt-2">{tagRow}</div>
+        </div>
 
-                  <div className="bg-muted border border-border rounded-lg mt-3 max-w-md">
-                    <div className="flex items-center px-3 py-2 gap-3">
-                      <a
-                        href={asset.url_lightroom}
-                        className="flex-1 text-sm text-muted-foreground truncate hover:text-blue-600 transition-colors underline"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {asset.url_lightroom}
-                      </a>
-                      <Button
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCopyClick(asset.url_lightroom);
-                        }}
-                        className="shrink-0 h-8 w-8 p-0 bg-[var(--pp-bg-blue-high)] hover:opacity-90 text-white rounded-md"
-                        style={isCopied ? { background: 'var(--pp-bg-green-high)' } : {}}
-                        title="Copy link"
-                      >
-                        {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
+        <span className="hidden shrink-0 rounded-full border border-border px-3 py-1 text-sm text-muted-foreground lg:inline">
+          {getAssetTypeLabel(asset.type)}
+        </span>
 
-                  {tags.length > 0 && (
-                    <div className="mt-3 overflow-hidden">
-                      <div className="flex items-start gap-2 min-w-max">
-                        {tags.map((tag, index) => (
-                          <Badge
-                            key={index}
-                            variant="secondary"
-                            className={`text-xs px-2 py-1 flex-shrink-0 ${tagClasses(tag)}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onTagClick?.(tag);
-                            }}
-                            title={tagTitle(tag)}
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+        <div className="hidden w-[280px] shrink-0 xl:block">{linkChip}</div>
 
-                <div className="flex items-center gap-2 ml-4">
-                  <ProjectDropdown />
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="p-2">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onAssetOrganize?.(asset); }}>
-                        <FolderPlus className="w-4 h-4 mr-2" />
-                        Add to Project
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelect?.(asset);
-                        }}
-                      ><Eye className="w-4 h-4 mr-2" />Preview</DropdownMenuItem>
-                      <DropdownMenuItem><Share className="w-4 h-4 mr-2" />Share</DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem><Edit className="w-4 h-4 mr-2" />Edit</DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive"><Trash2 className="w-4 h-4 mr-2" />Delete</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-
-        {/* Manage Project Dialog */}
-        <ManageProjectDialog
-          isOpen={showManageProjectDialog}
-          onClose={() => setShowManageProjectDialog(false)}
-          asset={asset}
-          projects={projects}
-          onUpdateProjects={onUpdateProjects || (() => {})}
-        />
-      </Card>
+        {islandButton}
+      </div>
     );
   }
 
-  // Grid view - responsive based on card size
   return (
-    <Card
-      className={`bg-card rounded-2xl shadow-sm group cursor-pointer transition-all duration-200 hover:shadow-lg overflow-hidden border border-border ${
-        isSelected ? 'ring-2 ring-ring ring-offset-2' : ''
-      }`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onSelect?.(asset)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") onSelect?.(asset);
+      }}
+      className={cn(
+        "group flex cursor-pointer flex-col items-center overflow-hidden rounded-2xl border border-border bg-card transition-shadow hover:shadow-md",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        isSelected && "ring-2 ring-ring"
+      )}
     >
-      <CardContent className="p-0">
-        {/* Image Container */}
-        <div className="relative overflow-hidden aspect-[4/3] bg-muted">
-          {asset.type === 'Micro' ? (
-            <div className="w-full h-full flex items-center justify-center p-4">
-              <div className="aspect-square w-full max-w-[75%] flex items-center justify-center">
-                <ImageWithFallback
-                  src={asset.url_lightroom}
-                  alt={asset.asset_name}
-                  className="w-full h-full object-contain transition-transform duration-200 group-hover:scale-105"
-                  style={{ minHeight: '100%', minWidth: '100%', display: 'block' }}
-                />
-              </div>
-            </div>
-          ) : asset.type === 'Icon' ? (
-            <div className="w-full h-full flex items-center justify-center p-4">
-              <div className="aspect-square w-full max-w-[60%] flex items-center justify-center">
-                <ImageWithFallback
-                  src={asset.url_lightroom}
-                  alt={asset.asset_name}
-                  className="w-full h-full object-contain transition-transform duration-200 group-hover:scale-105"
-                  style={{ minHeight: '100%', minWidth: '100%', display: 'block' }}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className={`w-full h-full flex items-center justify-center ${
-              isSmallCard ? 'p-2' : isMediumCard ? 'p-2 lg:p-3' : 'p-2 lg:p-4'
-            }`}>
-              <ImageWithFallback
-                src={asset.url_lightroom}
-                alt={asset.asset_name}
-                className="w-full h-full object-contain transition-transform duration-200 group-hover:scale-105"
-                style={{ minHeight: '100%', minWidth: '100%', display: 'block' }}
-              />
-            </div>
+      <div className="relative w-full overflow-hidden">
+        <div
+          className={cn(
+            "flex w-full flex-col items-center justify-center overflow-hidden bg-[var(--pp-bg-sunken)] px-5",
+            isDense ? "py-2" : "py-3"
           )}
-
-          {/* Hover overlay - only show on larger cards */}
-          {!isSmallCard && (
-            <div className={`absolute inset-0 bg-black/40 items-center justify-center gap-2 transition-opacity duration-200 hidden lg:flex ${
-              isHovered ? "opacity-100" : "opacity-0"
-            }`}>
-              {/* Preview opens the detail panel, exactly like clicking the card.
-                  Zoom then lives inside that panel, so there's a single path
-                  (card -> detail -> zoom) instead of two competing ones. */}
-              <Button
-                size="sm"
-                className="text-xs px-3 py-1.5 bg-white/90 text-gray-900 hover:bg-white"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelect?.(asset);
-                }}
-                title="Open details"
-              >
-                <Eye className="w-3 h-3 mr-1" />
-                {!isMediumCard && <span>Preview</span>}
-              </Button>
-            </div>
-          )}
-
-          {/* Type badge - only show on hover and larger cards */}
-          {!isSmallCard && (
-            <div className={`absolute top-2 left-2 px-2 py-1 bg-black/60 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity ${
-              isSmallCard ? 'text-xs' : 'text-xs'
-            }`}>
-              {getAssetTypeLabel(asset.type)}
-            </div>
-          )}
-
-          <ProjectDropdown />
+        >
+          <ImageWithFallback
+            src={asset.url_lightroom}
+            alt={asset.asset_name}
+            /* Fixed 160px tall, as drawn. Icons and micro illustrations are
+               authored small, so filling the box blows them up past their
+               intended size — they get extra inset instead. */
+            className={cn(
+              "w-full object-contain transition-transform duration-200 group-hover:scale-[1.03]",
+              isDense ? "h-[120px]" : "h-[160px]",
+              asset.type === "Icon" ? "p-6" : asset.type === "Micro" ? "p-4" : ""
+            )}
+          />
         </div>
 
-        {/*
-          Content padding, and the whole block below it, compacts at the base
-          breakpoint before the `gridColumns` density is applied at lg.
+        {/* Hover scrim. It darkens the thumbnail only, never the text block
+            below, so the type chip and the + button read against it while the
+            name and tags stay on the card surface. */}
+        <div
+          className="pointer-events-none absolute inset-0 bg-[rgba(24,25,27,0.5)] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+          aria-hidden="true"
+        />
 
-          `gridColumns` is a DESKTOP setting: `isSmallCard` only becomes true when
-          the user picks 7+ columns. It says nothing about how much room the card
-          actually has, so a phone rendering a 2-up grid used to get a card built
-          for a ~300px desktop slot inside a ~160px one — which is what pushed the
-          copy button outside the card. The `lg:` prefixes below mean the base
-          styles are the compact ones and the roomy desktop values only apply once
-          there is desktop room to apply them in.
-        */}
-        <div className={isSmallCard ? "p-2" : isMediumCard ? "p-2 lg:p-3" : "p-2 lg:p-4"}>
-          {/* Title - responsive font size */}
-          {/* truncate, not overflow-x-auto. A per-card horizontal scrollbar is
-              noise at 50 cards a page, and it hides content behind a gesture
-              nobody discovers. Full value stays available via title + the
-              detail panel. */}
-          <h4 className={`mb-1 truncate font-medium text-foreground ${
-            isSmallCard ? 'text-sm' : 'text-sm lg:text-base'
-          }`} title={asset.asset_name}>
-            {asset.asset_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-          </h4>
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between p-2">
+          {/* The asset's type, shown only on hover — it is already implied by
+              the artwork at rest, and a permanent chip competes with the name.
 
-          {/* Filename — truncated. Hover shows the full name; the detail panel
-              wraps it across up to 3 lines when you actually need to read it. */}
-          <p className={`truncate text-muted-foreground ${
-            isSmallCard ? 'text-xs mb-2' : 'text-xs mb-2 lg:text-sm lg:mb-3'
-          }`} title={asset.nama_file}>
-            {asset.nama_file}
-          </p>
+              static-white rather than text-invert: the fill is always N900, so
+              the label must not flip with the theme. */}
+          <span className="pointer-events-none flex items-center gap-0.5 rounded-[54px] bg-[var(--pp-n900)] px-2 py-0.5 text-sm leading-[1.43] text-[var(--pp-text-static-white)] opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+            {getAssetTypeLabel(asset.type)}
+          </span>
+          {islandButton}
+        </div>
+      </div>
 
-          {/* URL with copy button - responsive sizing */}
-          <div className={`overflow-hidden bg-muted border border-border rounded-lg ${
-            isSmallCard ? 'mb-2' : 'mb-2 lg:mb-3'
-          }`}>
-            <div className={`flex items-center gap-1 lg:gap-2 ${
-              isSmallCard ? 'px-2 py-1.5' : 'px-2 py-1.5 lg:px-3 lg:py-2'
-            }`}>
-              {/* min-w-0 + size={1} are load-bearing.
-                  A flex item defaults to min-width:auto, and for an <input>
-                  that resolves to its INTRINSIC width — roughly 20 characters,
-                  ~180px. So the input refused to shrink and shoved the copy
-                  button outside the card at dense column counts (7-10), where
-                  the whole card is only ~130px wide. */}
-              <input
-                type="text"
-                size={1}
-                value={asset.url_lightroom}
-                readOnly
-                className={`min-w-0 flex-1 text-muted-foreground bg-transparent border-none outline-none cursor-pointer ${
-                  isSmallCard ? 'text-xs' : 'text-xs lg:text-sm'
-                }`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  (e.target as HTMLInputElement).select();
-                }}
-              />
-              <Button
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCopyClick(asset.url_lightroom);
-                }}
-                className={`shrink-0 p-0 bg-[var(--pp-bg-blue-high)] hover:opacity-90 text-white ${
-                  isSmallCard ? 'h-6 w-6 rounded-sm' : 'h-6 w-6 rounded-sm lg:h-8 lg:w-8 lg:rounded-md'
-                }`}
-                style={isCopied ? { background: 'var(--pp-bg-green-high)' } : {}}
-                title="Copy link"
-              >
-                {isCopied ? (
-                  <Check className={isSmallCard ? "h-3 w-3" : "h-3 w-3 lg:h-4 lg:w-4"} />
-                ) : (
-                  <Copy className={isSmallCard ? "h-3 w-3" : "h-3 w-3 lg:h-4 lg:w-4"} />
-                )}
-              </Button>
-            </div>
+      <div
+        className={cn(
+          "flex w-full flex-col justify-center bg-card px-4",
+          isDense ? "gap-2 pb-3 pt-2" : "gap-4 pb-5 pt-3"
+        )}
+      >
+        <div className="flex w-full flex-col justify-center gap-2 overflow-hidden">
+          <div className="flex w-full flex-col gap-0.5">
+            <h4
+              className={cn(
+                "w-full truncate font-bold text-foreground",
+                isDense ? "text-base leading-[1.38]" : "text-lg leading-[1.33]"
+              )}
+              title={asset.asset_name}
+            >
+              {asset.asset_name}
+            </h4>
+            <p
+              className="w-full truncate text-sm leading-[1.43] text-muted-foreground"
+              title={asset.nama_file}
+            >
+              {asset.nama_file}
+            </p>
           </div>
 
-          {/* Tags - horizontal scroll, show all tags */}
-          {tags.length > 0 && (
-            <div className={isSmallCard ? 'mb-1' : 'mb-1 lg:mb-2'}>
-              {/* Wraps to a single line and clips, rather than scrolling. */}
-              <div className={`flex flex-nowrap overflow-hidden ${
-                isSmallCard ? 'gap-1' : 'gap-1 lg:gap-1.5'
-              }`}>
-                {tags.map((tag, index) => (
-                  <Badge
-                    key={index}
-                    variant="secondary"
-                    className={`flex-shrink-0 ${tagClasses(tag)} ${
-                      isSmallCard ? 'text-xs px-1.5 py-0.5' : 'text-xs px-1.5 py-0.5 lg:px-2 lg:py-1'
-                    }`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onTagClick?.(tag);
-                    }}
-                    title={tagTitle(tag)}
-                  >
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
+          {linkChip}
         </div>
-      </CardContent>
 
-      {/* Manage Project Dialog */}
-      <ManageProjectDialog
-        isOpen={showManageProjectDialog}
-        onClose={() => setShowManageProjectDialog(false)}
-        asset={asset}
-        projects={projects}
-        onUpdateProjects={onUpdateProjects || (() => {})}
-      />
-
-
-    </Card>
+        {!isDense && tagRow}
+      </div>
+    </div>
   );
 }
 
-// Memoized — with hundreds/thousands of cards on screen at once, this avoids
-// re-rendering every single card when something unrelated elsewhere changes.
+// Memoized — with hundreds of cards on screen at once, this avoids re-rendering
+// every single one when something unrelated elsewhere changes.
 export const AssetCard = memo(AssetCardImpl);

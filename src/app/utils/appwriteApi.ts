@@ -10,6 +10,7 @@ import {
   APPWRITE_SETTINGS_BUCKET_ID,
   ABOUT_IMAGE_FILE_ID,
   SUPERUSER_CREDENTIAL_FILE_ID,
+  APPWRITE_CONFIG_ERROR,
 } from './appwrite';
 
 export interface Asset {
@@ -21,6 +22,17 @@ export interface Asset {
   created_at?: string;
   updated_at?: string;
 }
+
+/**
+ * An asset that does not exist in the database yet.
+ *
+ * `id` is Appwrite's document $id, minted by `ID.unique()` at insert time, and
+ * `created_at`/`updated_at` come from $createdAt/$updatedAt — so none of the
+ * three can be known by a caller building rows from a CSV. The create paths
+ * previously asked for `Omit<Asset, 'created_at' | 'updated_at'>`, which still
+ * demanded an `id` that is ignored on the way in.
+ */
+export type AssetDraft = Omit<Asset, 'id' | 'created_at' | 'updated_at'>;
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -366,6 +378,12 @@ export async function getAllAssets(options?: {
   /** Bypass the snapshot and read the database. For the superuser before a write. */
   fromDatabase?: boolean;
 }): Promise<ApiResponse<Asset[]>> {
+  // Without credentials every request below fails, but each one fails as a
+  // connection error. Stop here so the real cause is what reaches the user.
+  if (APPWRITE_CONFIG_ERROR) {
+    return { success: false, error: APPWRITE_CONFIG_ERROR };
+  }
+
   const cached = options?.forceRefresh ? null : await readCachedAssets<Asset>();
 
   // --- Snapshot path: no database involvement whatsoever ---
@@ -470,7 +488,7 @@ export async function getAssetByFilename(nama_file: string): Promise<ApiResponse
 }
 
 // Create a single asset (CRUD - CREATE)
-export async function createAsset(asset: Omit<Asset, 'created_at' | 'updated_at'>): Promise<ApiResponse<Asset>> {
+export async function createAsset(asset: AssetDraft): Promise<ApiResponse<Asset>> {
   console.log('➕ Creating asset with filename key:', asset.nama_file);
   try {
     const existing = await findDocumentByFilename(asset.nama_file);
@@ -658,7 +676,7 @@ export async function getExistingAssetIndex(
 }
 
 export async function bulkCreateAssets(
-  assets: Omit<Asset, 'created_at' | 'updated_at'>[],
+  assets: AssetDraft[],
   onProgress?: (done: number, total: number) => void,
   options?: {
     // When true, rows whose filename already exists in the database get their
@@ -1101,36 +1119,6 @@ export function getAssetCounts(assets: Asset[]): Record<string, number> {
   };
   
   return counts;
-}
-
-// Generate thumbnail URL (placeholder for now)
-export function generateThumbnail(asset: Asset): string {
-  // For now, return the Lightroom URL, but in a real app you might generate thumbnails
-  return asset.url_lightroom || `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&h=300&fit=crop&crop=center`;
-}
-
-// Generate tags based on asset properties
-export function generateTags(asset: Asset): string[] {
-  const tags: string[] = [];
-  
-  // Add type-based tags
-  if (asset.type === "Spot") {
-    tags.push("Illustration", "Visual", "Graphic");
-  } else if (asset.type === "Micro") {
-    tags.push("Micro", "Small", "Icon");
-  } else if (asset.type === "Icon") {
-    tags.push("Icon", "UI", "Interface");
-  }
-  
-  // Add name-based tags (simple word extraction)
-  const nameWords = asset.asset_name.split(" ");
-  nameWords.forEach(word => {
-    if (word.length > 2) {
-      tags.push(word.toLowerCase());
-    }
-  });
-  
-  return [...new Set(tags)]; // Remove duplicates
 }
 
 // Validate filename format

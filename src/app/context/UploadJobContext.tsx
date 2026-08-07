@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { bulkCreateAssets, type Asset } from "../utils/appwriteApi";
+import { bulkCreateAssets, type AssetDraft } from "../utils/appwriteApi";
 import { toast } from "sonner";
 
 export type JobStatus = "idle" | "running" | "paused" | "done" | "error" | "cancelled";
@@ -31,7 +31,7 @@ interface UploadJobContextValue extends UploadJob {
   progress: number;
   isActive: boolean;
   start: (
-    assets: Omit<Asset, "created_at" | "updated_at">[],
+    assets: AssetDraft[],
     opts: { label: string; updateExistingType?: boolean; updateExistingLink?: boolean }
   ) => Promise<void>;
   pause: () => void;
@@ -78,7 +78,7 @@ export function UploadJobProvider({ children }: { children: ReactNode }) {
 
   const start = useCallback(
     async (
-      assets: Omit<Asset, "created_at" | "updated_at">[],
+      assets: AssetDraft[],
       opts: { label: string; updateExistingType?: boolean; updateExistingLink?: boolean }
     ) => {
       if (runningRef.current) {

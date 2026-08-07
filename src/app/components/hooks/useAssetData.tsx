@@ -61,7 +61,6 @@ export function useAssetData() {
         "Icons": 0,
         "Supergraphic": 0,
         "Other": 0,
-        "Projects": 0
       });
       
     } finally {

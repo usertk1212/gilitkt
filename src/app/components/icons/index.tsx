@@ -171,7 +171,6 @@ export const SearchIcon = make("search-md");
 export const Settings = make("settings-01");
 export const Share = make("share-01");
 export const Shield = make("shield-tick");
-export const SlidersHorizontal = make("sliders-02");
 export const Sort = make("switch-vertical-01");
 export const Sparkles = make("stars-01");
 export const Sun = make("sun");

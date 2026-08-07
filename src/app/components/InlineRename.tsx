@@ -115,7 +115,9 @@ export function InlineRename({ asset, onRenamed, className = "" }: InlineRenameP
       {saving ? (
         <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
       ) : (
-        <Check className="h-4 w-4 shrink-0 text-[var(--pp-text-positive)]" title="Enter to save, Esc to cancel" />
+        <span className="shrink-0" title="Enter to save, Esc to cancel">
+          <Check className="h-4 w-4 text-[var(--pp-text-positive)]" />
+        </span>
       )}
     </div>
   );
