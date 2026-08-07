@@ -46,14 +46,19 @@ export function UserMenu({
           className={cn(
             "flex items-center rounded-xl transition-colors",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            unlocked
-              ? "gili-user-trigger-super"
-              : "border-[0.8px] border-[var(--pp-stroke-light)] bg-card hover:bg-accent/50",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            collapsed ? "size-8 justify-center p-0" : "w-full gap-2.5 px-2 py-2.5"
+            // Collapsed is the bare avatar — no plate, no stroke, no superuser
+            // gradient. The rail is 60px of icons, and a filled chip at the foot
+            // read as a fifth nav item rather than as the person using the app.
+            // The button keeps its 32px box for the hit area; only the surface
+            // goes.
+            collapsed
+              ? "size-8 justify-center bg-transparent p-0 hover:bg-transparent"
+              : unlocked
+                ? "gili-user-trigger-super w-full gap-2.5 px-2 py-2.5"
+                : "w-full gap-2.5 border-[0.8px] border-[var(--pp-stroke-light)] bg-card px-2 py-2.5 hover:bg-accent/50"
           )}
         >
-          <Avatar superuser={unlocked} />
+          <Avatar superuser={unlocked} size={collapsed ? 32 : 24} />
           {!collapsed && (
             <>
               <span
@@ -83,11 +88,14 @@ export function UserMenu({
         sideOffset={8}
         className="w-52"
       >
-        {/* No padding here: PopoverContent already supplies the 16px top and
-            bottom, and repeating it on the wrapper doubled it to 32px. */}
+        {/* 16px on all four edges, and it is assembled from two places.
+            Vertical comes from PopoverContent's own py-4. Horizontal is
+            GlassMenu's px-2 (8px) plus each row's px-2 (8px). The rows carried
+            px-4 before, which put content 24px from the edge — visibly wider
+            than the top and bottom. */}
         <GlassMenu>
           <div className="flex w-full flex-col gap-3 pb-2">
-            <p className="flex items-center gap-2 px-4 text-base text-white">
+            <p className="flex items-center gap-2 px-2 text-base text-white">
               <HandWave className="size-6 shrink-0" />
               {unlocked ? (
                 <span className="font-bold">SuperUser!</span>
@@ -98,7 +106,7 @@ export function UserMenu({
               )}
             </p>
 
-            <div className="px-4">
+            <div className="px-2">
               {/* The design gives these two the same geometry as a Med button
                   and differentiates them by stroke, so they are Buttons rather
                   than the hand-rolled element that used to sit here with a flat
@@ -117,7 +125,7 @@ export function UserMenu({
             </div>
 
             {unlocked && (
-              <div className="px-4">
+              <div className="px-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -134,7 +142,7 @@ export function UserMenu({
 
           <GlassMenuDivider />
 
-          <div className="flex w-full items-center gap-3 px-4">
+          <div className="flex w-full items-center gap-3 px-2">
             <p className="min-w-0 flex-1 text-base font-bold text-white">Theme</p>
             <div className="flex w-16 items-center justify-center gap-1 rounded-full bg-[var(--pp-n800,#303135)] p-1">
               <ThemeOption
@@ -160,7 +168,7 @@ export function UserMenu({
               close();
               onOpenAbout();
             }}
-            className="flex w-full flex-col items-start gap-0.5 px-4 text-left transition-colors hover:text-white/80"
+            className="flex w-full flex-col items-start gap-0.5 px-2 text-left transition-colors hover:text-white/80"
           >
             <span className="text-base font-bold text-white">About</span>
             <span className="text-sm text-white">GILI v{APP_VERSION}</span>
@@ -209,14 +217,18 @@ function ThemeOption({
  * outside it. They live in public/assets/avatar/ so Vite copies them through
  * untouched and they resolve at /assets/avatar/ in the build.
  */
-function Avatar({ superuser }: { superuser: boolean }) {
+function Avatar({ superuser, size = 24 }: { superuser: boolean; size?: 24 | 32 }) {
   return (
     <img
       src={superuser ? "/assets/avatar/superuser.png" : "/assets/avatar/guest.png"}
       alt=""
-      width={24}
-      height={24}
-      className="block size-6 shrink-0 rounded-full"
+      width={size}
+      height={size}
+      // 32px collapsed so the orb matches the GILI mark at the top of the rail —
+      // they are the only two round-ish objects in that column, and at 24px the
+      // avatar read as an afterthought below a larger logo.
+      // Literal class names, not `size-${n}`: Tailwind purges interpolated ones.
+      className={cn("block shrink-0 rounded-full", size === 32 ? "size-8" : "size-6")}
     />
   );
 }

@@ -162,9 +162,26 @@ function AssetCardImpl({
     </button>
   );
 
+  /*
+   * How many chips a card can hold before the rest become a "+N".
+   *
+   * Capped by column count rather than measured at runtime. A ResizeObserver per
+   * card would be more exact, but there are up to 100 cards on screen and the
+   * observers would fire on every density change and every window resize — an
+   * expensive way to answer a question the column count already answers.
+   *
+   * The row used to be `overflow-hidden` with every chip rendered, which clipped
+   * the last one mid-word: a card showing "Update · Document · W" told you a
+   * fourth tag existed but not that there were three more. A count is smaller
+   * and says more.
+   */
+  const maxVisibleTags = gridColumns >= 7 ? 1 : gridColumns >= 5 ? 2 : 3;
+  const visibleTags = tags.slice(0, maxVisibleTags);
+  const hiddenTags = tags.slice(maxVisibleTags);
+
   const tagRow = tags.length > 0 && (
     <div className="flex w-full flex-nowrap items-center gap-1 overflow-hidden">
-      {tags.map((tag) => (
+      {visibleTags.map((tag) => (
         <button
           key={tag}
           type="button"
@@ -173,11 +190,22 @@ function AssetCardImpl({
             onTagClick?.(tag);
           }}
           title={tagChipTitle(tag, isTagOn(tag))}
-          className={cn("shrink-0", tagChipClasses(isTagOn(tag)))}
+          className={cn("min-w-0 shrink truncate", tagChipClasses(isTagOn(tag)))}
         >
           {tag}
         </button>
       ))}
+      {hiddenTags.length > 0 && (
+        // Not a button: it filters nothing, and a chip that looks interactive but
+        // does nothing is worse than one that plainly reports a number. The full
+        // list is on the title so it stays reachable without opening the asset.
+        <span
+          title={hiddenTags.join(", ")}
+          className={cn("shrink-0 tabular-nums", tagChipClasses(false))}
+        >
+          {hiddenTags.length}+
+        </span>
+      )}
     </div>
   );
 
@@ -312,7 +340,10 @@ function AssetCardImpl({
           {linkChip}
         </div>
 
-        {!isDense && tagRow}
+        {/* Shown at every density now, including 7 and 8 columns where it used
+            to be dropped entirely. The chip cap above is what makes that fit —
+            one chip plus a count, rather than three chips clipped mid-word. */}
+        {tagRow}
       </div>
     </div>
   );
