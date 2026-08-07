@@ -2,7 +2,7 @@
 
 Asset management dashboard for organizing illustration assets.
 
-**Version:** 1.0.54
+**Version:** 1.1.0
 
 ## ✨ Features
 
@@ -74,7 +74,7 @@ npm run dev
 
 ## 📝 Changelog
 
-### 1.0.54
+### 1.1.0
 - **Filenames now match case-insensitively.** `Halim.png` and `halim.png` are one asset, not two. Comparisons used the raw string everywhere, so a re-upload spelled with different capitalisation was graded **New** instead of **Replaced** — the link was never replaced, the old artwork stayed live, and the import created a **second row** for the same asset with no way to tell which was current. The in-batch duplicate guard missed it too, so a CSV carrying both spellings imported both without complaint
 - One `assetKey()` helper is now the single definition of "same filename", used by the database checker, Manual Input, the CSV viewer, the import engine's existing-row lookup and its in-batch duplicate guard, and the Analytics duplicate check — which was itself reporting case-variant duplicates as two healthy assets
 - **Stored filenames are untouched.** `assetKey()` is for lookups only; `nama_file` keeps whatever casing it was created with, because it is the string people copy, paste and search for. Normalising it would silently rename thousands of assets
